@@ -50,7 +50,8 @@ android {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'de.irt.hradio:dabaudiodecoderplugininterface:1.0.0'
+//    implementation 'de.irt.hradio:dabaudiodecoderplugininterface:1.0.0'
+    implementation project(path: ':dabaudiodecoderplugininterface')
     implementation 'com.google.android.exoplayer:exoplayer-core:2.7.3'
 
     implementation 'eu.hradio.core:radiodns:1.1.2'

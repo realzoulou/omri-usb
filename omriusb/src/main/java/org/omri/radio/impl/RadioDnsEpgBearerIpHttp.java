@@ -1,7 +1,8 @@
 package org.omri.radio.impl;
 
 import android.os.Build;
-import android.support.annotation.NonNull;
+
+import androidx.annotation.NonNull;
 
 import java.io.Serializable;
 import java.util.Objects;

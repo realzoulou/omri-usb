@@ -1,8 +1,9 @@
 package org.omri.radio.impl;
 
 import android.os.Build;
-import android.support.annotation.NonNull;
 import android.util.Log;
+
+import androidx.annotation.NonNull;
 
 import org.omri.radioservice.RadioServiceMimeType;
 
