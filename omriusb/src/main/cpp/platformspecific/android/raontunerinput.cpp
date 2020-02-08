@@ -173,7 +173,9 @@ void RaonTunerInput::startServiceSync(std::shared_ptr<JDabService> serviceLink) 
     if(m_startServiceLink != nullptr) {
         m_startServiceLink->decodeAudio(false);
         if(m_startServiceLink->getJavaDabServiceObject() != nullptr) {
-            m_usbDevice->serviceStopped(m_startServiceLink->getJavaDabServiceObject());
+            if (m_usbDevice != nullptr) {
+                m_usbDevice->serviceStopped(m_startServiceLink->getJavaDabServiceObject());
+            }
         }
     }
 
@@ -267,8 +269,10 @@ void RaonTunerInput::startScanCommand() {
     m_ficCollectionWaitLoops = 300;
     tuneFrequency(DAB_FREQ_TABLE_MHZ[m_currentScanningEnsembleNum] * 1000);
     m_startServiceLink = nullptr;
-    m_usbDevice->callCallback(JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_SCAN_IN_PROGRESS);
-    m_usbDevice->scanProgress(0);
+    if (m_usbDevice != nullptr) {
+        m_usbDevice->callCallback(JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_SCAN_IN_PROGRESS);
+        m_usbDevice->scanProgress(0);
+    }
 }
 
 void RaonTunerInput::stopScanCommand() {
@@ -278,7 +282,9 @@ void RaonTunerInput::stopScanCommand() {
     m_isScanning = false;
     m_currentScanningEnsembleNum = 0;
     tuneFrequency(0xFFFFFFFF);
-    m_usbDevice->callCallback(JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_CALLBACK_READY);
+    if (m_usbDevice != nullptr) {
+        m_usbDevice->callCallback(JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_CALLBACK_READY);
+    }
     startReadDataThread();
 }
 
@@ -322,11 +328,15 @@ void RaonTunerInput::scanNext() {
         }
         tuneFrequency(DAB_FREQ_TABLE_MHZ[++m_currentScanningEnsembleNum] * 1000);
 
-        m_usbDevice->scanProgress(m_currentScanningEnsembleNum*100/NUM_DAB_ENSEMBLES);
+        if (m_usbDevice != nullptr) {
+            m_usbDevice->scanProgress(m_currentScanningEnsembleNum * 100 / NUM_DAB_ENSEMBLES);
+        }
     } else {
         std::cout << LOG_TAG << (m_usbDevice != nullptr ? (m_usbDevice.get()->getDeviceName()) : "NULL") << " Scan finished: " << +m_currentScanningEnsembleNum << std::endl;
-        m_usbDevice->scanProgress(100);
-        m_usbDevice->callCallback(JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_CALLBACK_READY);
+        if (m_usbDevice != nullptr) {
+            m_usbDevice->scanProgress(100);
+            m_usbDevice->callCallback(JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_CALLBACK_READY);
+        }
         m_isScanning = false;
         m_currentScanningEnsembleNum = 0;
 
@@ -336,7 +346,11 @@ void RaonTunerInput::scanNext() {
 }
 
 std::string RaonTunerInput::getDeviceName() const {
-    return m_usbDevice->getDeviceName();
+    if (m_usbDevice != nullptr) {
+        return m_usbDevice->getDeviceName();
+    } else {
+        return nullptr;
+    }
 }
 
 //
@@ -385,7 +399,9 @@ void RaonTunerInput::setService() {
                 }
 
                 m_startServiceLink->decodeAudio(true);
-                m_usbDevice->serviceStarted(m_startServiceLink->getJavaDabServiceObject());
+                if (m_usbDevice != nullptr) {
+                    m_usbDevice->serviceStarted(m_startServiceLink->getJavaDabServiceObject());
+                }
                 break;
             }
         }
@@ -396,7 +412,9 @@ void RaonTunerInput::ensembleCollectFinished() {
     std::cout << LOG_TAG << "Ensemble collect finished" << std::endl;
 
     if(m_isScanning) {
-        m_usbDevice->ensembleReady(getEnsemble());
+        if (m_usbDevice != nullptr) {
+            m_usbDevice->ensembleReady(getEnsemble());
+        }
         m_scanCommandQueue.push(std::bind(&RaonTunerInput::scanNext, this));
     }
 
@@ -424,22 +442,31 @@ bool RaonTunerInput::tunerPowerUp() {
 
 void RaonTunerInput::switchPage(RaonTunerInput::REGISTER_PAGE regPage) {
     std::vector<uint8_t> switchData{0x21, 0x00, 0x00, 0x02, 0x03, static_cast<uint8_t >(regPage)};
-    int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, switchData);
+    if (m_usbDevice != nullptr) {
+        int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, switchData);
+    }
 }
 
 void RaonTunerInput::setRegister(uint8_t reg, uint8_t val) {
     std::vector<uint8_t> setRegData{0x21, 0x00, 0x00, 0x02, reg, val};
-    int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, setRegData);
+    if (m_usbDevice != nullptr) {
+        int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, setRegData);
+    }
 }
 
 uint8_t RaonTunerInput::readRegister(uint8_t reg) {
     std::vector<uint8_t> readRegReqData{0x22, 0x00, 0x01, 0x00, reg};
-    int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, readRegReqData);
+    if (m_usbDevice != nullptr) {
+        int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, readRegReqData);
 
-    std::vector<uint8_t> readBuffer(5);
-    bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, readBuffer);
+        std::vector<uint8_t> readBuffer(5);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, readBuffer);
 
-    return readBuffer[4];
+        return readBuffer[4];
+    } else {
+        std::cout << LOG_TAG << "readRegister: no USB device" << std::endl;
+        return 0;
+    }
 }
 
 void RaonTunerInput::configurePowerType() {
@@ -944,18 +971,20 @@ void RaonTunerInput::rtvRFInitilize() {
 
 void RaonTunerInput::rtvRfSpecial() {
     std::vector<uint8_t> readReq = {0x10, 0x00, 0x00, 0x01};
-    int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, readReq);
+    if (m_usbDevice != nullptr) {
+        int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, readReq);
 
-    std::vector<uint8_t> readReqBuf(4);
-    bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, readReqBuf);
+        std::vector<uint8_t> readReqBuf(4);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, readReqBuf);
 
-    readReq = {0x00, 0x00, 0x00, 0x00};
-    bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, readReq);
-    bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, readReqBuf);
+        readReq = {0x00, 0x00, 0x00, 0x00};
+        bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, readReq);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, readReqBuf);
 
-    readReq = {0x01, 0x00, 0x00, 0x00};
-    bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, readReq);
-    bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, readReqBuf);
+        readReq = {0x01, 0x00, 0x00, 0x00};
+        bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, readReq);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, readReqBuf);
+    }
 }
 
 void RaonTunerInput::setFrequency(uint32_t frequencyKhz) {
@@ -1085,7 +1114,9 @@ void RaonTunerInput::closeSubchannel(uint8_t subchanId) {
     if(m_startServiceLink != nullptr) {
         m_startServiceLink->decodeAudio(false);
         if(m_startServiceLink->getJavaDabServiceObject() != nullptr) {
-            m_usbDevice->serviceStopped(m_startServiceLink->getJavaDabServiceObject());
+            if (m_usbDevice != nullptr) {
+                m_usbDevice->serviceStopped(m_startServiceLink->getJavaDabServiceObject());
+            }
         }
 
         m_startServiceLink = nullptr;
@@ -1116,7 +1147,7 @@ void RaonTunerInput::readFic() {
     uint8_t demodStat = readRegister(INT_E_STATL);
     bool ficInt = (demodStat & FIC_E_INT);
 
-    if(ficInt) {
+    if(ficInt && (m_usbDevice != nullptr)) {
         switchPage(REGISTER_PAGE_FIC);
 
         std::vector<uint8_t> reqFic = {0x22, 0x00, 0x80, 0x01, 0x10};
@@ -1280,20 +1311,23 @@ void RaonTunerInput::readMscData() {
     //2048
     //std::vector<uint8_t> mscReqBuf = {0x22, 0x00, 0x00, 0x08, 0x10};
     std::vector<uint8_t> mscReqBuf = {0x22, 0x00, 0x00, 0x08, 0x10};
-
     std::vector<uint8_t> mscRecBuff(4096);
 
-    int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, mscReqBuf);
-    bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff);
+    if (m_usbDevice != nullptr) {
+        int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, mscReqBuf);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff);
 
-    //std::cout << LOG_TAG << "ReadData: " << +bytesTransfered << std::endl;
+        //std::cout << LOG_TAG << "ReadData: " << +bytesTransfered << std::endl;
 
-    if(m_startServiceLink != nullptr && bytesTransfered > 0) {
-        dataInput(std::vector<uint8_t>(mscRecBuff.begin()+4, mscRecBuff.begin()+bytesTransfered), m_currentSubchanId, false);
-    } else {
-        std::cout << LOG_TAG << "StartServiceLink is null" << std::endl;
+        if (m_startServiceLink != nullptr && bytesTransfered > 0) {
+            dataInput(
+                    std::vector<uint8_t>(mscRecBuff.begin() + 4,
+                                         mscRecBuff.begin() + bytesTransfered),
+                    m_currentSubchanId, false);
+        } else {
+            std::cout << LOG_TAG << "StartServiceLink is null" << std::endl;
+        }
     }
-
     //clear buffer
     switchPage(REGISTER_PAGE_DD);
     setRegister(INT_E_UCLRL, 0x04);
@@ -1301,25 +1335,27 @@ void RaonTunerInput::readMscData() {
 
 void RaonTunerInput::readFicData() {
     switchPage(REGISTER_PAGE_FIC);
+    if (m_usbDevice != nullptr) {
+        std::vector<uint8_t> reqFic = {0x22, 0x00, 0x80, 0x01, 0x10};
+        int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, reqFic);
 
-    std::vector<uint8_t> reqFic = {0x22, 0x00, 0x80, 0x01, 0x10};
-    int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, reqFic);
+        std::vector<uint8_t> reFicRet(400);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, reFicRet);
 
-    std::vector<uint8_t> reFicRet(400);
-    bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, reFicRet);
+        switchPage(REGISTER_PAGE_DD);
+        /* FIC interrupt status clear */
+        setRegister(INT_E_UCLRL, 0x01);
 
-    switchPage(REGISTER_PAGE_DD);
-    /* FIC interrupt status clear */
-    setRegister(INT_E_UCLRL, 0x01);
+        //std::cout << LOG_TAG << "FicData Hdr: " << +reFicRet.size() << " : " << +bytesTransfered  << " : " << std::hex << std::setfill('0') << std::setw(2) << +reFicRet[0] << +reFicRet[1] << +reFicRet[2] << +reFicRet[3] << std::dec << std::endl;
+        //std::cout << LOG_TAG << "FicData: " << std::hex << std::setfill('0') << std::setw(2) << +reFicRet[5] << +reFicRet[6] << +reFicRet[7] << +reFicRet[8] << std::dec << std::endl;
 
-    //std::cout << LOG_TAG << "FicData Hdr: " << +reFicRet.size() << " : " << +bytesTransfered  << " : " << std::hex << std::setfill('0') << std::setw(2) << +reFicRet[0] << +reFicRet[1] << +reFicRet[2] << +reFicRet[3] << std::dec << std::endl;
-    //std::cout << LOG_TAG << "FicData: " << std::hex << std::setfill('0') << std::setw(2) << +reFicRet[5] << +reFicRet[6] << +reFicRet[7] << +reFicRet[8] << std::dec << std::endl;
-
-    for(int i = 0; i < ((bytesTransfered - 4) / 32); i++) {
-        try {
-            dataInput(std::vector<uint8_t>(reFicRet.begin() + 4 + i * 32, reFicRet.begin() + 4 + i * 32 + 32), 0x64, false);
-        } catch(std::length_error& lenErr) {
-            std::cout << LOG_TAG << "Length error..." << std::endl;
+        for (int i = 0; i < ((bytesTransfered - 4) / 32); i++) {
+            try {
+                dataInput(std::vector<uint8_t>(reFicRet.begin() + 4 + i * 32,
+                                               reFicRet.begin() + 4 + i * 32 + 32), 0x64, false);
+            } catch (std::length_error &lenErr) {
+                std::cout << LOG_TAG << "Length error..." << std::endl;
+            }
         }
     }
 }
@@ -1373,7 +1409,7 @@ void RaonTunerInput::readData() {
               " FecSoftReset: " << fecSoftreset << \
               std::noboolalpha << std::endl;
 
-    if(ficInt) {
+    if(ficInt && (m_usbDevice != nullptr)) {
         switchPage(REGISTER_PAGE_FIC);
 
         std::vector<uint8_t> reqFic = {0x22, 0x00, 0x80, 0x01, 0x10};
@@ -1418,7 +1454,7 @@ void RaonTunerInput::readData() {
         return;
     }
 
-    if(msc1Int) {
+    if(msc1Int && (m_usbDevice != nullptr)) {
         //std::cout << LOG_TAG << "Reading MSC memory" << std::endl;
 
         switchPage(REGISTER_PAGE_MSC1);
@@ -1502,7 +1538,9 @@ void RaonTunerInput::getAntennaLevel() {
         rcnt0 = readRegister(0x8F);
     } else {
         cer_period_cnt = 0;
-        m_usbDevice.get()->receptionStatistics(false, 0);
+        if (m_usbDevice != nullptr) {
+            m_usbDevice.get()->receptionStatistics(false, 0);
+        }
         return;
     }
 
@@ -1548,8 +1586,9 @@ void RaonTunerInput::getAntennaLevel() {
 
         m_prevAntennaLvl = static_cast<uint8_t>(prevLevel);
     }
-
-    m_usbDevice.get()->receptionStatistics(true, prevLevel);
+    if (m_usbDevice != nullptr) {
+        m_usbDevice.get()->receptionStatistics(true, prevLevel);
+    }
 }
 
 //TUNER METHODS END
