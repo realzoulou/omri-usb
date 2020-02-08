@@ -19,7 +19,6 @@ import android.util.Log;
 
 import org.omri.radio.Radio;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -88,7 +87,7 @@ class DabAudioDecoder {
 
 		if(!mHasBuiltInMpegDec) {
 			mHasMpegDecPlug = mpegDecPluginInstalled2();
-			if(DEBUG)Log.d(TAG, "MPEG DEcoder service bound: " + mHasMpegDecPlug);
+			if(DEBUG)Log.d(TAG, "MPEG Decoder service bound: " + mHasMpegDecPlug);
 		}
 	}
 
@@ -172,8 +171,8 @@ class DabAudioDecoder {
 		return false;
 	}
 
-	private IDabPluginInterface mDecoderService;
-	private DabDecoderServiceConnection mDecoderConnection;
+	private IDabPluginInterface mDecoderService = null;
+	private DabDecoderServiceConnection mDecoderConnection = null;
 	private boolean mDecoderServiceBound = false;
 	private boolean bindDecoderService() {
 		if(DEBUG)Log.d(TAG, "Binding service!");
@@ -182,14 +181,13 @@ class DabAudioDecoder {
 		final Intent srvIntent = new Intent("de.irt.dabmpg123decoderplugin.Mpg123Decoder");
 		srvIntent.setPackage("de.irt.dabmpg123decoderplugin");
 
-		Thread t = new Thread(){
-			public void run(){
-				boolean bindRet = ((RadioImpl)Radio.getInstance()).mContext.bindService(srvIntent, mDecoderConnection, Context.BIND_AUTO_CREATE);
-			}
-		};
-		t.start();
-
-		return ((RadioImpl)Radio.getInstance()).mContext.bindService(srvIntent, mDecoderConnection, Context.BIND_AUTO_CREATE);
+		Context radioContext = ((RadioImpl)Radio.getInstance()).mContext;
+		if (radioContext != null) {
+			return radioContext.bindService(srvIntent, mDecoderConnection, Context.BIND_AUTO_CREATE);
+		} else {
+			if(DEBUG) Log.w(TAG, "Radio context null");
+			return false;
+		}
 	}
 
 	private boolean bindDecoderService2(String packageName, String serviceName) {
@@ -205,8 +203,13 @@ class DabAudioDecoder {
 			}
 		};
 		t.start();
-
-		return ((RadioImpl)Radio.getInstance()).mContext.bindService(srvIntent, mDecoderConnection, Context.BIND_AUTO_CREATE);
+		Context radioContext = ((RadioImpl)Radio.getInstance()).mContext;
+		if (radioContext != null) {
+			return ((RadioImpl) Radio.getInstance()).mContext.bindService(srvIntent, mDecoderConnection, Context.BIND_AUTO_CREATE);
+		} else {
+			if(DEBUG) Log.w(TAG, "Radio context null");
+			return false;
+		}
 	}
 
 	private void unbindDecoderService() {
@@ -243,7 +246,8 @@ class DabAudioDecoder {
 		@Override
 		public void decodedPcmData(byte[] pcmData) throws RemoteException {
 			if(DEBUG)Log.d(TAG, "Decoderservice audiodata: " + pcmData.length);
-			mCallback.decodedAudioData(pcmData, mOutputSampling, mOutputChannels);
+			if (mCallback != null)
+				mCallback.decodedAudioData(pcmData, mOutputSampling, mOutputChannels);
 		}
 	};
 
@@ -275,9 +279,14 @@ class DabAudioDecoder {
 		if(mMediaCodec != null) {
 			if(DEBUG)Log.d(TAG, "Stopping MediaCodec");
 			//mMediaCodec.flush();
-			mMediaCodec.stop();
-			mMediaCodec.release();
-			mMediaCodec = null;
+			try {
+				mMediaCodec.stop();
+				mMediaCodec.release();
+			} catch (Exception e) {
+				if (DEBUG) e.printStackTrace();
+			} finally {
+				mMediaCodec = null;
+			}
 		} else {
 			if(DEBUG)Log.w(TAG, "Stopping codec MediaCodec is null");
 		}
@@ -302,7 +311,7 @@ class DabAudioDecoder {
 				try {
 					mDecodeThread.join(2000);
 				} catch(InterruptedException interExc) {
-					if(DEBUG)Log.d(TAG, "InterruptedException while joining decodethread");
+					if(DEBUG)Log.d(TAG, "InterruptedException while joining DecodeThread");
 				}
 			}
 		}
@@ -335,10 +344,14 @@ class DabAudioDecoder {
 
 		if(mMediaCodec != null) {
 			if(DEBUG)Log.d(TAG, "Stopping MediaCodec");
-
-			mMediaCodec.stop();
-			mMediaCodec.release();
-			mMediaCodec = null;
+			try {
+				mMediaCodec.stop();
+				mMediaCodec.release();
+			} catch (Exception e) {
+				if (DEBUG) e.printStackTrace();
+			} finally {
+				mMediaCodec = null;
+			}
 		}
 
 		mConfCodec = dabCodec;
@@ -357,9 +370,6 @@ class DabAudioDecoder {
 			mDecodeThread = new Thread(DecoderRunnable);
 			mDecodeThread.start();
 		}
-
-
-		mDataQ.clear();
 
 		return true;
 	}
@@ -420,22 +430,30 @@ class DabAudioDecoder {
 
 				if(codecInfo.getName().equals("OMX.google.aac.decoder")) {
 					if(DEBUG)Log.d(TAG, "Found Google AAC decoder...choosing this one...");
-					mMediaCodec = MediaCodec.createByCodecName(codecInfo.getName());
-					break;
+					try {
+						mMediaCodec = MediaCodec.createByCodecName(codecInfo.getName());
+					} catch (Exception e) {
+						if (DEBUG) e.printStackTrace();
+					}
+					if (mMediaCodec != null)
+						break; // successfully create Google AAC decoder, so stop searching further
 				}
 			}
 
 			if(mMediaCodec == null) {
-				if(DEBUG)Log.d(TAG, "MediaCodec createByCodecName failed, falling back to createDecoderByType");
-				mMediaCodec = MediaCodec.createDecoderByType(mMediaFormat.getString(MediaFormat.KEY_MIME));
+				if(DEBUG)Log.w(TAG, "MediaCodec createByCodecName failed, falling back to createDecoderByType");
+				try {
+					mMediaCodec = MediaCodec.createDecoderByType(mMediaFormat.getString(MediaFormat.KEY_MIME));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 			//
-
-		} catch(IOException ioExc) {
-			if(DEBUG)ioExc.printStackTrace();
+		} catch(Exception e) {
+			if(DEBUG)e.printStackTrace();
 		}
 		if(mMediaCodec != null) {
-			if(DEBUG)if(Build.VERSION.SDK_INT >= 	Build.VERSION_CODES.KITKAT)Log.d(TAG, "MediaCodecName: " + mMediaCodec.getName());
+			if(DEBUG)if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)Log.d(TAG, "MediaCodecName: " + mMediaCodec.getName());
 			try {
 				mMediaCodec.configure(mMediaFormat, null, null, 0);
 				mMediaCodec.start();
@@ -444,15 +462,11 @@ class DabAudioDecoder {
 				mOutputBuffers = mMediaCodec.getOutputBuffers();
 
 				mBufferInfo = new MediaCodec.BufferInfo();
-			} catch(IllegalStateException illStatExc) {
-				if(DEBUG)illStatExc.printStackTrace();
-				Log.e(TAG, "MediaCodec IllegalStateException: " + illStatExc.getMessage());
-			} catch(IllegalArgumentException illArgExc) {
-				if(DEBUG)illArgExc.printStackTrace();
-				Log.e(TAG, "MediaCodec IllegalArgumentException: " + illArgExc.getMessage());
+			} catch(Exception e) {
+				if(DEBUG)e.printStackTrace();
 			}
 		} else {
-			if(DEBUG)Log.d(TAG, "Configuring MediaCodec is null!");
+			if(DEBUG)Log.e(TAG, "Configuring MediaCodec is null!");
 		}
 	}
 
@@ -464,8 +478,8 @@ class DabAudioDecoder {
 				if(mDecoderService != null) {
 					mDecoderService.enqueueEncodedData(encodedAudioData);
 				}
-			} catch(RemoteException remExc) {
-
+			} catch(Exception e) {
+				if (DEBUG) e.printStackTrace();
 			}
 		}
 	}
@@ -475,6 +489,7 @@ class DabAudioDecoder {
 		@Override
 		public void run() {
 			if(DEBUG)Log.d(TAG, "Starting DecodeThread");
+			Thread.currentThread().setName("DabAudioDecoder");
 			mDecode = true;
 			decode();
 		}
@@ -483,50 +498,69 @@ class DabAudioDecoder {
 	private void decode() {
 		while(mDecode) {
 			if(!mDataQ.isEmpty()) {
-				int inbufIdx = mMediaCodec.dequeueInputBuffer(BUFFER_TIMEOUT);
-				if (inbufIdx >= 0) {
-					mInputBuffers[inbufIdx].clear();
+				try {
+					int inbufIdx = mMediaCodec.dequeueInputBuffer(BUFFER_TIMEOUT);
+					if (inbufIdx >= 0) {
+						mInputBuffers[inbufIdx].clear();
 
-					byte[] audioBuf = mDataQ.poll();
-					mInputBuffers[inbufIdx].put(audioBuf);
-					mMediaCodec.queueInputBuffer(inbufIdx, 0, audioBuf.length, 0, 0);
+						byte[] audioBuf = mDataQ.poll();
+						if (audioBuf != null) {
+							mInputBuffers[inbufIdx].put(audioBuf);
+							mMediaCodec.queueInputBuffer(inbufIdx, 0, audioBuf.length, 0, 0);
+						}
+					}
+				} catch (Exception e) {
+					if (DEBUG)
+						e.printStackTrace();
 				}
 			}
+			try {
+				int outbufIdx = mMediaCodec.dequeueOutputBuffer(mBufferInfo, BUFFER_TIMEOUT);
+				switch (outbufIdx) {
+					case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED: {
+						mOutputBuffers = mMediaCodec.getOutputBuffers();
+						break;
+					}
+					case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED: {
+						MediaFormat format = mMediaCodec.getOutputFormat();
+						mOutputSampling = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+						mOutputChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
 
-			int outbufIdx = mMediaCodec.dequeueOutputBuffer(mBufferInfo, BUFFER_TIMEOUT);
-			switch (outbufIdx) {
-				case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED: {
-					mOutputBuffers = mMediaCodec.getOutputBuffers();
-					break;
+						if (DEBUG)
+							Log.d(TAG, "Outputformat Changed: Sampling: " + mOutputSampling + " Chans: " + mOutputChannels);
+						if (mCallback != null)
+							mCallback.outputFormatChanged(mOutputSampling, mOutputChannels);
+						break;
+					}
+					case MediaCodec.INFO_TRY_AGAIN_LATER: {
+						break;
+					}
+					default: {
+						if (outbufIdx > 0) {
+							ByteBuffer pcmBuffer = mOutputBuffers[outbufIdx];
+
+							if (mBufferInfo != null && mBufferInfo.size > 0) {
+								final byte[] pcmData = new byte[mBufferInfo.size];
+								pcmBuffer.get(pcmData);
+								pcmBuffer.clear();
+
+								if (mCallback != null) {
+									mCallback.decodedAudioData(pcmData,
+											mOutputSampling, mOutputChannels);
+								}
+							}
+							mMediaCodec.releaseOutputBuffer(outbufIdx, false);
+						}
+						break;
+					}
 				}
-				case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED: {
-					MediaFormat format = mMediaCodec.getOutputFormat();
-					mOutputSampling = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
-					mOutputChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
-
-					if(DEBUG)Log.d(TAG, "Outputformat Changed: Sampling: " + mOutputSampling + " Chans: " + mOutputChannels);
-					mCallback.outputFormatChanged(mOutputSampling, mOutputChannels);
-					break;
-				}
-				case MediaCodec.INFO_TRY_AGAIN_LATER: {
-
-					break;
-				}
-				default: {
-					ByteBuffer pcmBuffer = mOutputBuffers[outbufIdx];
-
-					final byte[] pcmData = new byte[mBufferInfo.size];
-					pcmBuffer.get(pcmData);
-					pcmBuffer.clear();
-
-					mCallback.decodedAudioData(pcmData, mMediaCodec.getOutputFormat().getInteger(MediaFormat.KEY_SAMPLE_RATE), mMediaCodec.getOutputFormat().getInteger(MediaFormat.KEY_CHANNEL_COUNT));
-					mMediaCodec.releaseOutputBuffer(outbufIdx, false);
-					break;
-				}
+			} catch (Exception e) {
+				if (DEBUG)
+					e.printStackTrace();
 			}
 		}
 
-		if(DEBUG)Log.d(TAG, "Decodethread ended");
+		if(DEBUG)Log.d(TAG, "DecodeThread ended");
 	}
 
 	private int mOutputChannels = 0;
