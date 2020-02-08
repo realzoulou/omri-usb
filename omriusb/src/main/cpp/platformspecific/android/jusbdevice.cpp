@@ -22,7 +22,7 @@
 
 #include "iostream"
 
-JUsbDevice::JUsbDevice(JavaVM* javaVm, JNIEnv *env, jobject usbDevice) : m_env(env) {
+JUsbDevice::JUsbDevice(JavaVM* javaVm, JNIEnv *env, jobject usbDevice) {
     m_javaVm = javaVm;
 
     //UsbHelper class definitions
@@ -86,12 +86,15 @@ JUsbDevice::JUsbDevice(JavaVM* javaVm, JNIEnv *env, jobject usbDevice) : m_env(e
 
 JUsbDevice::~JUsbDevice() {
     std::cout << "Deleting global usb ref" << std::endl;
-    m_env->DeleteGlobalRef(m_usbDeviceObject);
-    m_env->DeleteGlobalRef(m_usbHelperClass);
-    m_env->DeleteGlobalRef(m_usbDeviceClass);
-    m_env->DeleteGlobalRef(m_usbDeviceConnectionClass);
-    m_env->DeleteGlobalRef(m_usbDeviceInterfaceClass);
-    m_env->DeleteGlobalRef(m_usbDeviceEndpointClass);
+    JNIEnv* env;
+    m_javaVm->GetEnv((void **)&env, JNI_VERSION_1_6);
+
+    env->DeleteGlobalRef(m_usbDeviceObject);
+    env->DeleteGlobalRef(m_usbHelperClass);
+    env->DeleteGlobalRef(m_usbDeviceClass);
+    env->DeleteGlobalRef(m_usbDeviceConnectionClass);
+    env->DeleteGlobalRef(m_usbDeviceInterfaceClass);
+    env->DeleteGlobalRef(m_usbDeviceEndpointClass);
 }
 
 std::string JUsbDevice::getDeviceName() const {
@@ -112,8 +115,9 @@ bool JUsbDevice::isPermissionGranted() const {
 
 void JUsbDevice::requestPermission(JUsbDevice::PermissionCallbackFunction permissionCallback) {
     m_permissionCallback = permissionCallback;
-
-    m_env->CallVoidMethod(m_env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId), m_usbHelperRequestPermissionMId, m_usbDeviceObject);
+    JNIEnv* env;
+    m_javaVm->GetEnv((void **)&env, JNI_VERSION_1_6);
+    env->CallVoidMethod(env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId), m_usbHelperRequestPermissionMId, m_usbDeviceObject);
 }
 
 void JUsbDevice::permissionGranted(JNIEnv *env, bool granted) {

@@ -59,7 +59,6 @@ private:
 
 private:
     JavaVM* m_javaVm;
-    JNIEnv* m_env;
 
     //Radio class definition
     jmethodID m_radioGetInstanceMId;

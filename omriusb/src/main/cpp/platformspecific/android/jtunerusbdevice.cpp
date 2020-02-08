@@ -26,13 +26,14 @@ JTunerUsbDevice::JTunerUsbDevice(JavaVM* javaVm, JNIEnv* env, jobject tunerUsbDe
     std::cout << m_logTag << "Creating JTuner" << std::endl;
 
     m_javaVm = javaVm;
-    m_env = env;
 
     m_usbTunerObject = env->NewGlobalRef(tunerUsbDevice);
 }
 
 JTunerUsbDevice::~JTunerUsbDevice() {
-    m_env->DeleteGlobalRef(m_usbTunerObject);
+    JNIEnv* env;
+    m_javaVm->GetEnv((void **)&env, JNI_VERSION_1_6);
+    env->DeleteGlobalRef(m_usbTunerObject);
 }
 
 void JTunerUsbDevice::setJavaClassUsbTuner(JNIEnv* env, jclass usbTunerClass) {

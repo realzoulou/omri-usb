@@ -49,7 +49,6 @@ public:
 
 private:
     JavaVM* m_javaVm;
-    JNIEnv* m_env;
     jobject m_usbDeviceObject;
     jobject m_usbDeviceConnectionObject;
 
