@@ -19,6 +19,7 @@ import org.omri.tuner.TunerStatus;
 import org.omri.tuner.TunerType;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.omri.BuildConfig.DEBUG;
@@ -50,7 +51,7 @@ public class TunerUsbImpl implements TunerUsb {
 	private List<RadioService> mServices = new ArrayList<>();
 	private List<RadioService> mScannedServices = new ArrayList<>();
 	private boolean mIsScanning = false;
-	private List<TunerListener> mTunerlisteners = new ArrayList<>();
+	private List<TunerListener> mTunerlisteners = Collections.synchronizedList(new ArrayList<>());
 	private RadioServiceDab mCurrentlyRunningService = null;
 
 	private UsbDevice mUsbDevice = null;
