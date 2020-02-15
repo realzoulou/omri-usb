@@ -104,10 +104,14 @@ JDabService::~JDabService() {
         }
     }
 
-    if(!enve->IsSameObject(m_linkedJavaDabServiceObject, NULL)) {
-        enve->DeleteGlobalRef(m_linkedJavaDabServiceObject);
-        m_linkedJavaDabServiceObject = nullptr;
-    }
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+    std::cout << m_logTag << "Destroying SId " << std::hex << m_serviceId << std::endl;
+
+    // stop processing audioDataInput
+    decodeAudio(false);
+
+    enve->DeleteGlobalRef(m_linkedJavaDabServiceObject);
+    m_linkedJavaDabServiceObject = nullptr;
 
     if(wasDetached) {
         m_javaVm->DetachCurrentThread();
@@ -117,7 +121,8 @@ JDabService::~JDabService() {
 }
 
 void JDabService::setLinkDabService(std::shared_ptr<DabService> linkedDabSrv) {
-    std::cout << m_logTag << "Linking DABServices..." << std::endl;
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+    std::cout << m_logTag << "Linking DABServices... for SId " << std::hex << m_serviceId << std::endl;
     m_linkedDabService = linkedDabSrv;
 
     if(linkedDabSrv->isProgrammeService()) {
@@ -185,7 +190,8 @@ uint32_t JDabService::getServiceId() const {
 }
 
 void JDabService::audioDataInput(const std::vector<uint8_t>& audioData, int ascty, int channels, int sampleRate, bool sbrUsed, bool psUsed) {
-    if(!m_decodeAudio) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+    if (!m_decodeAudio) {
         return;
     }
 
@@ -237,6 +243,7 @@ void JDabService::audioDataInput(const std::vector<uint8_t>& audioData, int asct
 }
 
 void JDabService::decodeAudio(bool decode) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     m_decodeAudio = decode;
     if(!m_decodeAudio) {
         m_audioSamplingRate = -1;
@@ -256,6 +263,7 @@ bool JDabService::isDecodingAudio() {
 }
 
 void JDabService::dynamicLabelInput(std::shared_ptr<void> label) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     m_lastDynamicLabel = std::static_pointer_cast<DabDynamicLabel>(label);
 
     if(m_lastDynamicLabel == nullptr) {
@@ -269,6 +277,7 @@ void JDabService::dynamicLabelInput(std::shared_ptr<void> label) {
 }
 
 void JDabService::slideshowInput(std::shared_ptr<void> slideShow) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     m_lastSlideshow = std::static_pointer_cast<DabSlideshow>(slideShow);
 
     if(m_lastSlideshow == nullptr) {

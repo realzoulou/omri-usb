@@ -56,6 +56,8 @@ public:
 private:
     const std::string m_logTag{"[JDabService] "};
 
+    std::recursive_mutex m_mutex;
+
     //Java definitions
     JavaVM* m_javaVm;
     std::shared_ptr<DabService> m_linkedDabService{nullptr};
