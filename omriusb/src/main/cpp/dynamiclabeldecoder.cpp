@@ -212,10 +212,19 @@ void DynamiclabelDecoder::applicationDataInput(const std::vector<uint8_t>& appDa
                                     uint8_t lengthMarker = static_cast<uint8_t>(*dlIter++ & 0x7F);
 
                                     if(dlItem.contentType != DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE::DUMMY) {
-                                        dlItem.dlPlusTagText = std::string(m_dlsFullData.begin()+startMarker, m_dlsFullData.begin()+startMarker+lengthMarker+1);
+                                        if (startMarker <= m_dlsFullData.size() &&
+                                            (startMarker + lengthMarker + 1) <= m_dlsFullData.size()) {
 
-                                        //std::cout << m_logTag << " DLPLUS ContentType: " << +dlItem.contentType << " Start: " << +startMarker << " Length: " << +lengthMarker << std::endl;
-                                        //std::cout << m_logTag << " DLPLUS: " << DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE_STRING[dlItem.contentType] << " : " << dlItem.dlPlusTagText << std::endl;
+                                            dlItem.dlPlusTagText = std::string(
+                                                    m_dlsFullData.begin()+startMarker,
+                                                    m_dlsFullData.begin()+startMarker + lengthMarker +1);
+
+                                            //std::cout << m_logTag << " DLPLUS ContentType: " << +dlItem.contentType << " Start: " << +startMarker << " Length: " << +lengthMarker << std::endl;
+                                            //std::cout << m_logTag << " DLPLUS: " << DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE_STRING[dlItem.contentType] << " : " << dlItem.dlPlusTagText << std::endl;
+                                        } else {
+                                            std::cout << m_logTag << " DLPLUS ContentType: Start " << startMarker << " Length " << lengthMarker
+                                                << " exceeds dlsFullData size " << m_dlsFullData.size() << std::endl;
+                                        }
                                     }
 
                                     label.dlPlusTags.push_back(dlItem);
