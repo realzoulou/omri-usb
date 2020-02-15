@@ -94,13 +94,8 @@ if(IRTDAB_ADDRESS_SANITIZER STREQUAL "yes")
     set(ADDRESS_SANITIZER_LINK_OPTIONS
             -fsanitize=address
             )
-    set(MAPFILE_LINK_OPTION
-            -Xlinker -Map=libirtdab.mapfile
-            )
 else()
     set(ADDRESS_SANITIZER_LINK_OPTIONS)
-    set(MAPFILE_LINK_OPTION)
-
 endif()
 
 target_link_libraries( # Specifies the target library.
