@@ -116,8 +116,34 @@ JDabService::~JDabService() {
     if(wasDetached) {
         m_javaVm->DetachCurrentThread();
     }
+}
 
-    m_audioDataCb = nullptr;
+void JDabService::unlinkDabService() {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+    std::cout << m_logTag << "Un-Linking DABServices... for SId " << std::hex << m_serviceId << std::endl;
+    if (m_linkedDabService != nullptr) {
+        for (const auto& srvComp : m_linkedDabService->getServiceComponents()) {
+            if (srvComp->getServiceComponentType() == DabServiceComponent::SERVICECOMPONENTTYPE::MSC_STREAM_AUDIO) {
+                std::shared_ptr<DabServiceComponentMscStreamAudio> audioComponent = std::static_pointer_cast<DabServiceComponentMscStreamAudio>(srvComp);
+                audioComponent->clearCallbacks();
+                // TODO clear callbacks in getUserApplications
+            }
+        }
+        m_linkedDabService.reset();
+        m_linkedDabService = nullptr;
+    }
+    if (m_audioDataCb != nullptr) {
+        m_audioDataCb.reset();
+        m_audioDataCb = nullptr;
+    }
+    if (m_dlsCallback != nullptr) {
+        m_dlsCallback.reset();
+        m_dlsCallback = nullptr;
+    }
+    if (m_slsCallback != nullptr) {
+        m_slsCallback.reset();
+        m_slsCallback = nullptr;
+    }
 }
 
 void JDabService::setLinkDabService(std::shared_ptr<DabService> linkedDabSrv) {

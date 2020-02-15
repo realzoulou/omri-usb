@@ -172,11 +172,13 @@ void RaonTunerInput::startServiceSync(std::shared_ptr<JDabService> serviceLink) 
 
     if(m_startServiceLink != nullptr) {
         m_startServiceLink->decodeAudio(false);
+        m_startServiceLink->unlinkDabService();
         if(m_startServiceLink->getJavaDabServiceObject() != nullptr) {
             if (m_usbDevice != nullptr) {
                 m_usbDevice->serviceStopped(m_startServiceLink->getJavaDabServiceObject());
             }
         }
+        m_startServiceLink.reset();
     }
 
     if(m_currentFrequency != serviceLink.get()->getEnsembleFrequency()) {
@@ -399,7 +401,8 @@ void RaonTunerInput::setService() {
                 }
 
                 m_startServiceLink->decodeAudio(true);
-                if (m_usbDevice != nullptr) {
+                if (m_usbDevice != nullptr &&
+                    m_startServiceLink->getJavaDabServiceObject() != nullptr) {
                     m_usbDevice->serviceStarted(m_startServiceLink->getJavaDabServiceObject());
                 }
                 break;
@@ -1113,12 +1116,14 @@ void RaonTunerInput::closeSubchannel(uint8_t subchanId) {
 
     if(m_startServiceLink != nullptr) {
         m_startServiceLink->decodeAudio(false);
+        m_startServiceLink->unlinkDabService();
         if(m_startServiceLink->getJavaDabServiceObject() != nullptr) {
             if (m_usbDevice != nullptr) {
                 m_usbDevice->serviceStopped(m_startServiceLink->getJavaDabServiceObject());
             }
         }
 
+        m_startServiceLink.reset();
         m_startServiceLink = nullptr;
     }
 }

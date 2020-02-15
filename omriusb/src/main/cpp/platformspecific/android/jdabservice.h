@@ -36,6 +36,7 @@ public:
     virtual ~JDabService();
 
     virtual void setLinkDabService(std::shared_ptr<DabService> linkedDabSrv);
+    virtual void unlinkDabService();
 
     virtual jobject getJavaDabServiceObject() const;
     virtual std::shared_ptr<DabService> getLinkDabService() const;
