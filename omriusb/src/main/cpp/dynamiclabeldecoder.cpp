@@ -59,9 +59,16 @@ void DynamiclabelDecoder::applicationDataInput(const std::vector<uint8_t>& appDa
 
             if(!commandFlag) {
                 uint8_t length = static_cast<uint8_t>((*dlIter++ & 0x0F) + 1);
-
-                if(!CRC_CCITT_CHECK(m_dlsData.data(), static_cast<uint16_t>(length+4))) {
-                    std::cout << m_logTag << " DLS CharData CRC failed" << std::endl;
+                // don't trust the length
+                if ((length + 4) <= m_dlsData.size()) {
+                    if (!CRC_CCITT_CHECK(m_dlsData.data(), static_cast<uint16_t>(length + 4))) {
+                        std::cout << m_logTag << " DLS CharData CRC failed" << std::endl;
+                        m_dlsData.clear();
+                        return;
+                    }
+                } else {
+                    std::cout << m_logTag << " DLS CharData length+4 " << length+4 << " too big (max "
+                        << m_dlsData.size() << ")" << std::endl;
                     m_dlsData.clear();
                     return;
                 }
