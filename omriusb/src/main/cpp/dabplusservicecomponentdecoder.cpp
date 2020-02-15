@@ -215,8 +215,7 @@ void DabPlusServiceComponentDecoder::processData() {
                     bool badAuStart{false};
                     for (uint8_t i = 1; i < m_currentSuperFrame.numAUs; i++) {
                         if(!m_processThreadRunning) {
-                            std::cout << m_logTag << " Breaking for thread stop at getting AU lengths" << std::endl;
-                            return;
+                            goto stop_thread;
                         }
 
                         uint16_t auStart{0xFFFF};
@@ -265,6 +264,10 @@ void DabPlusServiceComponentDecoder::processData() {
                 m_dabSuperFrameCount = 0;
             }
 
+            if (!m_processThreadRunning) {
+                goto stop_thread;
+            }
+
             if(m_isSync) {
                 m_currentSuperFrame.superFrameData.insert(m_currentSuperFrame.superFrameData.end(), frameData.begin(), frameData.end());
                 ++m_dabSuperFrameCount;
@@ -275,23 +278,36 @@ void DabPlusServiceComponentDecoder::processData() {
 
                     if(m_currentSuperFrame.superFrameData.size() >= m_superFrameSize) {
                         auBuff.clear();
-                        for(int i = 0; i < m_currentSuperFrame.numAUs; i++) {
+                        for (int i = 0; i < m_currentSuperFrame.numAUs; i++) {
 
-                            if(!m_processThreadRunning) {
-                                return;
+                            if (!m_processThreadRunning) {
+                                goto stop_thread;
                             }
 
-                            if(CRC_CCITT_CHECK(m_currentSuperFrame.superFrameData.data()+m_currentSuperFrame.auStarts[i], m_currentSuperFrame.auLengths[i])) {
-                                if(((static_cast<unsigned>(m_currentSuperFrame.superFrameData[m_currentSuperFrame.auStarts[i]]) >> 5u) & 0x07u) == 0x04u) {
+                            if (CRC_CCITT_CHECK(m_currentSuperFrame.superFrameData.data() +
+                                                m_currentSuperFrame.auStarts[i],
+                                                m_currentSuperFrame.auLengths[i])) {
+                                if (((static_cast<unsigned>(m_currentSuperFrame.superFrameData[m_currentSuperFrame.auStarts[i]])
+                                        >> 5u) & 0x07u) == 0x04u) {
                                     uint8_t padDataStart = 2;
-                                    uint8_t padDataLen = m_currentSuperFrame.superFrameData[m_currentSuperFrame.auStarts[i] + 1];
-                                    if(padDataLen == 0xFF) {
-                                        padDataLen += m_currentSuperFrame.superFrameData[m_currentSuperFrame.auStarts[i] + 2];
+                                    uint8_t padDataLen = m_currentSuperFrame.superFrameData[
+                                            m_currentSuperFrame.auStarts[i] + 1];
+                                    if (padDataLen == 0xFF) {
+                                        padDataLen += m_currentSuperFrame.superFrameData[
+                                                m_currentSuperFrame.auStarts[i] + 2];
                                         ++padDataStart;
                                     }
 
-                                    std::vector<uint8_t> padData(m_currentSuperFrame.superFrameData.begin()+m_currentSuperFrame.auStarts[i]+padDataStart, m_currentSuperFrame.superFrameData.begin()+m_currentSuperFrame.auStarts[i]+padDataStart+padDataLen);
+                                    std::vector<uint8_t> padData(
+                                            m_currentSuperFrame.superFrameData.begin() +
+                                            m_currentSuperFrame.auStarts[i] + padDataStart,
+                                            m_currentSuperFrame.superFrameData.begin() +
+                                            m_currentSuperFrame.auStarts[i] + padDataStart +
+                                            padDataLen);
 
+                                    if (!m_processThreadRunning) {
+                                        goto stop_thread;
+                                    }
                                     m_padDataDispatcher.invoke(padData);
 
                                     //change the beginnings and lengths of the AU
@@ -299,12 +315,22 @@ void DabPlusServiceComponentDecoder::processData() {
                                     m_currentSuperFrame.auLengths[i] -= (padDataStart + padDataLen);
                                 }
 
-                                auBuff.insert(auBuff.end(), m_currentSuperFrame.superFrameData.begin()+m_currentSuperFrame.auStarts[i], m_currentSuperFrame.superFrameData.begin() + m_currentSuperFrame.auStarts[i] + m_currentSuperFrame.auLengths[i] - 2); // -2 of length to cut off CRC
+                                auBuff.insert(auBuff.cend(),
+                                              m_currentSuperFrame.superFrameData.begin() +
+                                              m_currentSuperFrame.auStarts[i],
+                                              m_currentSuperFrame.superFrameData.begin() +
+                                              m_currentSuperFrame.auStarts[i] +
+                                              m_currentSuperFrame.auLengths[i] -
+                                              2); // -2 of length to cut off CRC
                             } else {
-                                std::cout << m_logTag << " SuperFrame AU[" << +i << "] CRC failed, Bitrate: " << +m_subChanBitrate << std::endl;
+                                std::cout << m_logTag << " SuperFrame AU[" << +i
+                                          << "] CRC failed, Bitrate: " << +m_subChanBitrate
+                                          << std::endl;
                             }
                         }
-
+                        if (!m_processThreadRunning) {
+                            goto stop_thread;
+                        }
                         m_audioDataDispatcher.invoke(auBuff, 63, m_currentSuperFrame.channels, m_currentSuperFrame.samplingRate, m_currentSuperFrame.sbrUsed, m_currentSuperFrame.psUsed);
                     }
 
@@ -316,6 +342,12 @@ void DabPlusServiceComponentDecoder::processData() {
     }
 
     std::cout << m_logTag << " ProcessData thread stopped" << std::endl;
+    return;
+
+    stop_thread:
+    std::cout << m_logTag << " ProcessData thread stopped quickly" << std::endl;
+    return;
+}
 
 void DabPlusServiceComponentDecoder::clearCallbacks() {
     DabServiceComponentDecoder::clearCallbacks();
