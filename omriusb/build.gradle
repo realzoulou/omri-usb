@@ -31,6 +31,9 @@ android {
             externalNativeBuild {
                 cmake {
                     cppFlags += "-DDEBUGOUTPUT"
+                    // address sanitizer arguments for cmake
+                    arguments "-DANDROID_ARM_MODE=arm", "-DANDROID_STL=c++_shared"
+                    arguments += "-DIRTDAB_ADDRESS_SANITIZER=yes"
                 }
             }
         }

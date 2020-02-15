@@ -89,6 +89,19 @@ find_library( # Sets the name of the path variable.
 # Specifies libraries CMake should link to your target library. You
 # can link multiple libraries, such as libraries you define in this
 # build script, prebuilt third-party libraries, or system libraries.
+if(IRTDAB_ADDRESS_SANITIZER STREQUAL "yes")
+    target_compile_options(irtdab PUBLIC -fsanitize=address -fno-omit-frame-pointer)
+    set(ADDRESS_SANITIZER_LINK_OPTIONS
+            -fsanitize=address
+            )
+    set(MAPFILE_LINK_OPTION
+            -Xlinker -Map=libirtdab.mapfile
+            )
+else()
+    set(ADDRESS_SANITIZER_LINK_OPTIONS)
+    set(MAPFILE_LINK_OPTION)
+
+endif()
 
 target_link_libraries( # Specifies the target library.
                        irtdab
@@ -97,8 +110,11 @@ target_link_libraries( # Specifies the target library.
                        # included in the NDK.
                        ${log-lib}
                        fec
+
+                       ${ADDRESS_SANITIZER_LINK_OPTIONS}
+                       ${MAPFILE_LINK_OPTION}
                        )
 
 #set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_BUILD_TYPE Release)
+#set(CMAKE_BUILD_TYPE Release)
 #set(CMAKE_BUILD_TYPE MinSizeRel)
