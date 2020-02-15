@@ -128,3 +128,11 @@ std::shared_ptr<DabServiceComponentMscStreamAudio::AUDIO_DATA_CALLBACK> DabServi
         return (std::static_pointer_cast<DabMpegServiceComponentDecoder>(m_componentDecoder))->registerAudioDataCallback(cb);
     }
 }
+
+void DabServiceComponentMscStreamAudio::clearCallbacks() {
+    if(m_ascTy == 0x3F) {
+        return (std::static_pointer_cast<DabPlusServiceComponentDecoder>(m_componentDecoder))->clearCallbacks();
+    } else {
+        return (std::static_pointer_cast<DabMpegServiceComponentDecoder>(m_componentDecoder))->clearCallbacks();
+    }
+}

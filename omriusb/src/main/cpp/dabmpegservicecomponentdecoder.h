@@ -43,6 +43,8 @@ public:
     using AUDIO_COMPONENT_DATA_CALLBACK = std::function<void(const std::vector<uint8_t>&, int, int, int, bool, bool)>;
     virtual std::shared_ptr<AUDIO_COMPONENT_DATA_CALLBACK> registerAudioDataCallback(AUDIO_COMPONENT_DATA_CALLBACK cb);
 
+    virtual void clearCallbacks() override;
+
 private:
     const std::string m_logTag{"[DabMpegServiceComponentDecoder] "};
 

@@ -39,7 +39,9 @@ DabMpegServiceComponentDecoder::~DabMpegServiceComponentDecoder() {
     //std::cout << m_logTag << "Destroying" << std::endl;
 
     m_processThreadRunning = false;
-    m_processThread.join();
+    if (m_processThread.joinable()) {
+        m_processThread.join();
+    }
     m_conQueue.clear();
 }
 
@@ -264,4 +266,12 @@ void DabMpegServiceComponentDecoder::processData() {
             }
         }
     }
+}
+
+void DabMpegServiceComponentDecoder::clearCallbacks() {
+    DabServiceComponentDecoder::clearCallbacks();
+    //std::cout << m_logTag << " clearCallbacks" << std::endl;
+    m_padDataDispatcher.clear();
+    m_audioDataDispatcher.clear();
+
 }

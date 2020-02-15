@@ -41,6 +41,8 @@ public:
     using Component_Data_Callback = std::function<void(const std::vector<uint8_t>&)>;
     std::shared_ptr<DabServiceComponentDecoder::Component_Data_Callback> registerComponentDataCallback(DabServiceComponentDecoder::Component_Data_Callback cb);
 
+    virtual void clearCallbacks();
+
 protected:
     CallbackDispatcher<DabServiceComponentDecoder::Component_Data_Callback> m_componentDataDispatcher;
     uint16_t m_subChanBitrate{0x00};

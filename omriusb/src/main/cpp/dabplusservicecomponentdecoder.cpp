@@ -40,6 +40,8 @@ DabPlusServiceComponentDecoder::~DabPlusServiceComponentDecoder() {
         m_processThread.join();
     }
     //m_conQueue.clear();
+    m_audioDataDispatcher.clear();
+    m_padDataDispatcher.clear();
 }
 
 void DabPlusServiceComponentDecoder::setSubchannelBitrate(uint16_t bitrate) {
@@ -314,6 +316,12 @@ void DabPlusServiceComponentDecoder::processData() {
     }
 
     std::cout << m_logTag << " ProcessData thread stopped" << std::endl;
+
+void DabPlusServiceComponentDecoder::clearCallbacks() {
+    DabServiceComponentDecoder::clearCallbacks();
+    //std::cout << m_logTag << " clearCallbacks" << std::endl;
+    m_audioDataDispatcher.clear();
+    m_padDataDispatcher.clear();
 }
 
 const uint16_t DabPlusServiceComponentDecoder::FIRECODE_TABLE[256] = {

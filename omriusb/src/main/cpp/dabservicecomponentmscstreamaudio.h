@@ -46,6 +46,8 @@ public:
     using AUDIO_DATA_CALLBACK = std::function<void (const std::vector<uint8_t>&, int, int, int, bool, bool)>;
     virtual std::shared_ptr<DabServiceComponentMscStreamAudio::AUDIO_DATA_CALLBACK> registerAudioDataCallback(AUDIO_DATA_CALLBACK cb);
 
+    virtual void clearCallbacks();
+
 private:
     std::string m_logTag = "[DabServiceComponentMscStreamAudio]";
 

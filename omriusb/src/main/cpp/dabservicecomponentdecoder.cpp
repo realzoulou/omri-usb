@@ -40,3 +40,7 @@ void DabServiceComponentDecoder::setSubchannelBitrate(uint16_t bitrate) {
 std::shared_ptr<DabServiceComponentDecoder::Component_Data_Callback> DabServiceComponentDecoder::registerComponentDataCallback(DabServiceComponentDecoder::Component_Data_Callback cb) {
     return m_componentDataDispatcher.add(cb);
 }
+
+void DabServiceComponentDecoder::clearCallbacks() {
+    m_componentDataDispatcher.clear();
+}
