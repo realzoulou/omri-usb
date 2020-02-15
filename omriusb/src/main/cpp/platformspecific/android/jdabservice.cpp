@@ -86,11 +86,11 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
     m_ensembleEcc = static_cast<uint8_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetEnsembleEccMId));
     m_ensembleId = static_cast<uint16_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetEnsembleIdMId));
     m_serviceId = static_cast<uint32_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetServiceIdMId));
+
+    std::cout << m_logTag << "Constructed SId " << std::hex << m_serviceId << std::endl;
 }
 
 JDabService::~JDabService() {
-    std::cout << m_logTag << "Destroying" << std::endl;
-
     bool wasDetached = false;
     JNIEnv* enve;
 
@@ -191,7 +191,9 @@ std::shared_ptr<DabService> JDabService::getLinkDabService() const {
 }
 
 jobject JDabService::getJavaDabServiceObject() const {
-    std::cout << m_logTag << "Returning linked Java DabService object" << std::endl;
+    if (m_linkedJavaDabServiceObject == nullptr) {
+        std::cout << m_logTag << "Returning linked Java DabService object nullptr" << std::endl;
+    }
     return m_linkedJavaDabServiceObject;
 }
 
@@ -220,13 +222,12 @@ void JDabService::audioDataInput(const std::vector<uint8_t>& audioData, int asct
     if (!m_decodeAudio) {
         return;
     }
-
     bool wasDetached = false;
-    JNIEnv* enve;
+    JNIEnv *enve;
 
-    int envState = m_javaVm->GetEnv((void**)&enve, JNI_VERSION_1_6);
-    if(envState == JNI_EDETACHED) {
-        if(m_javaVm->AttachCurrentThread(&enve, nullptr) == 0) {
+    int envState = m_javaVm->GetEnv((void **) &enve, JNI_VERSION_1_6);
+    if (envState == JNI_EDETACHED) {
+        if (m_javaVm->AttachCurrentThread(&enve, nullptr) == 0) {
             wasDetached = true;
         } else {
             std::cout << m_logTag << "jniEnv thread failed to attach!" << std::endl;
@@ -234,34 +235,55 @@ void JDabService::audioDataInput(const std::vector<uint8_t>& audioData, int asct
         }
     }
 
-    if(m_ascty != ascty || m_audioChannelCount != channels || m_audioSamplingRate != sampleRate || m_audioSbrUsed != sbrUsed || m_audioPsUsed != psUsed) {
-        std::cout << m_logTag << "audioFormatChanged: ASCTY: " << +ascty <<  ", Sampling: " << +sampleRate << " : " << +channels << std::endl;
+    if (m_ascty != ascty || m_audioChannelCount != channels || m_audioSamplingRate != sampleRate ||
+        m_audioSbrUsed != sbrUsed || m_audioPsUsed != psUsed) {
+        std::cout << m_logTag << "audioFormatChanged SId " << std::hex << m_serviceId << std::dec <<
+                  ", ASCTY: " << +ascty << ", Sampling: " << +sampleRate << " : " << +channels
+                  << std::endl;
         m_ascty = ascty;
         m_audioChannelCount = channels;
         m_audioSamplingRate = sampleRate;
         m_audioSbrUsed = sbrUsed;
         m_audioPsUsed = psUsed;
 
-        if(!enve->IsSameObject(m_linkedJavaDabServiceObject, NULL)) {
-            enve->CallVoidMethod(m_linkedJavaDabServiceObject, m_javaDabSrvAudioformatChangedCallbackMId, m_ascty, m_audioChannelCount, m_audioSamplingRate, m_audioSbrUsed, m_audioPsUsed);
+        if (m_decodeAudio) {
+            if (m_linkedJavaDabServiceObject != nullptr) {
+                enve->CallVoidMethod(m_linkedJavaDabServiceObject,
+                                     m_javaDabSrvAudioformatChangedCallbackMId, m_ascty,
+                                     m_audioChannelCount, m_audioSamplingRate, m_audioSbrUsed,
+                                     m_audioPsUsed);
+            } else {
+                std::cout << m_logTag << "LinkedDabServiceObject is NULL at changed audioparams"
+                          << std::endl;
+            }
         } else {
-            std::cout << m_logTag << "LinkedDabServiceObject is NULL at changed audioparams!" << std::endl;
+            std::cout << m_logTag << "audioDataInput not decodeAudio at changed audioparams"
+                      << std::endl;
         }
     }
 
-    jbyteArray data = enve->NewByteArray(static_cast<jsize>(audioData.size()));
-    if(data == nullptr) {
-        return;
-    }
-    enve->SetByteArrayRegion(data, 0, static_cast<jsize>(audioData.size()), (jbyte*)audioData.data());
+    if (audioData.size() > 0) {
+        jbyteArray data = enve->NewByteArray(static_cast<jsize>(audioData.size()));
+        if (data != nullptr) {
+            enve->SetByteArrayRegion(data, 0, static_cast<jsize>(audioData.size()),
+                                     (jbyte *) audioData.data());
 
-    if(!enve->IsSameObject(m_linkedJavaDabServiceObject, NULL)) {
-        enve->CallVoidMethod(m_linkedJavaDabServiceObject, m_javaDabSrvAudioDataCallbackMId, data, channels, sampleRate);
-    } else {
-        std::cout << m_logTag << "LinkedDabServiceObject is NULL at audiodata callback" << std::endl;
+            if (m_decodeAudio) {
+                if (m_linkedJavaDabServiceObject != nullptr) {
+                    enve->CallVoidMethod(m_linkedJavaDabServiceObject,
+                                         m_javaDabSrvAudioDataCallbackMId,
+                                         data, channels, sampleRate);
+                } else {
+                    std::cout << m_logTag << "LinkedDabServiceObject is NULL at audiodata callback"
+                              << std::endl;
+                }
+            } else {
+                std::cout << m_logTag << "audioDataInput not decodeAudio at audiodata callback"
+                          << std::endl;
+            }
+            enve->DeleteLocalRef(data);
+        }
     }
-
-    enve->DeleteLocalRef(data);
 
     if(wasDetached) {
         m_javaVm->DetachCurrentThread();
@@ -370,7 +392,7 @@ void JDabService::callJavaSlideshowCallback(const std::shared_ptr<DabSlideshow>&
         }
     }
 
-    if(!enve->IsSameObject(m_linkedJavaDabServiceObject, NULL)) {
+    if(m_linkedJavaDabServiceObject != nullptr) {
         enve->CallVoidMethod(m_linkedJavaDabServiceObject, m_javaDabSrvslideshowReceivedCallbackMId, slsObject);
     }
 
@@ -440,7 +462,7 @@ void JDabService::callJavaDynamiclabelCallback(const std::shared_ptr<DabDynamicL
 
         enve->DeleteLocalRef(dlPlusItemObject);
     }
-    if(!enve->IsSameObject(m_linkedJavaDabServiceObject, NULL)) {
+    if(m_linkedJavaDabServiceObject != nullptr) {
         enve->CallVoidMethod(m_linkedJavaDabServiceObject, m_javaDabSrvdynamicLabelReceivedCallbackMId, dlsObject);
     }
 
