@@ -3,3 +3,4 @@
 /local.properties
 /.idea/
 /build
+libclang_rt.asan*.so
