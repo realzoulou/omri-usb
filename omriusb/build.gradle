@@ -1,7 +1,7 @@
 apply plugin: 'com.android.library'
 
 // change to true if you want Address Sanitizer active in debug build
-def asanEnabledInDebugBuild = true
+def asanEnabledInDebugBuild = false
 
 android {
     compileSdkVersion 28
