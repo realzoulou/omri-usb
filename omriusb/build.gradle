@@ -74,19 +74,24 @@ task copyNativeAsanLibs(type: Copy) {
         if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
             from(new File(ndkDir, 'toolchains/llvm/prebuilt/windows-x86_64/lib64/clang/9.0.8/lib/linux'))
                     { include 'libclang_rt.asan-aarch64-android.so' }
-            into new File(project(':omriusb').projectDir, 'src/main/jniLibs/arm64-v8a')
+            into new File(project(':omriusb').projectDir, '/src/main/jniLibs/arm64-v8a')
         } else if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
             from(new File(ndkDir, 'toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/9.0.8/lib/linux'))
                     { include 'libclang_rt.asan-aarch64-android.so' }
-            into new File(project(':omriusb').projectDir, 'src/main/jniLibs/arm64-v8a')
+            into new File(project(':omriusb').projectDir, '/src/main/jniLibs/arm64-v8a')
         } else {
             // bad luck
         }
     }
 }
+task cleanNativeAsanLibs() {
+    doLast {
+        delete(project(':omriusb').projectDir.absolutePath + '/src/main/jniLibs/arm64-v8a/libclang_rt.asan-aarch64-android.so')
+    }
+}
 // Whenever the code is compiled, also copy the native libs to the build folder
 tasks.withType(JavaCompile) { compileTask -> compileTask.dependsOn copyNativeAsanLibs }
 // On "gradle clean" also reverse the copying of the native libraries
-clean.dependsOn 'cleanCopyNativeAsanLibs'
+clean.dependsOn cleanNativeAsanLibs
 
 
