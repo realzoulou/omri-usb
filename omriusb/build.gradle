@@ -78,7 +78,7 @@ task copyNativeAsanLibs(type: Copy) {
         } else if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
             from(new File(ndkDir, 'toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/9.0.8/lib/linux'))
                     { include 'libclang_rt.asan-aarch64-android.so' }
-            into new File(project(':omriusb').projectDir, '/src/main/jniLibs/arm64-v8a')
+            into new File(projectDir, '/src/main/jniLibs/arm64-v8a')
         } else {
             // bad luck
         }
@@ -86,7 +86,7 @@ task copyNativeAsanLibs(type: Copy) {
 }
 task cleanNativeAsanLibs() {
     doLast {
-        delete(project(':omriusb').projectDir.absolutePath + '/src/main/jniLibs/arm64-v8a/libclang_rt.asan-aarch64-android.so')
+        delete(projectDir + '/src/main/jniLibs/arm64-v8a/libclang_rt.asan-aarch64-android.so')
     }
 }
 // Whenever the code is compiled, also copy the native libs to the build folder
@@ -94,4 +94,39 @@ tasks.withType(JavaCompile) { compileTask -> compileTask.dependsOn copyNativeAsa
 // On "gradle clean" also reverse the copying of the native libraries
 clean.dependsOn cleanNativeAsanLibs
 
-
+// Create wrap.sh in resources
+// See https://developer.android.com/ndk/guides/asan
+task createWrapSh() {
+    if (asanEnabledInDebugBuild) {
+        List<String> fileLines = [
+            '#!/system/bin/sh',
+            'HERE="$(cd "$(dirname "$0")" && pwd)"',
+            'ASAN_OPTIONS_DEFAULT=log_to_syslog=false,allow_user_segv_handler=1',
+            'ASAN_OPTIONS_ADD=',
+            'export ASAN_OPTIONS=$ASAN_OPTIONS_DEFAULT$ASAN_OPTIONS_ADD',
+            'ASAN_LIB=$(ls $HERE/libclang_rt.asan-*-android.so)',
+            'if [ -f "$HERE/libc++_shared.so" ]; then',
+            '   # Workaround for https://github.com/android-ndk/ndk/issues/988.',
+            '   export LD_PRELOAD="$ASAN_LIB $HERE/libc++_shared.so"',
+            'else',
+            '   export LD_PRELOAD="$ASAN_LIB"',
+            'fi',
+            '"$@"'
+        ] as String[]
+        File resourcesFolder = new File(projectDir, '/src/main/resources/lib/arm64-v8a')
+        if( !resourcesFolder.exists() ) {
+            resourcesFolder.mkdirs()
+        }
+        new File(resourcesFolder, '/wrap.sh').text = fileLines.join ("\n")
+    }
+}
+// clean wrap.sh in resources
+task cleanWrapSh() {
+    doLast {
+        delete(projectDir + '/src/main/resources/lib/arm64-v8a/wrap.sh')
+    }
+}
+// When the code is compiled, also create wrap.sh
+tasks.withType(JavaCompile) { compileTask -> compileTask.dependsOn createWrapSh }
+// On "gradle clean" also delete wrap.sh
+clean.dependsOn cleanWrapSh
