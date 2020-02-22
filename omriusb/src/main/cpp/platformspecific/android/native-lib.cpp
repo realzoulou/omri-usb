@@ -104,7 +104,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceDetached(JNIEnv*
 
     auto bla = m_dabInputs.begin();
     while(bla < m_dabInputs.end()) {
-        if(bla->get()->getDeviceName() == removedDev) {
+        if(bla->get() != nullptr && bla->get()->getDeviceName() == removedDev) {
             std::cout << LOG_TAG << " Removing UsbTunerInput: " << removedDev << " : " << bla->get()->getDeviceName() << std::endl;
             m_dabInputs.erase(bla);
             break;
@@ -114,7 +114,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceDetached(JNIEnv*
 
     auto devIter = m_usbDevices.cbegin();
     while(devIter != m_usbDevices.cend()) {
-        if(devIter->get()->getDeviceName() == removedDev) {
+        if(devIter->get() != nullptr && devIter->get()->getDeviceName() == removedDev) {
             std::cout << LOG_TAG << " Removing device: " << removedDev << std::endl;
             m_usbDevices.erase(devIter);
             break;
@@ -156,12 +156,15 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_devicePermission(JNIEn
 
     auto devIter = m_usbDevices.cbegin();
     while(devIter != m_usbDevices.cend()) {
-        std::cout << LOG_TAG << " searching device: " << devIter->get()->getDeviceName() << std::endl;
-        if(devIter->get()->getDeviceName() == permitDev) {
-            std::cout << LOG_TAG << " Permission device: " << permitDev << std::endl;
+        if(devIter->get() != nullptr) {
+            std::cout << LOG_TAG << " searching device: " << devIter->get()->getDeviceName()
+                      << std::endl;
+            if (devIter->get()->getDeviceName() == permitDev) {
+                std::cout << LOG_TAG << " Permission device: " << permitDev << std::endl;
 
-            devIter->get()->permissionGranted(env, static_cast<bool>(permissionGranted));
-            break;
+                devIter->get()->permissionGranted(env, static_cast<bool>(permissionGranted));
+                break;
+            }
         }
         ++devIter;
     }
@@ -177,7 +180,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startSrv(JNIEnv* env, 
 
     auto devIter = m_dabInputs.cbegin();
     while(devIter != m_dabInputs.cend()) {
-        if(devIter->get()->getDeviceName() == devName) {
+        if(devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
             (*devIter).get()->startService(std::move(std::shared_ptr<JDabService>(new JDabService(m_javaVm, env, m_dabServiceClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService))));
             break;
         }
@@ -196,7 +199,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopSrv(JNIEnv* env, j
 
     auto devIter = m_dabInputs.cbegin();
     while(devIter != m_dabInputs.cend()) {
-        if(devIter->get()->getDeviceName() == devName) {
+        if(devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
             (*devIter).get()->stopAllRunningServices();
             break;
         }
@@ -220,7 +223,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startServiceScan(JNIEn
 
     auto devIter = m_dabInputs.cbegin();
     while(devIter != m_dabInputs.cend()) {
-        if(devIter->get()->getDeviceName() == devName) {
+        if(devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
             (*devIter).get()->startServiceScan();
             break;
         }
@@ -238,7 +241,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopServiceScan(JNIEnv
 
     auto devIter = m_dabInputs.cbegin();
     while(devIter != m_dabInputs.cend()) {
-        if(devIter->get()->getDeviceName() == devName) {
+        if(devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
             (*devIter).get()->stopServiceScan();
             break;
         }
