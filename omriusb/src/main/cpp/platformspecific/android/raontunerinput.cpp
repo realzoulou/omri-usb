@@ -164,7 +164,7 @@ void RaonTunerInput::startService(std::shared_ptr<JDabService> serviceLink) {
 }
 
 void RaonTunerInput::startServiceSync(std::shared_ptr<JDabService> serviceLink) {
-    std::cout << LOG_TAG << "Starting service..." << std::endl;
+    std::cout << LOG_TAG << "Starting service... " << serviceLink->getServiceId() << std::endl;
 
     if(m_isScanning) {
         return;
@@ -180,19 +180,20 @@ void RaonTunerInput::startServiceSync(std::shared_ptr<JDabService> serviceLink) 
         }
         m_startServiceLink.reset();
     }
+    // need to refer to serviceLink, otherwise it may be destroyed
+    m_startServiceLink = serviceLink;
 
     if(m_currentFrequency != serviceLink.get()->getEnsembleFrequency()) {
         m_ensembleCollectFinished = false;
         tuneFrequency(serviceLink.get()->getEnsembleFrequency());
-        m_startServiceLink = serviceLink;
         return;
     }
 
     if(m_ensembleCollectFinished) {
-        m_startServiceLink = serviceLink;
         setService();
         return;
     }
+    std::cout << LOG_TAG << "WARN: startServiceSync() end" << std::endl;
 }
 
 void RaonTunerInput::stopService(const DabService &service) {
