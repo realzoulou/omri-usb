@@ -77,10 +77,11 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     //sets the redirect stream for logcat logging...should be deleted at cleanup with
     //delete std::cout.rdbuf(0);
 
-    //TODO set to enable debug output
 #ifdef DEBUGOUTPUT
     std::cout.rdbuf(new androidlogbuf);
 #endif
+    std::clog.rdbuf(new androidlogbuf("stdwarn", ANDROID_LOG_WARN));
+    std::cerr.rdbuf(new androidlogbuf("stderr", ANDROID_LOG_ERROR));
 
     JNIEnv* env;
     vm->GetEnv((void **)&env, JNI_VERSION_1_6);
@@ -176,7 +177,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startSrv(JNIEnv* env, 
     std::string devName(cDeviceName);
     env->ReleaseStringUTFChars(deviceName, cDeviceName);
 
-    std::cout << LOG_TAG << " UsbHelper starting service for Device: " << devName << std::endl;
+    std::cout << LOG_TAG << " starting service for device: " << devName << std::endl;
 
     auto devIter = m_dabInputs.cbegin();
     while(devIter != m_dabInputs.cend()) {
@@ -189,13 +190,11 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startSrv(JNIEnv* env, 
 }
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopSrv(JNIEnv* env, jobject thiz, jstring deviceName) {
-    std::cout << LOG_TAG << " UsbHelper stopping service!" << std::endl;
-
     const char *cDeviceName = env->GetStringUTFChars(deviceName, JNI_FALSE);
     std::string devName(cDeviceName);
     env->ReleaseStringUTFChars(deviceName, cDeviceName);
 
-    std::cout << LOG_TAG << " UsbHelper stopping service on device: " << devName << std::endl;
+    std::cout << LOG_TAG << " stopping service on device: " << devName << std::endl;
 
     auto devIter = m_dabInputs.cbegin();
     while(devIter != m_dabInputs.cend()) {
@@ -208,7 +207,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopSrv(JNIEnv* env, j
 }
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_tuneFreq(JNIEnv* env, jobject thiz, jstring deviceName, jlong freq) {
-    std::cout << LOG_TAG << " UsbHelper starting service!" << std::endl;
+    std::cerr << LOG_TAG << " tuning to frequency not implemented!" << std::endl;
 
     //TODO
 }
@@ -219,7 +218,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startServiceScan(JNIEn
     std::string devName(cDeviceName);
     env->ReleaseStringUTFChars(deviceName, cDeviceName);
 
-    std::cout << LOG_TAG << " UsbHelper starting serviceScan on device: " << devName << std::endl;
+    std::cout << LOG_TAG << " starting serviceScan on device: " << devName << std::endl;
 
     auto devIter = m_dabInputs.cbegin();
     while(devIter != m_dabInputs.cend()) {
@@ -237,7 +236,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopServiceScan(JNIEnv
     std::string devName(cDeviceName);
     env->ReleaseStringUTFChars(deviceName, cDeviceName);
 
-    std::cout << LOG_TAG << " UsbHelper stopping serviceScan on device: " << devName << std::endl;
+    std::cout << LOG_TAG << " stopping serviceScan on device: " << devName << std::endl;
 
     auto devIter = m_dabInputs.cbegin();
     while(devIter != m_dabInputs.cend()) {
@@ -253,7 +252,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopServiceScan(JNIEnv
 std::vector<std::shared_ptr<EdiInput>> m_ediInputs;
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediTunerAttached(JNIEnv* env, jobject thiz, jobject ediTuner) {
-    std::cout << LOG_TAG << "EdiTuner attached" << std::endl;
+    std::cout << LOG_TAG << " EdiTuner attached" << std::endl;
 
     std::shared_ptr<EdiInput> jediTuner = std::shared_ptr<EdiInput>(new EdiInput(m_javaVm, env, ediTuner));
     jediTuner->setJavaClassEdiTuner(env, m_ediTunerClass);
@@ -267,7 +266,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediTunerAttached(JNIEn
 }
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediTunerDetached(JNIEnv* env, jobject thiz, jobject ediTuner) {
-    std::cout << LOG_TAG << "EdiTuner detached" << std::endl;
+    std::cout << LOG_TAG << " EdiTuner detached" << std::endl;
 
     //TODO only erase specific tuner instance instead of clear
     m_ediInputs.clear();
@@ -286,9 +285,9 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediStreamData(JNIEnv* 
 }
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediFlushBuffer(JNIEnv* env, jobject thiz) {
-    std::cout << LOG_TAG << " UsbHelper flushing component data" << std::endl;
+    std::cout << LOG_TAG << " flushing component data" << std::endl;
 
     m_ediInputs[0]->flushComponentBuffer();
 }
 
-}
+} // extern "C"

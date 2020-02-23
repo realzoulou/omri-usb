@@ -87,7 +87,7 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
     m_ensembleId = static_cast<uint16_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetEnsembleIdMId));
     m_serviceId = static_cast<uint32_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetServiceIdMId));
 
-    std::cout << m_logTag << "Constructed SId " << std::hex << m_serviceId << std::endl;
+    std::clog << m_logTag << "Constructed SId " << std::hex << m_serviceId << std::endl;
 }
 
 JDabService::~JDabService() {
@@ -99,13 +99,13 @@ JDabService::~JDabService() {
         if(m_javaVm->AttachCurrentThread(&enve, NULL) == 0) {
             wasDetached = true;
         } else {
-            std::cout << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+            std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
             return;
         }
     }
 
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << "Destroying SId " << std::hex << m_serviceId << std::endl;
+    std::clog << m_logTag << "Destroying SId " << std::hex << m_serviceId << std::endl;
 
     // stop processing audioDataInput
     decodeAudio(false);
@@ -230,7 +230,7 @@ void JDabService::audioDataInput(const std::vector<uint8_t>& audioData, int asct
         if (m_javaVm->AttachCurrentThread(&enve, nullptr) == 0) {
             wasDetached = true;
         } else {
-            std::cout << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+            std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
             return;
         }
     }
@@ -253,12 +253,9 @@ void JDabService::audioDataInput(const std::vector<uint8_t>& audioData, int asct
                                      m_audioChannelCount, m_audioSamplingRate, m_audioSbrUsed,
                                      m_audioPsUsed);
             } else {
-                std::cout << m_logTag << "LinkedDabServiceObject is NULL at changed audioparams"
+                std::cerr<< m_logTag << "LinkedDabServiceObject is NULL at changed audioparams"
                           << std::endl;
             }
-        } else {
-            std::cout << m_logTag << "audioDataInput not decodeAudio at changed audioparams"
-                      << std::endl;
         }
     }
 
@@ -274,12 +271,9 @@ void JDabService::audioDataInput(const std::vector<uint8_t>& audioData, int asct
                                          m_javaDabSrvAudioDataCallbackMId,
                                          data, channels, sampleRate);
                 } else {
-                    std::cout << m_logTag << "LinkedDabServiceObject is NULL at audiodata callback"
+                    std::cerr << m_logTag << "LinkedDabServiceObject is NULL at audiodata callback"
                               << std::endl;
                 }
-            } else {
-                std::cout << m_logTag << "audioDataInput not decodeAudio at audiodata callback"
-                          << std::endl;
             }
             enve->DeleteLocalRef(data);
         }
@@ -315,7 +309,7 @@ void JDabService::dynamicLabelInput(std::shared_ptr<void> label) {
     m_lastDynamicLabel = std::static_pointer_cast<DabDynamicLabel>(label);
 
     if(m_lastDynamicLabel == nullptr) {
-        std::cout << m_logTag << "SharedPointerCast to DynamicLabel failed!" << std::endl;
+        std::cerr << m_logTag << "SharedPointerCast to DynamicLabel failed!" << std::endl;
         return;
     }
 
@@ -329,7 +323,7 @@ void JDabService::slideshowInput(std::shared_ptr<void> slideShow) {
     m_lastSlideshow = std::static_pointer_cast<DabSlideshow>(slideShow);
 
     if(m_lastSlideshow == nullptr) {
-        std::cout << m_logTag << "SharedPointerCast to Slideshow failed!" << std::endl;
+        std::cerr << m_logTag << "SharedPointerCast to Slideshow failed!" << std::endl;
         return;
     }
 
@@ -352,7 +346,7 @@ void JDabService::callJavaSlideshowCallback(const std::shared_ptr<DabSlideshow>&
         if(m_javaVm->AttachCurrentThread(&enve, nullptr) == 0) {
             wasDetached = true;
         } else {
-            std::cout << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+            std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
             return;
         }
     }
@@ -394,6 +388,8 @@ void JDabService::callJavaSlideshowCallback(const std::shared_ptr<DabSlideshow>&
 
     if(m_linkedJavaDabServiceObject != nullptr) {
         enve->CallVoidMethod(m_linkedJavaDabServiceObject, m_javaDabSrvslideshowReceivedCallbackMId, slsObject);
+    } else {
+        std::cerr << m_logTag << " callJavaSlideshowCallback: m_linkedJavaDabServiceObject null" << std::endl;
     }
 
     enve->DeleteLocalRef(visualData);
@@ -414,7 +410,7 @@ void JDabService::callJavaDynamiclabelCallback(const std::shared_ptr<DabDynamicL
         if(m_javaVm->AttachCurrentThread(&enve, nullptr) == 0) {
             wasDetached = true;
         } else {
-            std::cout << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+            std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
             return;
         }
     }
@@ -451,6 +447,7 @@ void JDabService::callJavaDynamiclabelCallback(const std::shared_ptr<DabDynamicL
 
         jbyteArray tagTextBytes = enve->NewByteArray(static_cast<jsize>(tag.dlPlusTagText.size()));
         if(tagTextBytes == nullptr) {
+            std::cerr << m_logTag << " tagTextBytes null" << std::endl;
             return;
         }
         enve->SetByteArrayRegion(tagTextBytes, 0, static_cast<jsize>(tag.dlPlusTagText.size()), (jbyte*)tag.dlPlusTagText.data());
@@ -464,6 +461,8 @@ void JDabService::callJavaDynamiclabelCallback(const std::shared_ptr<DabDynamicL
     }
     if(m_linkedJavaDabServiceObject != nullptr) {
         enve->CallVoidMethod(m_linkedJavaDabServiceObject, m_javaDabSrvdynamicLabelReceivedCallbackMId, dlsObject);
+    } else {
+        std::cerr << m_logTag << " callJavaDynamiclabelCallback: m_linkedJavaDabServiceObject null" << std::endl;
     }
 
     enve->DeleteLocalRef(dlsObject);

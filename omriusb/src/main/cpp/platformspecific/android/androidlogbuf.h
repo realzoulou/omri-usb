@@ -25,11 +25,21 @@
 #include <cstring>
 #include <streambuf>
 
-//Hackish thing to redirect std::cout to androids logcat
+//Hackish thing to redirect std::cout/std::clog/std::cerr to Android logcat
+// https://stackoverflow.com/questions/8870174/is-stdcout-usable-in-android-ndk
+// https://gist.github.com/dzhioev/6127982
+
 class androidlogbuf : public std::streambuf {
 public:
     static constexpr int bufsize{512};
-    androidlogbuf() { this->setp(buffer, buffer + bufsize - 1); }
+    static constexpr int alogtagsize{9};
+
+    androidlogbuf(const char* tag = "std", android_LogPriority prio = ANDROID_LOG_INFO) :
+            alogprio(prio) {
+        strncpy(alogtag, tag, alogtagsize-1);
+        alogtag[alogtagsize-1] = '\0';
+        this->setp(buffer, buffer + bufsize - 1);
+    }
 
 private:
     int overflow(int c) {
@@ -43,17 +53,19 @@ private:
     int sync() {
         int rc = 0;
         if (this->pbase() != this->pptr()) {
-            char writebuf[bufsize+1];
-            memcpy(writebuf, this->pbase(), this->pptr() - this->pbase());
-            writebuf[this->pptr() - this->pbase()] = '\0';
 
-            rc = __android_log_write(ANDROID_LOG_INFO, "std", writebuf) > 0;
+            rc = __android_log_print(alogprio, alogtag, "%s",
+                                      std::string(this->pbase(),
+                                                  this->pptr() - this->pbase()).c_str());
+
             this->setp(buffer, buffer + bufsize - 1);
         }
         return rc;
     }
 
     char buffer[bufsize];
+    char alogtag[alogtagsize];
+    android_LogPriority alogprio{ANDROID_LOG_INFO};
 };
 
 
