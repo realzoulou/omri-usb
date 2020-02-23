@@ -22,6 +22,14 @@
 
 #include "iostream"
 
+#include <linux/usbdevice_fs.h>
+#include <sys/ioctl.h>
+
+// POSIX_IOCTL_READ_WRITE_BULKTRANSFER
+// 0 : Use Android UsbDeviceConnection (with immense overhead for JNI)
+// 1 : Use POSIX ioctl() to read/write (no overhead, direct kernel communication)
+#define POSIX_IOCTL_READ_WRITE_BULKTRANSFER 1
+
 JUsbDevice::JUsbDevice(JavaVM* javaVm, JNIEnv *env, jobject usbDevice) {
     m_javaVm = javaVm;
 
@@ -45,6 +53,7 @@ JUsbDevice::JUsbDevice(JavaVM* javaVm, JNIEnv *env, jobject usbDevice) {
     m_usbDeviceConnectionReleaseInterfaceMId = env->GetMethodID(m_usbDeviceConnectionClass, "releaseInterface", "(Landroid/hardware/usb/UsbInterface;)Z");
     m_usbDeviceConnectionBulkTransferWithOffsetMId = env->GetMethodID(m_usbDeviceConnectionClass, "bulkTransfer", "(Landroid/hardware/usb/UsbEndpoint;[BIII)I");
     m_usbDeviceConnectionBulkTransferMId = env->GetMethodID(m_usbDeviceConnectionClass, "bulkTransfer", "(Landroid/hardware/usb/UsbEndpoint;[BII)I");
+    m_usbDeviceConnectionGetFileDescriptorMid = env->GetMethodID(m_usbDeviceConnectionClass, "getFileDescriptor", "()I");
 
     //Android UsbInterface class definitions
     m_usbDeviceInterfaceClass = static_cast<jclass>(env->NewGlobalRef(env->FindClass("android/hardware/usb/UsbInterface")));
@@ -137,6 +146,9 @@ void JUsbDevice::permissionGranted(JNIEnv *env, bool granted) {
         jint endpointCnt = env->CallIntMethod(usbInterface, m_usbDeviceInterfaceGetEndpointCountMId);
         std::cout << "Endpoint count: " << +endpointCnt << std::endl;
 
+        m_fileDescriptor = env->CallIntMethod(m_usbDeviceConnectionObject, m_usbDeviceConnectionGetFileDescriptorMid);
+        std::cout << "FileDescriptor: " << m_fileDescriptor << std::endl;
+
         for(int i = 0; i < endpointCnt; i++) {
             jobject endPoint = env->CallObjectMethod(usbInterface, m_usbDeviceInterfaceGetEndpointMId, i);
             jint endpointNumber = env->CallIntMethod(endPoint, m_usbDeviceEndpointGetEndpointNumberMId);
@@ -151,8 +163,24 @@ void JUsbDevice::permissionGranted(JNIEnv *env, bool granted) {
     m_permissionCallback(m_permissionGranted);
 }
 
+int JUsbDevice::writeBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs) {
+    // https://stackoverflow.com/questions/16963237/passing-usb-file-descriptor-to-android-ndk-program/17046674#17046674
+
+    struct usbdevfs_bulktransfer bt;
+    bt.ep = endPointAddress;  /* endpoint */
+    bt.timeout = (unsigned int) timeOutMs; /* timeout in ms */
+    bt.len = buffer.size();              /* length of data to be written */
+    bt.data = (uint8_t*) buffer.data();  /* the data to write */
+
+    int rtn = ioctl(m_fileDescriptor, USBDEVFS_BULK, &bt);
+    return rtn;
+}
+
 int JUsbDevice::writeBulkTransferData(uint8_t endPointAddress, const std::vector<uint8_t>& buffer, int timeOutMs) {
 
+#if POSIX_IOCTL_READ_WRITE_BULKTRANSFER
+    return writeBulkTransferDataDirect(endPointAddress, buffer, timeOutMs);
+#else
     auto endpointIter = m_endpointsMap.find(endPointAddress);
     if(endpointIter != m_endpointsMap.cend()) {
         //std::cout << "Found endpoint...sending-retrieving data on Endpoint: " << +endPointAddress << " with buffer size: " << +buffer.size() << std::endl;
@@ -189,9 +217,28 @@ int JUsbDevice::writeBulkTransferData(uint8_t endPointAddress, const std::vector
     }
 
     return -1;
+#endif // POSIX_IOCTL_READ_WRITE_BULKTRANSFER
+}
+
+int JUsbDevice::readBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs) {
+    // https://stackoverflow.com/questions/16963237/passing-usb-file-descriptor-to-android-ndk-program/17046674#17046674
+
+    struct usbdevfs_bulktransfer bt;
+    bt.ep = endPointAddress;  /* endpoint */
+    bt.timeout = (unsigned int) timeOutMs; /* timeout in ms */
+    bt.len = buffer.size();              /* length of receive buffer */
+    bt.data = (uint8_t*) buffer.data();  /* for the received data */
+
+    int rtn = ioctl(m_fileDescriptor, USBDEVFS_BULK, &bt);
+
+    return rtn;
 }
 
 int JUsbDevice::readBulkTransferData(uint8_t endPointAddress, std::vector<uint8_t> &buffer, int timeOutMs) {
+
+#if POSIX_IOCTL_READ_WRITE_BULKTRANSFER
+    return readBulkTransferDataDirect(endPointAddress, buffer, timeOutMs);
+#else
     auto endpointIter = m_endpointsMap.find(endPointAddress);
     if(endpointIter != m_endpointsMap.cend()) {
         //std::cout << "Found endpoint...sending-retrieving data on Endpoint: " << +endPointAddress << " with buffer size: " << +buffer.size() << std::endl;
@@ -226,4 +273,5 @@ int JUsbDevice::readBulkTransferData(uint8_t endPointAddress, std::vector<uint8_
     }
 
     return -1;
+#endif // POSIX_IOCTL_READ_WRITE_BULKTRANSFER
 }

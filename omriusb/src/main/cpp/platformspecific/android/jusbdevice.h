@@ -45,12 +45,15 @@ public:
     virtual void requestPermission(PermissionCallbackFunction permissionCallback);
 
     virtual int writeBulkTransferData(uint8_t endPointAddress, const std::vector<uint8_t>& buffer, int timeOutMs = 5000);
+    virtual int writeBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 5000);
     virtual int readBulkTransferData(uint8_t endPointAddress, std::vector<uint8_t>& buffer, int timeOutMs = 5000);
+    virtual int readBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 5000);
 
 private:
     JavaVM* m_javaVm;
     jobject m_usbDeviceObject;
     jobject m_usbDeviceConnectionObject;
+    int m_fileDescriptor{-1};
 
     std::string m_usbDeviceName;
     uint16_t m_vendorId{0xFFFF};
@@ -86,6 +89,7 @@ private:
     jmethodID m_usbDeviceConnectionReleaseInterfaceMId;
     jmethodID m_usbDeviceConnectionBulkTransferMId;
     jmethodID m_usbDeviceConnectionBulkTransferWithOffsetMId;
+    jmethodID m_usbDeviceConnectionGetFileDescriptorMid;
 
     jclass m_usbDeviceInterfaceClass;
     jmethodID m_usbDeviceInterfaceGetEndpointCountMId;
