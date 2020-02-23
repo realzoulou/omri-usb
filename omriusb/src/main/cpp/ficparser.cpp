@@ -24,12 +24,14 @@ constexpr uint16_t FicParser::CRC_CCITT_TABLE[];
 
 //calling inherited constructor with FIC_ID
 FicParser::FicParser() {
+    std::cout << M_LOG_TAG << " Constructing" << std::endl;
     m_fibProcessThreadRunning = false;
 
     m_fibProcessorThread = std::thread(&FicParser::processFib, this);
 }
 
 FicParser::~FicParser() {
+    std::cout << M_LOG_TAG << " Destructing" << std::endl;
     m_fibDataQueue.clear();
     m_fibProcessThreadRunning = false;
 
@@ -45,19 +47,22 @@ void FicParser::call(const std::vector<uint8_t> &data) {
         std::vector<uint8_t> fib(ficIter, ficIter+32);
         if(FIB_CRC_CHECK(fib.data())) {
             m_fibDataQueue.push(fib);
-        } else {
+        } /* else {
             std::cout << M_LOG_TAG << " FIB crc corrupted: " << std::hex << data[0] << " : " << data[1] << std::dec << std::endl;
-        }
+        }*/
 
         ficIter += 32;
-
-        std::vector<std::string> bla;
-        bla.push_back("");
     }
 }
 
 void FicParser::processFib() {
     m_fibProcessThreadRunning = true;
+
+    pid_t self = pthread_self();
+    char name[13]; // 4 + 8 + '\0'
+    snprintf(name, 12, "FIB-%08x", (int) self);
+    name[12] = '\0';
+    pthread_setname_np(pthread_self(), name); // crashes when passing self instead of pthread_self()
 
     while (m_fibProcessThreadRunning) {
         std::vector<uint8_t> fibData;

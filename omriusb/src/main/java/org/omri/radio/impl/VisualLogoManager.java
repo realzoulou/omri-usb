@@ -61,6 +61,7 @@ class VisualLogoManager {
 			Thread deserthread = new Thread(new Runnable() {
 				@Override
 				public void run() {
+					Thread.currentThread().setName("DeserLogos");
 					deserializeLogos();
 				}
 			});

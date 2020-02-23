@@ -205,6 +205,7 @@ void RaonTunerInput::stopAllRunningServices() {
 }
 
 void RaonTunerInput::commandProcessing() {
+    pthread_setname_np(pthread_self(), "CommandQ");
     while(m_commandThreadRunning) {
         std::function<void(void)> command;
         if (m_commandQueue.tryPop(command, std::chrono::milliseconds(2))) {
@@ -253,6 +254,7 @@ void RaonTunerInput::commandProcessing() {
 }
 
 void RaonTunerInput::processScanCommands() {
+    pthread_setname_np(pthread_self(), "ScanCommandQ");
     while(m_scanCommandThreadRunning) {
         std::function<void(void)> command;
         if (m_scanCommandQueue.tryPop(command, std::chrono::milliseconds(24))) {
@@ -358,20 +360,21 @@ std::string RaonTunerInput::getDeviceName() const {
 
 //
 void RaonTunerInput::threadedFicRead() {
-
+    pthread_setname_np(pthread_self(), "FicRead");
     do {
         readFic();
     } while(m_readFicThreadRunning);
 }
 
 void RaonTunerInput::threadedMscRead() {
-
+    pthread_setname_np(pthread_self(), "MscRead");
     do {
         readMsc();
     } while(m_readMscThreadRunning);
 }
 
 void RaonTunerInput::threadedDataRead() {
+    pthread_setname_np(pthread_self(), "DataRead");
     do {
         readData();
     } while(m_readDataThreadRunning);

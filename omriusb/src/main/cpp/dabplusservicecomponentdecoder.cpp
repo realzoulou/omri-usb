@@ -28,6 +28,7 @@ extern "C" {
 #include <iomanip>
 
 DabPlusServiceComponentDecoder::DabPlusServiceComponentDecoder() {
+    std::cout << m_logTag << " Constructing" << std::endl;
     m_processThreadRunning = true;
     m_processThread = std::thread(&DabPlusServiceComponentDecoder::processData, this);
 }
@@ -130,6 +131,7 @@ std::shared_ptr<DabPlusServiceComponentDecoder::AUDIO_COMPONENT_DATA_CALLBACK> D
 }
 
 void DabPlusServiceComponentDecoder::processData() {
+    pthread_setname_np(pthread_self(), "DplusProcessData");
     while(m_processThreadRunning) {
         std::vector<uint8_t> frameData;
         //For assembling all access units per superframe for always having 120 ms audio for feeding into decoder

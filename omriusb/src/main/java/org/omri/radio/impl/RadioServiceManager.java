@@ -102,6 +102,7 @@ class RadioServiceManager implements org.omri.radio.RadioServiceManager {
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
+				Thread.currentThread().setName("DeserServices");
 				deSerializeIpServices();
 				deserializeDabServices();
 				deSerializeEdiServices();

@@ -27,12 +27,13 @@
 #include "timer.h"
 
 DabEnsemble::DabEnsemble() {
+    std::cout << m_logTag << " Constructing" << std::endl;
     m_ficPtr = std::unique_ptr<FicParser>(new FicParser);
     registerCbs();
 }
 
 DabEnsemble::~DabEnsemble() {
-
+    std::cout << m_logTag << " Destructing" << std::endl;
 }
 
 void DabEnsemble::reset() {
