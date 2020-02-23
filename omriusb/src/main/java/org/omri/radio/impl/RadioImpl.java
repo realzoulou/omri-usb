@@ -1,12 +1,11 @@
 package org.omri.radio.impl;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
-import java.util.TimeZone;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.hardware.usb.UsbDevice;
+import android.preference.PreferenceManager;
+import android.util.Log;
+import android.util.Pair;
 
 import org.omri.radio.Radio;
 import org.omri.radio.RadioErrorCode;
@@ -21,12 +20,13 @@ import org.omri.tuner.TunerListener;
 import org.omri.tuner.TunerStatus;
 import org.omri.tuner.TunerType;
 
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.hardware.usb.UsbDevice;
-import android.preference.PreferenceManager;
-import android.util.Log;
-import android.util.Pair;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
+import java.util.TimeZone;
 
 import static org.omri.BuildConfig.DEBUG;
 
@@ -53,9 +53,9 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 	
 	private RadioStatus mRadioStatus = RadioStatus.STATUS_RADIO_SUSPENDED;
 	
-	private List<Tuner> mTunerList = null;
-	private List<RadioService> mRadioserviceList = null;
-	private List<RadioStatusListener> mRadioStatusListeners = null;
+	private final List<Tuner> mTunerList;
+	private final List<RadioService> mRadioserviceList;
+	private final List<RadioStatusListener> mRadioStatusListeners;
 
 	/* NTP time for unreliable System time */
 	//fallback to system time as default
@@ -81,9 +81,9 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 	
 	private RadioImpl(Context context) {
 		this.mContext = context;
-		this.mTunerList = new ArrayList<Tuner>();
-		this.mRadioserviceList = new ArrayList<RadioService>();
-		this.mRadioStatusListeners = new ArrayList<>();
+		this.mTunerList = Collections.synchronizedList(new ArrayList<>());
+		this.mRadioserviceList = Collections.synchronizedList(new ArrayList<>());
+		this.mRadioStatusListeners = Collections.synchronizedList(new ArrayList<>());
 
 		if(DEBUG)Log.d(TAG, "Getting NTP time");
 		mStartSystemNano = System.nanoTime();
@@ -274,7 +274,8 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 				}
 			});
 
-			mRadioserviceList = aggServiceList;
+			mRadioserviceList.clear();
+			mRadioserviceList.addAll(aggServiceList);
 
 			return mRadioserviceList;
 		}
