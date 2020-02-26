@@ -122,13 +122,6 @@ void JDabService::unlinkDabService() {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::cout << m_logTag << "Un-Linking DABServices... for SId " << std::hex << m_serviceId << std::endl;
     if (m_linkedDabService != nullptr) {
-        for (const auto& srvComp : m_linkedDabService->getServiceComponents()) {
-            if (srvComp->getServiceComponentType() == DabServiceComponent::SERVICECOMPONENTTYPE::MSC_STREAM_AUDIO) {
-                std::shared_ptr<DabServiceComponentMscStreamAudio> audioComponent = std::static_pointer_cast<DabServiceComponentMscStreamAudio>(srvComp);
-                audioComponent->clearCallbacks();
-                // TODO clear callbacks in getUserApplications
-            }
-        }
         m_linkedDabService.reset();
         m_linkedDabService = nullptr;
     }
