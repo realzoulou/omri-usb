@@ -253,12 +253,15 @@ public class UsbHelper {
 				if (action.equals(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
 					if(DEBUG)Log.d(TAG, "USB Device detached: " + device.getDeviceName());
 					deviceDetached(device.getDeviceName());
-					mUsbCb.UsbTunerDeviceDetached(device);
+					if (mUsbCb != null) {
+						mUsbCb.UsbTunerDeviceDetached(device);
+					}
 				}
 				if (action.equals(UsbManager.ACTION_USB_DEVICE_ATTACHED)) {
 					if(DEBUG)Log.d(TAG, "USB Device attached: " + device.getDeviceName());
-
-					mUsbCb.UsbTunerDeviceAttached(device);
+					if (mUsbCb != null) {
+						mUsbCb.UsbTunerDeviceAttached(device);
+					}
 				}
 			}
 		}
