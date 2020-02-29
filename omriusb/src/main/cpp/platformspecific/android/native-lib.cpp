@@ -53,6 +53,8 @@ jclass m_slideshowClass = nullptr;
 jclass m_ediTunerClass = nullptr;
 jclass m_dabTimeClass = nullptr;
 
+jboolean m_CoutRedirectedToALog = JNI_FALSE;
+
 void cacheClassDefinitions(JavaVM *vm) {
     JNIEnv* env;
     vm->GetEnv ((void **) &env, JNI_VERSION_1_6);
@@ -74,12 +76,7 @@ void cacheClassDefinitions(JavaVM *vm) {
 }
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
-    //sets the redirect stream for logcat logging...should be deleted at cleanup with
-    //delete std::cout.rdbuf(0);
-
-#ifdef DEBUGOUTPUT
-    std::cout.rdbuf(new androidlogbuf);
-#endif
+    //sets the redirect stream for logcat logging
     std::clog.rdbuf(new androidlogbuf("stdwarn", ANDROID_LOG_WARN));
     std::cerr.rdbuf(new androidlogbuf("stderr", ANDROID_LOG_ERROR));
 
@@ -92,9 +89,22 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     return JNI_VERSION_1_6;
 }
 
+JNIEXPORT void JNI_OnUnload(JavaVM *vm, void *reserved) {
+    std::clog << LOG_TAG << " OnUnload" << std::endl;
+    if (m_CoutRedirectedToALog == JNI_TRUE) {
+        m_CoutRedirectedToALog = JNI_FALSE;
+        delete std::cout.rdbuf(0);
+    }
+    delete std::clog.rdbuf(0);
+    delete std::cerr.rdbuf(0);
+}
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_created(JNIEnv* env, jobject thiz) {
-    std::cout << LOG_TAG << " created!" << std::endl;
+JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_created(JNIEnv* env, jobject thiz, jboolean redirectCoutToALog) {
+    if (JNI_TRUE == redirectCoutToALog) {
+        m_CoutRedirectedToALog = JNI_TRUE;
+        std::cout.rdbuf(new androidlogbuf);
+    }
+    std::cout << LOG_TAG << " created(redirectCout=" << m_CoutRedirectedToALog << ")" << std::endl;
 }
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceDetached(JNIEnv* env, jobject thiz, jstring deviceName) {

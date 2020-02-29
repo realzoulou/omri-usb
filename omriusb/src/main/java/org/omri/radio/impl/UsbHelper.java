@@ -48,6 +48,7 @@ public class UsbHelper {
 
 	private static UsbHelper mInstance = null;
 	private static UsbHelperCallback mUsbCb = null;
+	private static boolean mRedirectCoutToALog = false;
 
 	private UsbManager mUsbManager;
 	private PendingIntent mUsbPermissionIntent;
@@ -60,7 +61,7 @@ public class UsbHelper {
 		System.loadLibrary("irtdab");
 	}
 
-	private native void created();
+	private native void created(boolean redirectCoutToALog);
 	private native void deviceDetached(String deviceName);
 	private native void deviceAttached(TunerUsb usbDevice);
 	private native void devicePermission(String deviceName, boolean granted);
@@ -78,7 +79,7 @@ public class UsbHelper {
 	private native void ediFlushBuffer();
 
 	private UsbHelper(Context context) {
-		if(DEBUG)Log.d(TAG, "Contructing UsbHelper...");
+		if(DEBUG)Log.d(TAG, "Contructing UsbHelper...coutToAlog=" + mRedirectCoutToALog);
 		mContext = context.getApplicationContext();
 
 		if(mContext != null) {
@@ -90,7 +91,7 @@ public class UsbHelper {
 			filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
 
 			mContext.registerReceiver(mUsbBroadcastReceiver, filter);
-			created();
+			created(mRedirectCoutToALog);
 		}
 	}
 
@@ -211,10 +212,11 @@ public class UsbHelper {
 
 	}
 
-	static void create(Context context, UsbHelperCallback cb) {
+	static void create(Context context, UsbHelperCallback cb, boolean redirectCoutToALog) {
 		if(mInstance == null) {
-			mInstance = new UsbHelper(context);
 			mUsbCb = cb;
+			mRedirectCoutToALog = redirectCoutToALog;
+			mInstance = new UsbHelper(context);
 		}
 	}
 
