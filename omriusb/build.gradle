@@ -25,7 +25,6 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             externalNativeBuild {
                 cmake {
-                    cppFlags -= "-DDEBUGOUTPUT"
                 }
             }
         }
@@ -33,7 +32,6 @@ android {
             jniDebuggable true
             externalNativeBuild {
                 cmake {
-                    cppFlags += "-DDEBUGOUTPUT"
                     // address sanitizer arguments for cmake
                     if (asanEnabledInDebugBuild) {
                         arguments "-DANDROID_ARM_MODE=arm", "-DANDROID_STL=c++_shared"

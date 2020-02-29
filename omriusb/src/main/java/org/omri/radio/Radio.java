@@ -1,6 +1,7 @@
 package org.omri.radio;
 
-import java.util.List;
+import android.content.Context;
+import android.os.Bundle;
 
 import org.omri.radio.impl.RadioImpl;
 import org.omri.radioservice.RadioService;
@@ -8,7 +9,7 @@ import org.omri.tuner.Tuner;
 import org.omri.tuner.TunerListener;
 import org.omri.tuner.TunerType;
 
-import android.content.Context;
+import java.util.List;
 
 /**
  * Copyright (C) 2016 Open Mobile Radio Interface (OMRI) Group
@@ -54,8 +55,16 @@ public abstract class Radio {
      * @return the {@link RadioErrorCode} indicating the success of init.
      */
     public abstract RadioErrorCode initialize(Context appContext);
-        
-    /**
+
+	/**
+	 * Initializes the {@link Radio} instance with an Android {@link Context}
+	 * @param appContext the App Context
+	 * @param bundle a Bundle with options
+	 * @return the {@link RadioErrorCode} indicating the success of init.
+	 */
+	public abstract RadioErrorCode initialize(Context appContext, Bundle bundle);
+
+	/**
      * Suspends the {@link Radio} and with it all {@link Tuner}s
      * @return a {@link RadioErrorCode} indicating the success of the suspend.
      */

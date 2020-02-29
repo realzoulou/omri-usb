@@ -3,6 +3,7 @@ package org.omri.radio.impl;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.hardware.usb.UsbDevice;
+import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.util.Pair;
@@ -119,10 +120,15 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 		if(DEBUG)Log.d(TAG, "Initializing...!");
 		return initialize(mContext);
 	}
-	
+
 	@Override
 	public RadioErrorCode initialize(Context appContext) {
 		if(DEBUG)Log.d(TAG, "Initializing with Context!");
+		return initialize(appContext, null);
+	}
+
+	@Override
+	public RadioErrorCode initialize(Context appContext, Bundle bundle) {
 
 		mContext = appContext.getApplicationContext();
 
@@ -161,7 +167,12 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 				}
 			}
 
-			UsbHelper.create(mContext, this);
+			boolean redirectCoutToALog = false;
+			if (bundle != null) {
+				redirectCoutToALog = bundle.getBoolean(RADIO_INIT_OPT_VERBOSE_NATIVE_LOGS, false);
+				if (DEBUG) Log.d(TAG, RADIO_INIT_OPT_VERBOSE_NATIVE_LOGS + ":" + redirectCoutToALog);
+			}
+			UsbHelper.create(mContext, this, redirectCoutToALog);
 
 			//List of Pairs consisiting of first.VendorId and second.ProductId
 			ArrayList<Pair<Integer, Integer>> wantedDevices = new ArrayList<>();
@@ -573,5 +584,6 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 	public final static String SERVICE_SEARCH_OPT_USE_HRADIO = "use_hradio";
 	public final static String SERVICE_SEARCH_OPT_DELETE_SERVICES = "delete_services";
 	public final static String SERVICE_SEARCH_OPT_HYBRID_SCAN = "hybrid_scan";
+	public final static String RADIO_INIT_OPT_VERBOSE_NATIVE_LOGS = "verbose_native_logs";
 	/* */
 }
