@@ -110,6 +110,8 @@ void DabServiceComponentMscStreamAudio::componentMscDataInput(const std::vector<
         if(m_componentDecoder != nullptr) {
             m_componentDecoder->componentDataInput(mscData, synchronized);
         }
+    } else {
+        std::cout << m_logTag << " dismissed MSC Data " << std::hex << +mscData.data()[0] << std::dec << std::endl;
     }
 }
 

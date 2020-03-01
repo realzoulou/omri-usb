@@ -29,14 +29,14 @@ constexpr uint16_t DabMpegServiceComponentDecoder::M1_SAMPLINGFREQUENCY_IDX[];
 constexpr uint8_t DabMpegServiceComponentDecoder::CHANNELMODE_IDX[];
 
 DabMpegServiceComponentDecoder::DabMpegServiceComponentDecoder() {
-    //std::cout << m_logTag << "Creating" << std::endl;
+    std::cout << m_logTag << "Creating" << std::endl;
 
     m_processThreadRunning = true;
     m_processThread = std::thread(&DabMpegServiceComponentDecoder::processData, this);
 }
 
 DabMpegServiceComponentDecoder::~DabMpegServiceComponentDecoder() {
-    //std::cout << m_logTag << "Destroying" << std::endl;
+    std::cout << m_logTag << "Destroying" << std::endl;
 
     m_processThreadRunning = false;
     if (m_processThread.joinable()) {
@@ -83,7 +83,7 @@ void DabMpegServiceComponentDecoder::synchronizeData(const std::vector<uint8_t>&
         if(*unsyncIter == 0xFF && ((*(unsyncIter+1)) & 0xF0) == 0xF0) {
             //Test for ID bit (not very elegant)
             if(!m_frameSizeAdjusted && ((*(unsyncIter+1)) & 0x08) != 0x08) {
-                //std::cout << m_logTag << "Adjusting framesize for 24 kHz samplerate" << std::endl;
+                std::cout << m_logTag << "Adjusting framesize for 24 kHz samplerate" << std::endl;
                 m_frameSize *= 2;
                 m_frameSizeAdjusted = true;
             }
@@ -123,6 +123,7 @@ void DabMpegServiceComponentDecoder::processData() {
                     if(bitrateIdx <= M1L2_BITRATE_IDX_MAX) {
                         bitrate = M1L2_BITRATE_IDX[bitrateIdx];
                     } else {
+                        std::cout << m_logTag << "bitrateIdx not supported:" << +bitrateIdx << std::endl;
                         break;
                     }
 
@@ -135,6 +136,7 @@ void DabMpegServiceComponentDecoder::processData() {
                             samplingRate /= 2;
                         }
                     } else {
+                        std::cout << m_logTag << "samplingIdx not supported:" << +samplingIdx << std::endl;
                         break;
                     }
 
@@ -146,6 +148,7 @@ void DabMpegServiceComponentDecoder::processData() {
                     if(channelMode <= CHANNELMODE_IDX_MAX) {
                         channels = CHANNELMODE_IDX[channelMode];
                     } else {
+                        std::cout << m_logTag << "channelMode not supported:" << +channelMode << std::endl;
                         break;
                     }
 
@@ -190,6 +193,7 @@ void DabMpegServiceComponentDecoder::processData() {
 
                             switch (xPadIndicator) {
                                 case 0: {
+                                    std::cout << m_logTag << "xPadIndicator 0 not supported" << std::endl;
                                     //m_audioDataDispatcher.invoke(frameData, 0, channels, samplingRate, false);
                                     break;
                                 }
@@ -219,6 +223,7 @@ void DabMpegServiceComponentDecoder::processData() {
 
                                             ++m_noCiLastLength;
                                             if(xpadAppType == 0) {
+                                                std::cout << m_logTag << "xpadAppType 0 not supported" << std::endl;
                                                 break;
                                             }
 
@@ -247,12 +252,13 @@ void DabMpegServiceComponentDecoder::processData() {
                                     break;
                                 }
                             default:
+                                std::cout << m_logTag << "xPadIndicator unknown:" << +xPadIndicator << std::endl;
                                 break;
                             }
 
                             m_audioDataDispatcher.invoke(frameData, 0, channels, samplingRate, false, false);
                         } else {
-                            std::cout << m_logTag << " Wrong FPAD Type: " << +fPadType << std::endl;
+                            std::cout << m_logTag << "Wrong FPAD Type: " << +fPadType << std::endl;
                         }
 
                         break;
@@ -260,7 +266,12 @@ void DabMpegServiceComponentDecoder::processData() {
 
                     break;
                 } else {
-                    std::cout << m_logTag << "Wrong MPEG Syncword" << std::endl;
+                    if (frameData.size() >= 2) {
+                        std::cout << m_logTag << "Wrong MPEG Syncword " << std::hex << +frameData[0]
+                                  << ":" << +frameData[1] << std::dec << std::endl;
+                    } else {
+                        std::cout << m_logTag << "Wrong MPEG Syncword" << std::endl;
+                    }
                     break;
                 }
             }
