@@ -464,14 +464,16 @@ public class TunerEdistream implements Tuner, IpServiceScanner.IpScannerListener
 	public void subscribe(TunerListener tunerListener) {
 		if(!mTunerlisteners.contains(tunerListener)) {
 			boolean added = mTunerlisteners.add(tunerListener);
-			if(DEBUG)Log.d(TAG + "_" + this, "Subscribe: " + tunerListener + " : " + added);
+			if (DEBUG) Log.d(TAG + "_" + this, "Subscribe: " + tunerListener + " : " + added);
 		}
 	}
 
 	@Override
 	public void unsubscribe(TunerListener tunerListener) {
-		boolean removed = mTunerlisteners.remove(tunerListener);
-		if(DEBUG)Log.d(TAG + "_" + this, "UnSubscribe: " + tunerListener + " : " + removed);
+		if (mTunerlisteners.contains(tunerListener)) {
+			boolean removed = mTunerlisteners.remove(tunerListener);
+			if (DEBUG) Log.d(TAG + "_" + this, "UnSubscribe: " + tunerListener + " : " + removed);
+		}
 	}
 
 	private int mConRetries = 5;

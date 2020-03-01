@@ -2,12 +2,6 @@ package org.omri.radio.impl;
 
 import android.util.Log;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 import org.omri.radio.Radio;
 import org.omri.radioservice.RadioService;
 import org.omri.radioservice.RadioServiceAudiodataListener;
@@ -23,6 +17,12 @@ import org.omri.radioservice.metadata.TextualMetadataListener;
 import org.omri.radioservice.metadata.Visual;
 import org.omri.radioservice.metadata.VisualDabSlideShow;
 import org.omri.radioservice.metadata.VisualMetadataListener;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static org.omri.BuildConfig.DEBUG;
 
@@ -270,28 +270,42 @@ public abstract class RadioServiceImpl implements RadioService, Serializable {
 	public void unsubscribe(RadioServiceListener radioServiceListener) {
 		if(radioServiceListener != null) {
 			if(radioServiceListener instanceof TextualMetadataListener) {
-				if(DEBUG)Log.d(TAG, "UnSubscribing TextualMetadataListener: " + radioServiceListener);
-				this.mLabelListeners.remove(radioServiceListener);
+				if (this.mLabelListeners.contains(radioServiceListener)) {
+					if (DEBUG)
+						Log.d(TAG, "UnSubscribing TextualMetadataListener: " + radioServiceListener);
+					this.mLabelListeners.remove(radioServiceListener);
+				}
 			}
 			if(radioServiceListener instanceof VisualMetadataListener) {
-				if(DEBUG)Log.d(TAG, "UnSubscribing VisualMetadataListener: " + radioServiceListener);
-				this.mSlideshowListeners.remove(radioServiceListener);
+				if (this.mSlideshowListeners.contains(radioServiceListener)) {
+					if (DEBUG)
+						Log.d(TAG, "UnSubscribing VisualMetadataListener: " + radioServiceListener);
+					this.mSlideshowListeners.remove(radioServiceListener);
+				}
 			}
 			if(radioServiceListener instanceof RadioServiceAudiodataListener) {
-				if(DEBUG)Log.d(TAG, "UnSubscribing RadioServiceAudiodataListener: " + radioServiceListener);
-				this.mAudiodataListeners.remove(radioServiceListener);
-
+				if (this.mAudiodataListeners.contains(radioServiceListener)) {
+					if (DEBUG)
+						Log.d(TAG, "UnSubscribing RadioServiceAudiodataListener: " + radioServiceListener);
+					this.mAudiodataListeners.remove(radioServiceListener);
+				}
 				if(mAudiodataListeners.isEmpty()) {
 					mDecodeAudio = false;
 				}
 			}
 			if(radioServiceListener instanceof RadioServiceRawAudiodataListener) {
-				if(DEBUG)Log.d(TAG, "UnSubscribing RadioServiceRawAudiodataListener: " + radioServiceListener);
-				this.mRawAudiodataListeners.remove(radioServiceListener);
+				if (this.mRawAudiodataListeners.contains(radioServiceListener)) {
+					if (DEBUG)
+						Log.d(TAG, "UnSubscribing RadioServiceRawAudiodataListener: " + radioServiceListener);
+					this.mRawAudiodataListeners.remove(radioServiceListener);
+				}
 			}
 			if(radioServiceListener instanceof ProgrammeServiceMetadataListener) {
-				if(DEBUG)Log.d(TAG, "UnSubscribing ProgrammeServiceMetadataListener: " + radioServiceListener);
-				this.mSpiListeners.remove(radioServiceListener);
+				if (this.mSpiListeners.contains(radioServiceListener)) {
+					if (DEBUG)
+						Log.d(TAG, "UnSubscribing ProgrammeServiceMetadataListener: " + radioServiceListener);
+					this.mSpiListeners.remove(radioServiceListener);
+				}
 			}
 		} else {
 			if(DEBUG)Log.d(TAG, "UnSubscribing RadioServiceListener is null");
