@@ -79,7 +79,7 @@ public class UsbHelper {
 	private native void ediFlushBuffer();
 
 	private UsbHelper(Context context) {
-		if(DEBUG)Log.d(TAG, "Contructing UsbHelper...");
+		if(DEBUG)Log.d(TAG, "Contructing UsbHelper...coutToAlog=" + mRedirectCoutToALog);
 		mContext = context.getApplicationContext();
 
 		if(mContext != null) {
