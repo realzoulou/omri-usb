@@ -70,7 +70,7 @@ JUsbDevice::JUsbDevice(JavaVM* javaVm, JNIEnv *env, jobject usbDevice) {
     if(usbDevice != nullptr) {
         m_usbDeviceObject = env->NewGlobalRef(usbDevice);
         if(m_usbDeviceObject != nullptr) {
-            std::cout << "Globalref created!" << std::endl;
+            std::cout << LOG_TAG << "Constructor" << std::endl;
 
             jstring devName = static_cast<jstring >(env->CallObjectMethod(m_usbDeviceObject, m_usbDeviceGetNameMId));
             const char* utfrep = env->GetStringUTFChars(devName, JNI_FALSE);
@@ -88,13 +88,14 @@ JUsbDevice::JUsbDevice(JavaVM* javaVm, JNIEnv *env, jobject usbDevice) {
                 m_interfaceNum = 1;
             };
 
-            std::cout << "ProductID: " << std::hex << +m_productId << " VendorID: " << +m_vendorId << std::dec << std::endl;
+            std::cout << LOG_TAG << "ProductID: " << std::hex << +m_productId << " VendorID: " << +m_vendorId << std::dec << std::endl;
         }
     }
 }
 
 JUsbDevice::~JUsbDevice() {
-    std::cout << "Deleting global usb ref" << std::endl;
+    std::cout << LOG_TAG << "Destructor" << std::endl;
+
     JNIEnv* env;
     m_javaVm->GetEnv((void **)&env, JNI_VERSION_1_6);
 
@@ -130,7 +131,7 @@ void JUsbDevice::requestPermission(JUsbDevice::PermissionCallbackFunction permis
 }
 
 void JUsbDevice::permissionGranted(JNIEnv *env, bool granted) {
-    std::cout << "Device permission granted: " << std::boolalpha << granted << std::noboolalpha << std::endl;
+    std::cout << LOG_TAG << "Device permission granted: " << std::boolalpha << granted << std::noboolalpha << std::endl;
 
     if(granted) {
         m_permissionGranted = true;
@@ -139,22 +140,22 @@ void JUsbDevice::permissionGranted(JNIEnv *env, bool granted) {
 
         jboolean claimed = env->CallBooleanMethod(m_usbDeviceConnectionObject, m_usbDeviceConnectionClaimInterfaceMId, env->CallObjectMethod(m_usbDeviceObject, m_usbDeviceGetInterfaceMId, m_interfaceNum), true);
 
-        std::cout << "Interface claimed: " << std::boolalpha << static_cast<bool>(claimed) << std::noboolalpha << std::endl;
+        std::cout << LOG_TAG << "Interface claimed: " << std::boolalpha << static_cast<bool>(claimed) << std::noboolalpha << std::endl;
 
         jobject usbInterface = env->CallObjectMethod(m_usbDeviceObject, m_usbDeviceGetInterfaceMId, m_interfaceNum);
 
         jint endpointCnt = env->CallIntMethod(usbInterface, m_usbDeviceInterfaceGetEndpointCountMId);
-        std::cout << "Endpoint count: " << +endpointCnt << std::endl;
+        std::cout << LOG_TAG <<  "Endpoint count: " << +endpointCnt << std::endl;
 
         m_fileDescriptor = env->CallIntMethod(m_usbDeviceConnectionObject, m_usbDeviceConnectionGetFileDescriptorMid);
-        std::cout << "FileDescriptor: " << m_fileDescriptor << std::endl;
+        std::cout << LOG_TAG << "FileDescriptor: " << m_fileDescriptor << std::endl;
 
         for(int i = 0; i < endpointCnt; i++) {
             jobject endPoint = env->CallObjectMethod(usbInterface, m_usbDeviceInterfaceGetEndpointMId, i);
             jint endpointNumber = env->CallIntMethod(endPoint, m_usbDeviceEndpointGetEndpointNumberMId);
             jint endpointAddress = env->CallIntMethod(endPoint, m_usbDeviceEndpointGetEndpointAddressMId);
             jint endpointDirection = env->CallIntMethod(endPoint, m_usbDeviceEndpointGetDirectionMId);
-            std::cout << "Endpoint Number: " << +endpointNumber << " Address: " << +endpointAddress << " Direction: " << +endpointDirection << std::endl;
+            std::cout << LOG_TAG << "Endpoint Number: " << +endpointNumber << " Address: " << +endpointAddress << " Direction: " << +endpointDirection << std::endl;
 
             m_endpointsMap.insert(std::pair<uint8_t,jobject>(static_cast<uint8_t>(endpointAddress), env->NewGlobalRef(endPoint)));
         }

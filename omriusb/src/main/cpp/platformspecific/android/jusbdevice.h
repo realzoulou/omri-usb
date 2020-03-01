@@ -67,6 +67,7 @@ private:
     uint8_t m_interfaceNum{0};
 
 private:
+    const std::string LOG_TAG{"[JUsbDevice] "};
     jclass m_usbHelperClass;
     jmethodID m_usbHelperGetInstanceMId;
     jmethodID m_usbHelperRequestPermissionMId;
