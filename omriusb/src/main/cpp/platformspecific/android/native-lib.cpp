@@ -75,6 +75,26 @@ void cacheClassDefinitions(JavaVM *vm) {
     m_dabTimeClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/DabTime"));
 }
 
+void cleanClassDefinitions(JavaVM *vm) {
+    JNIEnv* env;
+    vm->GetEnv ((void **) &env, JNI_VERSION_1_6);
+
+    env->DeleteGlobalRef(m_usbTunerClass);
+    env->DeleteGlobalRef(m_dabServiceClass);
+    env->DeleteGlobalRef(m_dabServiceComponentClass);
+    env->DeleteGlobalRef(m_dabServiceUserApplicationClass);
+
+    //Metadata classes
+    env->DeleteGlobalRef(m_termIdClass);
+    env->DeleteGlobalRef(m_dynamicLabelClass);
+    env->DeleteGlobalRef(m_dynamicLabelPlusItemClass);
+    env->DeleteGlobalRef(m_slideshowClass);
+
+    env->DeleteGlobalRef(m_ediTunerClass);
+    //DABtime class
+    env->DeleteGlobalRef(m_dabTimeClass);
+}
+
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     //sets the redirect stream for logcat logging
     std::clog.rdbuf(new androidlogbuf("stdwarn", ANDROID_LOG_WARN));
@@ -91,6 +111,13 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 
 JNIEXPORT void JNI_OnUnload(JavaVM *vm, void *reserved) {
     std::clog << LOG_TAG << " OnUnload" << std::endl;
+
+    JNIEnv* env;
+    vm->GetEnv((void **)&env, JNI_VERSION_1_6);
+    env->GetJavaVM(&m_javaVm);
+
+    cleanClassDefinitions(m_javaVm);
+
     if (m_CoutRedirectedToALog == JNI_TRUE) {
         m_CoutRedirectedToALog = JNI_FALSE;
         delete std::cout.rdbuf(0);

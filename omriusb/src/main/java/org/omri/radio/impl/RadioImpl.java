@@ -242,6 +242,12 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 		mRadioStatus = RadioStatus.STATUS_RADIO_SUSPENDED;
 
 		mTunerList.clear();
+		mRadioserviceList.clear();
+		mRadioStatusListeners.clear();
+
+		UsbHelper.getInstance().destroyInstance();
+		VisualLogoManager.getInstance().destroyInstance();
+		RadioServiceManager.getInstance().destroyInstance();
 	}
 
 	@Override

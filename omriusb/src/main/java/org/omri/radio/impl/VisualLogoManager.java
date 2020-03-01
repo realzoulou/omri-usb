@@ -42,6 +42,7 @@ class VisualLogoManager {
 	private AtomicBoolean mDeserializingInProgress = new AtomicBoolean();
 
 	private File mLogoDir = null;
+	private Thread mDeSerThread = null;
 
 	private VisualLogoManager() {
 		mLogoDir = new File(((RadioImpl) Radio.getInstance()).mContext.getCacheDir(), "logo_cache");
@@ -58,14 +59,14 @@ class VisualLogoManager {
 				mLogoDir = null;
 			}
 		} else {
-			Thread deserthread = new Thread(new Runnable() {
+			mDeSerThread = new Thread(new Runnable() {
 				@Override
 				public void run() {
 					Thread.currentThread().setName("DeserLogos");
 					deserializeLogos();
 				}
 			});
-			deserthread.start();
+			mDeSerThread.start();
 		}
 	}
 
@@ -75,6 +76,23 @@ class VisualLogoManager {
 		}
 
 		return mManagerInstance;
+	}
+
+	void destroyInstance() {
+		if (mDeSerThread != null && mDeSerThread.isAlive()) {
+			try {
+				mDeSerThread.join();
+			} catch (Exception e) {
+				if (DEBUG) e.printStackTrace();
+			} finally {
+				mDeSerThread = null;
+				mDeserializingInProgress.set(false);
+			}
+		}
+		if (mLogoList != null) {
+			mLogoList.clear();
+		}
+		mManagerInstance = null;
 	}
 
 	boolean isReady() {

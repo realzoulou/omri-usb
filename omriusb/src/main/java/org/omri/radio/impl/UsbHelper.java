@@ -220,6 +220,20 @@ public class UsbHelper {
 		}
 	}
 
+	void destroyInstance() {
+		if(DEBUG)Log.d(TAG, "destroyInstance");
+		try {
+			mContext.unregisterReceiver(mUsbBroadcastReceiver);
+		} catch (Exception e) {
+			if (DEBUG) e.printStackTrace();
+		}
+		mUsbDeviceList.clear();
+
+		mRedirectCoutToALog = false;
+		mUsbCb = null;
+		mInstance = null;
+	}
+
 	void removeDevice(UsbDevice remDev) {
 		if(remDev != null) {
 			deviceDetached(remDev.getDeviceName());

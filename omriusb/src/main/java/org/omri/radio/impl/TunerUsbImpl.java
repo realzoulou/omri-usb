@@ -139,6 +139,10 @@ public class TunerUsbImpl implements TunerUsb {
 				for (TunerListener listener : mTunerlisteners) {
 					listener.tunerStatusChanged(this, mTunerStatus);
 				}
+				mTunerlisteners.clear();
+				mServices.clear();
+				mScannedServices.clear();
+				mCurrentlyRunningService = null;
 			}
 		}
 	}

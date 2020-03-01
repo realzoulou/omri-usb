@@ -33,16 +33,27 @@ import java.util.List;
 public abstract class Radio {
 
 	/** the singleton instance of OMRI Radio */
-    private static Radio INSTANCE = new RadioImpl();
+    private static Radio INSTANCE = null;
     
     /**
      * Returns the {@link Radio} instance or {@code null} if no implemented {@link Radio} instance is set
      * @return the {@link Radio} instance or {@code null} if no implemented {@link Radio} instance is set
      */
     public static Radio getInstance() {
+    	if (INSTANCE == null) {
+			INSTANCE = new RadioImpl();
+		}
     	return INSTANCE;
     }
-    
+
+	/**
+	 * Destroys the {@link Radio} instance
+	 * Only use after {@code deInitialize()} to allow the instance to be garbage collected
+	 */
+    public void destroyInstance() {
+    	INSTANCE = null;
+    }
+
     /**
      * Initializes the {@link Radio} instance
      * @return the {@link RadioErrorCode} indicating the success of init.

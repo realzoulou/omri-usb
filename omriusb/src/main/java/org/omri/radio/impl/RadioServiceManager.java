@@ -58,7 +58,7 @@ class RadioServiceManager implements org.omri.radio.RadioServiceManager {
 
 	private final static String TAG = "RadioServiceManager";
 
-	private final static RadioServiceManager INSTANCE = new RadioServiceManager();
+	private static RadioServiceManager INSTANCE = null;
 
 	private ConcurrentHashMap<RadioServiceType, CopyOnWriteArrayList<RadioService>> mServicesMap = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<RadioServiceType, Boolean> mServicesDeSerializingInProgress = new ConcurrentHashMap<>();
@@ -73,6 +73,7 @@ class RadioServiceManager implements org.omri.radio.RadioServiceManager {
 	private boolean mFirstInitIp = true;
 
 	private RadioServiceManager() {
+		if (DEBUG) Log.d(TAG, "Constructor");
 		if (((RadioImpl) Radio.getInstance()).mContext != null) {
 			SERVICES_DIR = ((RadioImpl) Radio.getInstance()).mContext.getFilesDir() + "/services/";
 			SERVICES_JSON_DAB = SERVICES_DIR + "dabservices.json";
@@ -111,7 +112,29 @@ class RadioServiceManager implements org.omri.radio.RadioServiceManager {
 	}
 
 	static RadioServiceManager getInstance() {
+	    if (INSTANCE == null) {
+	        INSTANCE = new RadioServiceManager();
+        }
 		return INSTANCE;
+	}
+
+	void destroyInstance() {
+		if (DEBUG) Log.d(TAG, "destroyInstance");
+		CopyOnWriteArrayList<RadioService> list;
+		final RadioServiceType[] types = {
+				RadioServiceType.RADIOSERVICE_TYPE_DAB,
+				RadioServiceType.RADIOSERVICE_TYPE_IP,
+				RadioServiceType.RADIOSERVICE_TYPE_EDI
+		};
+		for (RadioServiceType type : types) {
+			list = mServicesMap.get(type);
+			if (list != null) {
+				list.clear();
+			}
+		}
+		mServicesMap.clear();
+
+        INSTANCE = null;
 	}
 
 	final boolean isServiceListReady(RadioServiceType type) {
