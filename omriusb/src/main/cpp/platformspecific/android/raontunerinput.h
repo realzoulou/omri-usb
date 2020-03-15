@@ -28,11 +28,13 @@
 
 #include <memory>
 #include <array>
+#include <fstream>
 
 class RaonTunerInput final : public DabUsbTunerInput, DabEnsemble {
 
 public:
     explicit RaonTunerInput(std::shared_ptr<JTunerUsbDevice> usbDevice);
+    explicit RaonTunerInput(std::shared_ptr<JTunerUsbDevice> usbDevice, const std::string recordPath);
     virtual ~RaonTunerInput();
 
     //delete copy and assignment constructors
@@ -103,6 +105,12 @@ private:
     int m_antLvlCnt{10};
     uint8_t m_prevAntennaLvl{0};
 
+    // recording raw data to file
+    std::string m_recordPath{""};
+    std::recursive_mutex m_outFileWriteMutex;
+    std::ofstream m_outFileStream;
+    uint64_t m_lastFlushTime{0ULL};
+
 private:
     void commandProcessing();
 
@@ -125,6 +133,11 @@ private:
     void processScanCommands();
     void startScanCommand();
     void stopScanCommand();
+
+    void rawRecordOpen(const std::string recordPath, const std::shared_ptr<JDabService> serviceLink);
+    void rawRecordFicWrite(const std::vector<uint8_t>& data);
+    void rawRecordMscWrite(const std::vector<uint8_t>& data);
+    void rawRecordClose();
 
 private:
     enum REGISTER_PAGE {

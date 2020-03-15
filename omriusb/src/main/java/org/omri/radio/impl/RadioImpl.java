@@ -168,11 +168,17 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 			}
 
 			boolean redirectCoutToALog = false;
+			String rawRecordingPath = "";
 			if (bundle != null) {
 				redirectCoutToALog = bundle.getBoolean(RADIO_INIT_OPT_VERBOSE_NATIVE_LOGS, false);
-				if (DEBUG) Log.d(TAG, RADIO_INIT_OPT_VERBOSE_NATIVE_LOGS + ":" + redirectCoutToALog);
+				rawRecordingPath = bundle.getString(RADIO_INIT_OPT_RAW_RECORDING_PATH, "");
+				if (DEBUG) {
+					Log.d(TAG, RADIO_INIT_OPT_VERBOSE_NATIVE_LOGS + ":" + redirectCoutToALog);
+					Log.d(TAG, RADIO_INIT_OPT_RAW_RECORDING_PATH + ":'" + rawRecordingPath + "'");
+				}
 			}
-			UsbHelper.create(mContext, this, redirectCoutToALog);
+
+			UsbHelper.create(mContext, this, redirectCoutToALog, rawRecordingPath);
 
 			//List of Pairs consisiting of first.VendorId and second.ProductId
 			ArrayList<Pair<Integer, Integer>> wantedDevices = new ArrayList<>();
@@ -591,5 +597,6 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 	public final static String SERVICE_SEARCH_OPT_DELETE_SERVICES = "delete_services";
 	public final static String SERVICE_SEARCH_OPT_HYBRID_SCAN = "hybrid_scan";
 	public final static String RADIO_INIT_OPT_VERBOSE_NATIVE_LOGS = "verbose_native_logs";
+	public final static String RADIO_INIT_OPT_RAW_RECORDING_PATH = "raw_recording_path";
 	/* */
 }

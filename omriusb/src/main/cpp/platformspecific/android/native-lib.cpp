@@ -54,6 +54,7 @@ jclass m_ediTunerClass = nullptr;
 jclass m_dabTimeClass = nullptr;
 
 jboolean m_CoutRedirectedToALog = JNI_FALSE;
+std::string m_rawRecordingPath{""};
 
 void cacheClassDefinitions(JavaVM *vm) {
     JNIEnv* env;
@@ -126,13 +127,22 @@ JNIEXPORT void JNI_OnUnload(JavaVM *vm, void *reserved) {
     delete std::cerr.rdbuf(0);
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_created(JNIEnv* env, jobject thiz, jboolean redirectCoutToALog) {
+JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_created(JNIEnv* env, jobject thiz,
+        jboolean redirectCoutToALog, jstring rawRecordingPath = nullptr) {
     if (JNI_TRUE == redirectCoutToALog) {
         m_CoutRedirectedToALog = JNI_TRUE;
         std::cout.rdbuf(new androidlogbuf);
     }
-    std::cout << LOG_TAG << " created (redirectCout=" << std::boolalpha << (JNI_TRUE == m_CoutRedirectedToALog)
-        << std::noboolalpha << ")" << std::endl;
+    if (rawRecordingPath != nullptr) {
+        const char *path = env->GetStringUTFChars(rawRecordingPath, JNI_FALSE);
+        if (path != nullptr) {
+            m_rawRecordingPath = path;
+        }
+    }
+    std::cout << LOG_TAG << " created (redirectCout="
+        << std::boolalpha << (JNI_TRUE == m_CoutRedirectedToALog) << std::noboolalpha
+        << ",rawRecordingPath=" <<  m_rawRecordingPath
+        << ")"<< std::endl;
 }
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceDetached(JNIEnv* env, jobject thiz, jstring deviceName) {
@@ -181,7 +191,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceAttached(JNIEnv*
     uint16_t vendId = jusbDevice->getVendorId();
 
     if(vendId == 0x16C0 && prodId == 0x05DC) {
-        m_dabInputs.push_back(std::unique_ptr<RaonTunerInput>(new RaonTunerInput(jusbDevice)));
+        m_dabInputs.push_back(std::unique_ptr<RaonTunerInput>(new RaonTunerInput(jusbDevice, m_rawRecordingPath)));
     };
 }
 

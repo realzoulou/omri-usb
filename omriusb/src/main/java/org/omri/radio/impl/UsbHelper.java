@@ -49,6 +49,7 @@ public class UsbHelper {
 	private static UsbHelper mInstance = null;
 	private static UsbHelperCallback mUsbCb = null;
 	private static boolean mRedirectCoutToALog = false;
+	private static String mRawRecordingPath = "";
 
 	private UsbManager mUsbManager;
 	private PendingIntent mUsbPermissionIntent;
@@ -61,7 +62,7 @@ public class UsbHelper {
 		System.loadLibrary("irtdab");
 	}
 
-	private native void created(boolean redirectCoutToALog);
+	private native void created(boolean redirectCoutToALog, String rawRecordingPath);
 	private native void deviceDetached(String deviceName);
 	private native void deviceAttached(TunerUsb usbDevice);
 	private native void devicePermission(String deviceName, boolean granted);
@@ -91,7 +92,7 @@ public class UsbHelper {
 			filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
 
 			mContext.registerReceiver(mUsbBroadcastReceiver, filter);
-			created(mRedirectCoutToALog);
+			created(mRedirectCoutToALog, mRawRecordingPath);
 		}
 	}
 
@@ -212,10 +213,12 @@ public class UsbHelper {
 
 	}
 
-	static void create(Context context, UsbHelperCallback cb, boolean redirectCoutToALog) {
+	static void create(Context context, UsbHelperCallback cb, boolean redirectCoutToALog,
+					   String rawRecordingPath) {
 		if(mInstance == null) {
 			mUsbCb = cb;
 			mRedirectCoutToALog = redirectCoutToALog;
+			mRawRecordingPath = rawRecordingPath;
 			mInstance = new UsbHelper(context);
 		}
 	}

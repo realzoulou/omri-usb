@@ -18,7 +18,12 @@
  *
  */
 
+#include <chrono>
 #include <iomanip>
+#include <initializer_list>
+#include <iterator>
+#include <sstream>
+#include <unistd.h>
 #include "raontunerinput.h"
 
 constexpr uint8_t RaonTunerInput::g_abAdcClkSynTbl[4][7];
@@ -40,6 +45,13 @@ RaonTunerInput::RaonTunerInput(std::shared_ptr<JTunerUsbDevice> usbDevice) : m_u
     m_ensembleFinishedCb = DabEnsemble::registerEnsembleCollectDoneCallback(std::bind(&RaonTunerInput::ensembleCollectFinished, this));
 }
 
+RaonTunerInput::RaonTunerInput(std::shared_ptr<JTunerUsbDevice> usbDevice, const std::string recordPath)
+    : RaonTunerInput(usbDevice)  {
+    if (recordPath.length() > 0) {
+        m_recordPath = recordPath;
+    }
+}
+
 RaonTunerInput::~RaonTunerInput() {
     std::cout << LOG_TAG << "destructing...." << std::endl;
 
@@ -51,6 +63,7 @@ RaonTunerInput::~RaonTunerInput() {
     }
 
     stopReadDataThread();
+    rawRecordClose();
 }
 
 void RaonTunerInput::initialize() {
@@ -164,7 +177,7 @@ void RaonTunerInput::startService(std::shared_ptr<JDabService> serviceLink) {
 }
 
 void RaonTunerInput::startServiceSync(std::shared_ptr<JDabService> serviceLink) {
-    std::cout << LOG_TAG << "Starting service... " << serviceLink->getServiceId() << std::endl;
+    std::cout << LOG_TAG << "Starting service... 0x" << std::hex << serviceLink->getServiceId() << std::dec << std::endl;
 
     if(m_isScanning) {
         return;
@@ -182,6 +195,11 @@ void RaonTunerInput::startServiceSync(std::shared_ptr<JDabService> serviceLink) 
     }
     // need to refer to serviceLink, otherwise it may be destroyed
     m_startServiceLink = serviceLink;
+
+    // open raw recording file, if configured
+    if (m_recordPath.length() > 0) {
+        rawRecordOpen(m_recordPath, serviceLink);
+    }
 
     if(m_currentFrequency != serviceLink.get()->getEnsembleFrequency()) {
         m_ensembleCollectFinished = false;
@@ -1171,7 +1189,9 @@ void RaonTunerInput::readFic() {
 
         if(bytesTransfered >= 4) {
             for(int i = 0; i < ((bytesTransfered - 4) / 32); i++) {
-                dataInput(std::vector<uint8_t>(reFicRet.begin()+4+i*32, reFicRet.begin()+4+i*32+32), 0x64, false);
+                const std::vector<uint8_t> ficData(reFicRet.begin()+4+i*32, reFicRet.begin()+4+i*32+32);
+                rawRecordFicWrite(ficData);
+                dataInput(ficData, 0x64, false);
             }
         }
 
@@ -1243,7 +1263,7 @@ void RaonTunerInput::readMsc() {
     }
 
     if(msc1Int) {
-        //std::cout << LOG_TAG << "Reading MSC memory" << std::endl;
+        std::cout << LOG_TAG << "Reading MSC memory" << std::endl;
 
         switchPage(REGISTER_PAGE_MSC1);
 
@@ -1254,7 +1274,9 @@ void RaonTunerInput::readMsc() {
         bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff);
 
         if(m_startServiceLink != nullptr) {
-            dataInput(std::vector<uint8_t>(mscRecBuff.begin()+4, mscRecBuff.begin()+bytesTransfered), m_currentSubchanId, false);
+            const std::vector<uint8_t> mscData(mscRecBuff.begin()+4, mscRecBuff.begin()+bytesTransfered);
+            rawRecordMscWrite(mscData);
+            dataInput(mscData, m_currentSubchanId, false);
         } else {
             std::cout << LOG_TAG << "StartServiceLink is null" << std::endl;
         }
@@ -1262,6 +1284,97 @@ void RaonTunerInput::readMsc() {
         //clear buffer
         switchPage(REGISTER_PAGE_DD);
         setRegister(INT_E_UCLRL, 0x04);
+    }
+}
+void RaonTunerInput::rawRecordOpen(const std::string recordPath, const std::shared_ptr<JDabService> serviceLink) {
+    // close any previously opened stream
+    rawRecordClose();
+
+    // acquire lock AFTER close, otherwise risk for deadlock
+    std::lock_guard<std::recursive_mutex> lockGuard(m_outFileWriteMutex);
+
+    // open new one
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+    std::stringstream timestring, serviceidstring, ensembleidstring;
+
+    timestring << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d_%H-%M-%S");
+    serviceidstring << std::hex << serviceLink.get()->getServiceId();
+    ensembleidstring << std::hex << serviceLink.get()->getEnsembleId();
+    const std::string filename = recordPath + "/" + "dab_" + timestring.str() + "_" +
+            ensembleidstring.str() + "_" + serviceidstring.str() + ".raw";
+
+    m_outFileStream.open(filename, std::ios::out | std::ios::binary);
+
+    if (m_outFileStream.is_open()) {
+        std::cout << LOG_TAG << "rawRecordOpen " << filename << std::endl;
+    } else {
+        std::clog << LOG_TAG << "rawRecordOpen failed to open " << filename << std::endl;
+    }
+}
+
+void RaonTunerInput::rawRecordFicWrite(const std::vector<uint8_t>& data) {
+    if (m_outFileStream.is_open()) {
+        // lock writing to file
+        std::lock_guard<std::recursive_mutex> lockGuard(m_outFileWriteMutex);
+        // write marker
+        const uint8_t ficMarker[] = {0xDE, 0xAD, 0xAF, 0xFE};
+        m_outFileStream.write(reinterpret_cast<const char*>(&ficMarker[0]), sizeof(ficMarker));
+        // write timestamp: clock monotonic milliseconds
+        const auto now = std::chrono::steady_clock::now();
+        const auto since_epoch = now.time_since_epoch();
+        const uint64_t currentTimeMillis = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(since_epoch).count());
+        m_outFileStream.write(reinterpret_cast<const char*>(&currentTimeMillis), sizeof(uint64_t));
+        // write vector size
+        uint32_t size = static_cast<uint32_t>(data.size());
+        m_outFileStream.write(reinterpret_cast<const char*>(&size), sizeof(uint32_t));
+        // then vector data itself
+        std::copy(data.begin(), data.end(), std::ostreambuf_iterator<char>(m_outFileStream));
+
+        // flush every 1 sec
+        if (currentTimeMillis - m_lastFlushTime >= 1000ULL) {
+            m_lastFlushTime = currentTimeMillis;
+            m_outFileStream.flush();
+            sync(); // causes all pending modifications to filesystem metadata and cached file data to be written to the underlying filesystems
+            std::cout << LOG_TAG << "rawRecordFicWrite flush " << currentTimeMillis << std::endl;
+        }
+    }
+}
+
+void RaonTunerInput::rawRecordMscWrite(const std::vector<uint8_t>& data) {
+    if (m_outFileStream.is_open()) {
+        // lock writing to file
+        std::lock_guard<std::recursive_mutex> lockGuard(m_outFileWriteMutex);
+        // write marker
+        const uint8_t mscMarker[] = {0xDE, 0xAD, 0xBE, 0xEF};
+        m_outFileStream.write(reinterpret_cast<const char*>(&mscMarker[0]), sizeof(mscMarker));
+        // write timestamp: clock monotonic milliseconds
+        const auto now = std::chrono::steady_clock::now();
+        const auto since_epoch = now.time_since_epoch();
+        const uint64_t currentTimeMillis = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(since_epoch).count());
+        m_outFileStream.write(reinterpret_cast<const char*>(&currentTimeMillis), sizeof(uint64_t));
+        // write vector size
+        uint32_t size = static_cast<uint32_t>(data.size());
+        m_outFileStream.write(reinterpret_cast<const char*>(&size), sizeof(uint32_t));
+        // then vector data itself
+        std::copy(data.begin(), data.end(), std::ostreambuf_iterator<char>(m_outFileStream));
+
+        // flush every 1 sec
+        if (currentTimeMillis - m_lastFlushTime >= 1000ULL) {
+            m_lastFlushTime = currentTimeMillis;
+            m_outFileStream.flush();
+            sync(); // causes all pending modifications to filesystem metadata and cached file data to be written to the underlying filesystems
+            std::cout << LOG_TAG << "rawRecordMscWrite flush " << currentTimeMillis << std::endl;
+        }
+    }
+}
+
+void RaonTunerInput::rawRecordClose() {
+    if (m_outFileStream.is_open()) {
+        // acquire lock
+        std::lock_guard<std::recursive_mutex> lockGuard(m_outFileWriteMutex);
+        std::cout << LOG_TAG << "rawRecordClose" << std::endl;
+        m_outFileStream.close();
     }
 }
 
@@ -1329,10 +1442,9 @@ void RaonTunerInput::readMscData() {
         //std::cout << LOG_TAG << "ReadData: " << +bytesTransfered << std::endl;
 
         if (m_startServiceLink != nullptr && bytesTransfered > 0) {
-            dataInput(
-                    std::vector<uint8_t>(mscRecBuff.begin() + 4,
-                                         mscRecBuff.begin() + bytesTransfered),
-                    m_currentSubchanId, false);
+            const std::vector<uint8_t> mscData(mscRecBuff.begin()+4, mscRecBuff.begin()+bytesTransfered);
+            rawRecordMscWrite(mscData);
+            dataInput(mscData, m_currentSubchanId, false);
         } else {
             std::cout << LOG_TAG << "StartServiceLink is null" << std::endl;
         }
@@ -1360,8 +1472,9 @@ void RaonTunerInput::readFicData() {
 
         for (int i = 0; i < ((bytesTransfered - 4) / 32); i++) {
             try {
-                dataInput(std::vector<uint8_t>(reFicRet.begin() + 4 + i * 32,
-                                               reFicRet.begin() + 4 + i * 32 + 32), 0x64, false);
+                const std::vector<uint8_t> ficData(reFicRet.begin() + 4 + i * 32, reFicRet.begin() + 4 + i * 32 + 32);
+                rawRecordFicWrite(ficData);
+                dataInput(ficData, 0x64, false);
             } catch (std::length_error &lenErr) {
                 std::cout << LOG_TAG << "Length error..." << std::endl;
             }
@@ -1436,7 +1549,9 @@ void RaonTunerInput::readData() {
 
         for(int i = 0; i < ((bytesTransfered - 4) / 32); i++) {
             try {
-                dataInput(std::vector<uint8_t>(reFicRet.begin() + 4 + i * 32, reFicRet.begin() + 4 + i * 32 + 32), 0x64, false);
+                const std::vector<uint8_t> ficData(reFicRet.begin() + 4 + i * 32, reFicRet.begin() + 4 + i * 32 + 32);
+                rawRecordFicWrite(ficData);
+                dataInput(ficData, 0x64, false);
             } catch(std::length_error& lenErr) {
                 std::cout << LOG_TAG << "Length error..." << std::endl;
             }
@@ -1487,7 +1602,9 @@ void RaonTunerInput::readData() {
         //std::cout << LOG_TAG << "ReadData: " << +bytesTransfered << std::endl;
 
         if(m_startServiceLink != nullptr && bytesTransfered >= 4) {
-            dataInput(std::vector<uint8_t>(mscRecBuff.begin()+4, mscRecBuff.begin()+bytesTransfered), m_currentSubchanId, false);
+            const std::vector<uint8_t> mscData(mscRecBuff.begin()+4, mscRecBuff.begin()+bytesTransfered);
+            rawRecordMscWrite(mscData);
+            dataInput(mscData, m_currentSubchanId, false);
         } else {
             std::cout << LOG_TAG << "StartServiceLink is null" << std::endl;
         }
