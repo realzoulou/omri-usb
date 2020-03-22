@@ -71,6 +71,7 @@ add_library( # Sets the name of the library.
              src/main/cpp/platformspecific/android/jtunerusbdevice.cpp
              src/main/cpp/platformspecific/android/jdabservice.cpp
              src/main/cpp/platformspecific/android/ediinput.cpp
+             src/main/cpp/platformspecific/android/demousbtunerinput.cpp
              )
 
 # Searches for a specified prebuilt library and stores the path as a

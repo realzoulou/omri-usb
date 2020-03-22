@@ -169,12 +169,15 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 
 			boolean redirectCoutToALog = false;
 			String rawRecordingPath = "";
+			boolean demoMode = false;
 			if (bundle != null) {
 				redirectCoutToALog = bundle.getBoolean(RADIO_INIT_OPT_VERBOSE_NATIVE_LOGS, false);
 				rawRecordingPath = bundle.getString(RADIO_INIT_OPT_RAW_RECORDING_PATH, "");
+				demoMode = bundle.getBoolean(RADIO_INIT_OPT_DEMO_MODE, false);
 				if (DEBUG) {
 					Log.d(TAG, RADIO_INIT_OPT_VERBOSE_NATIVE_LOGS + ":" + redirectCoutToALog);
 					Log.d(TAG, RADIO_INIT_OPT_RAW_RECORDING_PATH + ":'" + rawRecordingPath + "'");
+					Log.d(TAG, RADIO_INIT_OPT_DEMO_MODE + ":" + demoMode);
 				}
 			}
 
@@ -183,14 +186,22 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 			//List of Pairs consisiting of first.VendorId and second.ProductId
 			ArrayList<Pair<Integer, Integer>> wantedDevices = new ArrayList<>();
 
-			//Raon DAB USB sticks
-			wantedDevices.add(Pair.create(0x16C0, 0x05DC));
+			if (!demoMode) {
+				//Raon DAB USB sticks
+				wantedDevices.add(Pair.create(0x16C0, 0x05DC));
 
-			for(UsbDevice dev : UsbHelper.getInstance().scanForSpecificDevices(wantedDevices)) {
-				if(DEBUG)Log.d(TAG, "Found Siano device!");
-				Tuner usbTuner = new TunerUsbImpl(dev);
-				usbTuner.subscribe(this);
-				mTunerList.add(usbTuner);
+				for (UsbDevice dev : UsbHelper.getInstance().scanForSpecificDevices(wantedDevices)) {
+					if (DEBUG) Log.d(TAG, "Found Siano device!");
+					Tuner usbTuner = new TunerUsbImpl(dev);
+					usbTuner.subscribe(this);
+					mTunerList.add(usbTuner);
+				}
+			} else {
+				// Demo tuner
+				if(DEBUG)Log.d(TAG, "Adding DemoTuner");
+				DemoTuner demoTuner = new DemoTuner(rawRecordingPath);
+				demoTuner.subscribe(this);
+				mTunerList.add(demoTuner);
 			}
 
 			TunerIpShoutcast ipTuner = new TunerIpShoutcast();
@@ -598,5 +609,6 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 	public final static String SERVICE_SEARCH_OPT_HYBRID_SCAN = "hybrid_scan";
 	public final static String RADIO_INIT_OPT_VERBOSE_NATIVE_LOGS = "verbose_native_logs";
 	public final static String RADIO_INIT_OPT_RAW_RECORDING_PATH = "raw_recording_path";
+	public final static String RADIO_INIT_OPT_DEMO_MODE = "demo_mode";
 	/* */
 }

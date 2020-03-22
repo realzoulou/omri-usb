@@ -29,6 +29,7 @@
 #include "jtunerusbdevice.h"
 #include "jusbdevice.h"
 #include "raontunerinput.h"
+#include "demousbtunerinput.h"
 #include "ediinput.h"
 
 extern "C" {
@@ -43,6 +44,7 @@ JavaVM* m_javaVm;
 
 jclass m_usbTunerClass = nullptr;
 jclass m_dabServiceClass = nullptr;
+jclass m_radioServiceClass = nullptr;
 jclass m_dabServiceComponentClass = nullptr;
 jclass m_dabServiceUserApplicationClass = nullptr;
 jclass m_termIdClass = nullptr;
@@ -53,6 +55,8 @@ jclass m_slideshowClass = nullptr;
 jclass m_ediTunerClass = nullptr;
 jclass m_dabTimeClass = nullptr;
 
+jclass m_demoTunerClass = nullptr;
+
 jboolean m_CoutRedirectedToALog = JNI_FALSE;
 std::string m_rawRecordingPath{""};
 
@@ -62,6 +66,7 @@ void cacheClassDefinitions(JavaVM *vm) {
 
     m_usbTunerClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/TunerUsb"));
     m_dabServiceClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceDabImpl"));
+    m_radioServiceClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceImpl"));
     m_dabServiceComponentClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceDabComponentImpl"));
     m_dabServiceUserApplicationClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceDabUserApplicationImpl"));
 
@@ -74,6 +79,8 @@ void cacheClassDefinitions(JavaVM *vm) {
     m_ediTunerClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/TunerEdistream"));
     //DABtime class
     m_dabTimeClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/DabTime"));
+
+    m_demoTunerClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/DemoTuner"));
 }
 
 void cleanClassDefinitions(JavaVM *vm) {
@@ -82,6 +89,7 @@ void cleanClassDefinitions(JavaVM *vm) {
 
     env->DeleteGlobalRef(m_usbTunerClass);
     env->DeleteGlobalRef(m_dabServiceClass);
+    env->DeleteGlobalRef(m_radioServiceClass);
     env->DeleteGlobalRef(m_dabServiceComponentClass);
     env->DeleteGlobalRef(m_dabServiceUserApplicationClass);
 
@@ -94,6 +102,8 @@ void cleanClassDefinitions(JavaVM *vm) {
     env->DeleteGlobalRef(m_ediTunerClass);
     //DABtime class
     env->DeleteGlobalRef(m_dabTimeClass);
+
+    env->DeleteGlobalRef(m_demoTunerClass);
 }
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
@@ -192,7 +202,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceAttached(JNIEnv*
 
     if(vendId == 0x16C0 && prodId == 0x05DC) {
         m_dabInputs.push_back(std::unique_ptr<RaonTunerInput>(new RaonTunerInput(jusbDevice, m_rawRecordingPath)));
-    };
+    }
 }
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_devicePermission(JNIEnv* env, jobject thiz, jstring deviceName, jboolean permissionGranted) {
@@ -336,6 +346,43 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediFlushBuffer(JNIEnv*
     std::cout << LOG_TAG << " flushing component data" << std::endl;
 
     m_ediInputs[0]->flushComponentBuffer();
+}
+
+/* Demo Tuner */
+std::shared_ptr<DemoUsbTunerInput> m_demoInput = nullptr;
+
+JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoTunerAttached(JNIEnv* env, jobject thiz, jobject demoTuner) {
+    if (m_demoInput == nullptr) {
+        std::cout << LOG_TAG << "DemoTuner attached" << std::endl;
+        m_demoInput = std::shared_ptr<DemoUsbTunerInput>(new DemoUsbTunerInput(m_javaVm, env));
+        m_demoInput->setJavaClassDemoTuner(env, m_demoTunerClass);
+        m_demoInput->setJavaObjectDemoTuner(env, demoTuner);
+        m_demoInput->setJavaClassRadioService(env, m_radioServiceClass);
+    } else {
+        std::cerr << LOG_TAG << "DemoTuner already attached" << std::endl;
+    }
+}
+
+JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoTunerDetached(JNIEnv* env, jobject thiz, jobject demoTuner) {
+    std::cout << LOG_TAG << "DemoTuner detached" << std::endl;
+    if (m_demoInput != nullptr) {
+        m_demoInput.reset();
+        m_demoInput = nullptr;
+    }
+}
+
+JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoServiceStart(JNIEnv* env, jobject thiz, jobject radioService) {
+    if (m_demoInput != nullptr) {
+        m_demoInput->startService(std::move(std::shared_ptr<JDabService>(
+                new JDabService(m_javaVm, env, m_dabServiceClass, m_dynamicLabelClass,
+                        m_dynamicLabelPlusItemClass, m_slideshowClass, radioService))));
+    }
+}
+
+JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoServiceStop(JNIEnv* env, jobject thiz) {
+    if (m_demoInput != nullptr) {
+        m_demoInput->stopAllRunningServices();
+    }
 }
 
 } // extern "C"

@@ -22,9 +22,12 @@
 #include <iomanip>
 #include <initializer_list>
 #include <iterator>
+#include <regex>
 #include <sstream>
 #include <unistd.h>
+#include <sys/endian.h>
 #include "raontunerinput.h"
+#include "demousbtunerinput.h"
 
 constexpr uint8_t RaonTunerInput::g_abAdcClkSynTbl[4][7];
 constexpr uint8_t RaonTunerInput::g_aeAdcClkTypeTbl_DAB_B3[];
@@ -1297,12 +1300,21 @@ void RaonTunerInput::rawRecordOpen(const std::string recordPath, const std::shar
     auto now = std::chrono::system_clock::now();
     auto in_time_t = std::chrono::system_clock::to_time_t(now);
     std::stringstream timestring, serviceidstring, ensembleidstring;
+    std::string labelstring;
 
     timestring << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d_%H-%M-%S");
+    std::shared_ptr<DabService> dabService = serviceLink.get()->getLinkDabService();
+    if (dabService != nullptr) {
+        labelstring = dabService->getServiceLabel();
+    } else {
+        labelstring = "labelunknown";
+    }
+    // "_" is used to find the infos from the filename, get rid of it in the label, but replace with " "
+    labelstring = std::regex_replace(labelstring, std::regex("_"), " ");
     serviceidstring << std::hex << serviceLink.get()->getServiceId();
     ensembleidstring << std::hex << serviceLink.get()->getEnsembleId();
     const std::string filename = recordPath + "/" + "dab_" + timestring.str() + "_" +
-            ensembleidstring.str() + "_" + serviceidstring.str() + ".raw";
+            labelstring + "_" + ensembleidstring.str() + "_" + serviceidstring.str() + ".raw";
 
     m_outFileStream.open(filename, std::ios::out | std::ios::binary);
 
@@ -1317,17 +1329,22 @@ void RaonTunerInput::rawRecordFicWrite(const std::vector<uint8_t>& data) {
     if (m_outFileStream.is_open()) {
         // lock writing to file
         std::lock_guard<std::recursive_mutex> lockGuard(m_outFileWriteMutex);
+
         // write marker
-        const uint8_t ficMarker[] = {0xDE, 0xAD, 0xAF, 0xFE};
-        m_outFileStream.write(reinterpret_cast<const char*>(&ficMarker[0]), sizeof(ficMarker));
+        const uint32_t ficMarker = htonl(DemoUsbTunerInput::FILEMARKER_FIC);
+        m_outFileStream.write(reinterpret_cast<const char*>(&ficMarker), sizeof(ficMarker));
+
         // write timestamp: clock monotonic milliseconds
         const auto now = std::chrono::steady_clock::now();
         const auto since_epoch = now.time_since_epoch();
         const uint64_t currentTimeMillis = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(since_epoch).count());
-        m_outFileStream.write(reinterpret_cast<const char*>(&currentTimeMillis), sizeof(uint64_t));
+        const uint64_t currentTimeMillisToFile = htonq(currentTimeMillis);
+        m_outFileStream.write(reinterpret_cast<const char*>(&currentTimeMillisToFile), sizeof(uint64_t));
+
         // write vector size
-        uint32_t size = static_cast<uint32_t>(data.size());
+        const uint32_t size = htonl(static_cast<uint32_t>(data.size()));
         m_outFileStream.write(reinterpret_cast<const char*>(&size), sizeof(uint32_t));
+
         // then vector data itself
         std::copy(data.begin(), data.end(), std::ostreambuf_iterator<char>(m_outFileStream));
 
@@ -1345,17 +1362,22 @@ void RaonTunerInput::rawRecordMscWrite(const std::vector<uint8_t>& data) {
     if (m_outFileStream.is_open()) {
         // lock writing to file
         std::lock_guard<std::recursive_mutex> lockGuard(m_outFileWriteMutex);
+
         // write marker
-        const uint8_t mscMarker[] = {0xDE, 0xAD, 0xBE, 0xEF};
-        m_outFileStream.write(reinterpret_cast<const char*>(&mscMarker[0]), sizeof(mscMarker));
+        const uint32_t mscMarker = htonl(DemoUsbTunerInput::FILEMARKER_MSC);
+        m_outFileStream.write(reinterpret_cast<const char*>(&mscMarker), sizeof(mscMarker));
+
         // write timestamp: clock monotonic milliseconds
         const auto now = std::chrono::steady_clock::now();
         const auto since_epoch = now.time_since_epoch();
-        const uint64_t currentTimeMillis = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(since_epoch).count());
-        m_outFileStream.write(reinterpret_cast<const char*>(&currentTimeMillis), sizeof(uint64_t));
+        uint64_t currentTimeMillis = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(since_epoch).count());
+        const uint64_t currentTimeMillisToFile = htonq(currentTimeMillis);
+        m_outFileStream.write(reinterpret_cast<const char*>(&currentTimeMillisToFile), sizeof(uint64_t));
+
         // write vector size
-        uint32_t size = static_cast<uint32_t>(data.size());
+        uint32_t size = htonl(static_cast<uint32_t>(data.size()));
         m_outFileStream.write(reinterpret_cast<const char*>(&size), sizeof(uint32_t));
+
         // then vector data itself
         std::copy(data.begin(), data.end(), std::ostreambuf_iterator<char>(m_outFileStream));
 

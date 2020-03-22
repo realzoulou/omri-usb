@@ -11,6 +11,7 @@ import android.hardware.usb.UsbManager;
 import android.util.Log;
 import android.util.Pair;
 
+import org.omri.radioservice.RadioService;
 import org.omri.radioservice.RadioServiceDab;
 import org.omri.radioservice.RadioServiceDabEdi;
 
@@ -54,7 +55,7 @@ public class UsbHelper {
 	private UsbManager mUsbManager;
 	private PendingIntent mUsbPermissionIntent;
 
-	private HashMap<String, UsbDevice> mUsbDeviceList;
+	private HashMap<String, UsbDevice> mUsbDeviceList = null;
 
 	static {
 		System.loadLibrary("c++_shared");
@@ -78,6 +79,12 @@ public class UsbHelper {
 	private native void startEdiStream(TunerEdistream ediTuner, RadioServiceDabEdi ediSrv);
 	private native void ediStreamData(byte[] ediData, int size);
 	private native void ediFlushBuffer();
+
+	/* DemoTuner */
+	private native void demoTunerAttached(DemoTuner demoTuner);
+	private native void demoTunerDetached(DemoTuner demoTuner);
+	private native void demoServiceStart(RadioService radioService);
+	private native void demoServiceStop();
 
 	private UsbHelper(Context context) {
 		if(DEBUG)Log.d(TAG, "Contructing UsbHelper...coutToAlog=" + mRedirectCoutToALog);
@@ -188,6 +195,20 @@ public class UsbHelper {
 		deviceAttached(dev);
 	}
 
+	/* Demo tuner */
+    void attachDemoTuner(DemoTuner demoTuner) {
+        demoTunerAttached(demoTuner);
+    }
+    void detachDemoTuner(DemoTuner demoTuner) {
+        demoTunerDetached(demoTuner);
+    }
+	void startDemoService(RadioService radioService) {
+		demoServiceStart(radioService);
+	}
+	void stopDemoService() {
+		demoServiceStop();
+	}
+
 	private boolean mPermissionPending = false;
 	private UsbDevice mPendingPermissionDevice = null;
 
@@ -230,7 +251,9 @@ public class UsbHelper {
 		} catch (Exception e) {
 			if (DEBUG) e.printStackTrace();
 		}
-		mUsbDeviceList.clear();
+		if (mUsbDeviceList != null) {
+			mUsbDeviceList.clear();
+		}
 
 		mRedirectCoutToALog = false;
 		mUsbCb = null;

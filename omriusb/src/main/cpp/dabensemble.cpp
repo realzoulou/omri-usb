@@ -693,14 +693,14 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
         default:
             break;
     }
-
-    std::cout << m_logTag << "m_fig001done: " << m_fig001done << std::endl;
-    std::cout << m_logTag << "m_fig002done: " << m_fig002done << std::endl;
-    std::cout << m_logTag << "m_fig003done: " << m_fig003done << std::endl;
-    std::cout << m_logTag << "m_fig008done: " << m_fig008done << std::endl;
-    std::cout << m_logTag << "m_fig013done: " << m_fig013done << std::endl;
-    std::cout << m_logTag << "m_fig014done: " << m_fig014done << std::endl;
-    std::cout << m_logTag << "m_fig1done: " << m_fig1done << std::endl;
+    std::cout << m_logTag << " figdone: ";
+    std::cout << "001:" << m_fig001done << ", ";
+    std::cout << "002:" << m_fig002done << ", ";
+    std::cout << "003:" << m_fig003done << ", ";
+    std::cout << "008:" << m_fig008done << ", ";
+    std::cout << "013:" << m_fig013done << ", ";
+    std::cout << "014:" << m_fig014done << ", ";
+    std::cout << "1:" << m_fig1done << std::endl;
     if(m_fig001done && m_fig002done && m_fig003done && m_fig008done && m_fig013done) {
         m_fig0done = true;
         if(m_fig1done) {
@@ -806,6 +806,9 @@ void DabEnsemble::checkServiceSanity() {
     std::cout << m_logTag << " ServiceSanity passed!" << std::endl;
     m_ensembleCollectFinished = true;
 
+    if (!m_ensembleCollectDoneDispatcher.hasCallbacks()) {
+        std::clog << m_logTag << " EnsembleCollectDone has no callbacks" << std::endl;
+    }
     m_ensembleCollectDoneDispatcher.invoke();
 }
 

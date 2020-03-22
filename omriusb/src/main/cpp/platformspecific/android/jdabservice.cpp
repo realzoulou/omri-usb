@@ -87,7 +87,7 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
     m_ensembleId = static_cast<uint16_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetEnsembleIdMId));
     m_serviceId = static_cast<uint32_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetServiceIdMId));
 
-    std::clog << m_logTag << "Constructed SId " << std::hex << m_serviceId << std::endl;
+    std::cout << m_logTag << "Constructed SId " << std::hex << m_serviceId << std::endl;
 }
 
 JDabService::~JDabService() {
@@ -105,7 +105,7 @@ JDabService::~JDabService() {
     }
 
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::clog << m_logTag << "Destroying SId " << std::hex << m_serviceId << std::endl;
+    std::cout << m_logTag << "Destroying SId " << std::hex << m_serviceId << std::endl;
 
     // stop processing audioDataInput
     decodeAudio(false);
