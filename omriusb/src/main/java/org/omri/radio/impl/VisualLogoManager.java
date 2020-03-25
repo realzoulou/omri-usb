@@ -1,5 +1,6 @@
 package org.omri.radio.impl;
 
+import android.content.Context;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -37,7 +38,7 @@ class VisualLogoManager {
 
 	private static VisualLogoManager mManagerInstance = null;
 
-	private CopyOnWriteArrayList<VisualLogoImpl> mLogoList = null;
+	private CopyOnWriteArrayList<VisualLogoImpl> mLogoList = mLogoList = new CopyOnWriteArrayList<>();
 	private AtomicBoolean mSerializingInProgress = new AtomicBoolean();
 	private AtomicBoolean mDeserializingInProgress = new AtomicBoolean();
 
@@ -45,28 +46,29 @@ class VisualLogoManager {
 	private Thread mDeSerThread = null;
 
 	private VisualLogoManager() {
-		mLogoDir = new File(((RadioImpl) Radio.getInstance()).mContext.getCacheDir(), "logo_cache");
-		if(DEBUG) Log.d(TAG, "LogoCacheDir: " + mLogoDir.getAbsolutePath());
+		final Context context = ((RadioImpl) Radio.getInstance()).mContext;
+		if (context != null) {
+			mLogoDir = new File(context.getCacheDir(), "logo_cache");
+			if (DEBUG) Log.d(TAG, "LogoCacheDir: " + mLogoDir.getAbsolutePath());
 
-		mLogoList = new CopyOnWriteArrayList<>();
-
-		if(!mLogoDir.exists()) {
-			boolean logoCacheCreated = mLogoDir.mkdir();
-			if(logoCacheCreated) {
-				if(DEBUG)Log.d(TAG, "Created successfully LogoCacheDir");
-			} else {
-				if(DEBUG)Log.d(TAG, "Creating LogoCacheDir failed");
-				mLogoDir = null;
-			}
-		} else {
-			mDeSerThread = new Thread(new Runnable() {
-				@Override
-				public void run() {
-					Thread.currentThread().setName("DeserLogos");
-					deserializeLogos();
+			if (!mLogoDir.exists()) {
+				boolean logoCacheCreated = mLogoDir.mkdir();
+				if (logoCacheCreated) {
+					if (DEBUG) Log.d(TAG, "Created successfully LogoCacheDir");
+				} else {
+					if (DEBUG) Log.d(TAG, "Creating LogoCacheDir failed");
+					mLogoDir = null;
 				}
-			});
-			mDeSerThread.start();
+			} else {
+				mDeSerThread = new Thread(new Runnable() {
+					@Override
+					public void run() {
+						Thread.currentThread().setName("DeserLogos");
+						deserializeLogos();
+					}
+				});
+				mDeSerThread.start();
+			}
 		}
 	}
 
