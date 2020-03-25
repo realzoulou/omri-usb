@@ -84,12 +84,15 @@ class RadioServiceManager implements org.omri.radio.RadioServiceManager {
 			SERVICES_JSON_DAB = null;
 			SERVICES_JSON_IP = null;
 			SERVICES_JSON_EDI = null;
+			Log.w(TAG, "Radio without context");
 		}
 
-		File servicesDir = new File(SERVICES_DIR);
-		if (!servicesDir.exists()) {
-			boolean dirCreated = servicesDir.mkdirs();
-			if (DEBUG) Log.d(TAG, "Services dir created: " + dirCreated);
+		if (SERVICES_DIR != null) {
+			File servicesDir = new File(SERVICES_DIR);
+			if (!servicesDir.exists()) {
+				boolean dirCreated = servicesDir.mkdirs();
+				if (DEBUG) Log.d(TAG, "Services dir created: " + dirCreated);
+			}
 		}
 
 		mServicesMap.put(RadioServiceType.RADIOSERVICE_TYPE_DAB, new CopyOnWriteArrayList<RadioService>());
