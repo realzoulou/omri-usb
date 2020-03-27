@@ -1,5 +1,6 @@
 package org.omri.radio.impl;
 
+import android.content.Context;
 import android.os.Build;
 import android.util.Log;
 
@@ -68,7 +69,10 @@ public class VisualLogoImpl extends VisualImpl implements Serializable {
 	}
 
 	boolean isAvailable() {
-		return mLogoFileName != null && new File(((RadioImpl) Radio.getInstance()).mContext.getCacheDir().getAbsolutePath() + "/logofiles_cache/" + mLogoFileName).exists();
+		final Context context = ((RadioImpl) Radio.getInstance()).mContext;
+		return mLogoFileName != null &&
+				context != null &&
+				new File(context.getCacheDir().getAbsolutePath() + "/logofiles_cache/" + mLogoFileName).exists();
 	}
 
 	void addBearer(RadioDnsEpgBearer bearer) {
@@ -93,9 +97,10 @@ public class VisualLogoImpl extends VisualImpl implements Serializable {
 
 	@Override
 	public byte[] getVisualData() {
-		if(mLogoFileName != null) {
-			if(BuildConfig.DEBUG) Log.d(TAG, "Reading file to bytearray: " + (((RadioImpl) Radio.getInstance()).mContext.getCacheDir().getAbsolutePath() + "/logofiles_cache/" + mLogoFileName));
-			File file = new File(((RadioImpl) Radio.getInstance()).mContext.getCacheDir().getAbsolutePath() + "/logofiles_cache/" + mLogoFileName);
+		final Context context = ((RadioImpl) Radio.getInstance()).mContext;
+		if(mLogoFileName != null && context != null) {
+			if(BuildConfig.DEBUG) Log.d(TAG, "Reading file to bytearray: " + (context.getCacheDir().getAbsolutePath() + "/logofiles_cache/" + mLogoFileName));
+			File file = new File(context.getCacheDir().getAbsolutePath() + "/logofiles_cache/" + mLogoFileName);
 			int size = (int) file.length();
 			byte[] bytes = new byte[size];
 

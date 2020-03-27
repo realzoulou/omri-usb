@@ -1,5 +1,6 @@
 package org.omri.radio.impl;
 
+import android.content.Context;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -450,15 +451,20 @@ public class TunerIpShoutcast implements Tuner, IcyStreamDataSource.IcyMetadataL
 		mCurrentStream = mCurrentRadioService.getIpStreams().get(0);
 
 		Allocator allocator = new DefaultAllocator(false, BUFFER_SIZE);
-		String userAgent = Util.getUserAgent(((RadioImpl) Radio.getInstance()).mContext, "OMRI");
+		final Context context = ((RadioImpl) Radio.getInstance()).mContext;
+		if (context != null) {
+			String userAgent = Util.getUserAgent(context, "OMRI");
 
-		if (DEBUG) Log.d(TAG, "UserAgent: " + userAgent);
+			if (DEBUG) Log.d(TAG, "UserAgent: " + userAgent);
 
-		DataSource.Factory dataSourceFactory = new IcyHttpDataSourceFactory(userAgent, this, mRawListener, null);
-		MediaSource mediaSource = new ExtractorMediaSource(streamUri, dataSourceFactory, mCurrentRadioService.getIpStreams().get(0).getMimeType() == RadioServiceMimeType.AUDIO_MPEG ? Mp3Extractor.FACTORY : AdtsExtractor.FACTORY, mHandler, null);
+			DataSource.Factory dataSourceFactory = new IcyHttpDataSourceFactory(userAgent, this, mRawListener, null);
+			MediaSource mediaSource = new ExtractorMediaSource(streamUri, dataSourceFactory, mCurrentRadioService.getIpStreams().get(0).getMimeType() == RadioServiceMimeType.AUDIO_MPEG ? Mp3Extractor.FACTORY : AdtsExtractor.FACTORY, mHandler, null);
 
-		mExoPlayer.prepare(mediaSource);
-		mExoPlayer.setPlayWhenReady(true);
+			mExoPlayer.prepare(mediaSource);
+			mExoPlayer.setPlayWhenReady(true);
+		} else {
+			Log.w(TAG, "Radio context null");
+		}
 	}
 
 	IcyStreamDataSource.RawStreamDataListener mRawListener = new IcyStreamDataSource.RawStreamDataListener() {
