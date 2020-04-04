@@ -18,6 +18,7 @@
  *
  */
 
+#include <iostream>
 #include "fig_00_ext_17.h"
 
 Fig_00_Ext_17::Fig_00_Ext_17(const std::vector<uint8_t>& figData) : Fig_00(figData) {
@@ -32,6 +33,11 @@ void Fig_00_Ext_17::parseFigData(const std::vector<uint8_t>& figData) {
     auto figIter = figData.cbegin() +1;
     while(figIter < figData.cend()) {
         ProgrammeTypeInformation ptyInfo;
+
+        long remainingBytes = std::distance(figIter, figData.cend());
+        if (remainingBytes < 4) {
+            std::cout << "FIG 0/17 data too short: exp=4, rcv=" << +remainingBytes << std::endl;
+        }
 
         ptyInfo.serviceId = static_cast<uint16_t>(((*figIter++ & 0xFF) << 8) | (*figIter++ & 0xFF));
         ptyInfo.isDynamic = (((*figIter & 0x80) >> 7) & 0xFF) != 0;
