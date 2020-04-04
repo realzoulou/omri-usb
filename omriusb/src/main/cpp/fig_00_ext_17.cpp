@@ -31,22 +31,17 @@ Fig_00_Ext_17::~Fig_00_Ext_17() {
 void Fig_00_Ext_17::parseFigData(const std::vector<uint8_t>& figData) {
     auto figIter = figData.cbegin() +1;
     while(figIter < figData.cend()) {
-        if (std::distance(figIter, figData.cend()) >= 4) { // 32 bits = 4x figIter++
-            //  ETS 300 401 clause 8.1.5 Programme Type
-            ProgrammeTypeInformation ptyInfo;
+        ProgrammeTypeInformation ptyInfo;
 
-            ptyInfo.serviceId = static_cast<uint16_t>(((*figIter++ & 0xFF) << 8) |
-                                                      (*figIter++ & 0xFF));
-            ptyInfo.isDynamic = (((*figIter & 0x80) >> 7) & 0xFF) != 0;
-            //bool rfa1 = ((*figIter & 0x40) >> 6) & 0xFF;
-            //uint8_t rfu1 = ((*figIter & 0x30) >> 4) & 0xFF;
-            uint8_t rfa2 = static_cast<uint8_t>(((*figIter++ & 0x0F) << 2) |
-                                                (((*figIter & 0xC0) >> 6) & 0xFF));
-            //bool rfu2 = ((*figIter & 0x20) >> 5) & 0xFF;
-            ptyInfo.intPtyCode = static_cast<uint8_t>(*figIter++ & 0x1F);
+        ptyInfo.serviceId = static_cast<uint16_t>(((*figIter++ & 0xFF) << 8) | (*figIter++ & 0xFF));
+        ptyInfo.isDynamic = (((*figIter & 0x80) >> 7) & 0xFF) != 0;
+        //bool rfa1 = ((*figIter & 0x40) >> 6) & 0xFF;
+        //uint8_t rfu1 = ((*figIter & 0x30) >> 4) & 0xFF;
+        uint8_t rfa2 = static_cast<uint8_t>(((*figIter++ & 0x0F) << 2) | (((*figIter & 0xC0) >> 6) & 0xFF));
+        //bool rfu2 = ((*figIter & 0x20) >> 5) & 0xFF;
+        ptyInfo.intPtyCode = static_cast<uint8_t>(*figIter++ & 0x1F);
 
-            m_ptyInformations.push_back(ptyInfo);
-        }
+        m_ptyInformations.push_back(ptyInfo);
     }
 }
 
