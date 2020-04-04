@@ -31,28 +31,20 @@ Fig_01_Ext_04::~Fig_01_Ext_04() {
 void Fig_01_Ext_04::parseFigData(const std::vector<uint8_t>& figData) {
     auto figIter = figData.begin() +1;
     while(figIter < figData.end()) {
-        if (std::distance(figIter, figData.cend()) >= 21) { // min 21 bytes, max 23 bytes
-            //  ETS 300 401 clause 8.1.14.3 Service component label
-            m_isProgramme = ((*figIter & 0x80) >> 7) == 0;
-            //uint8_t rfa = (*figIter & 0x70) >> 4;
-            m_scIdS = static_cast<uint8_t>(((*figIter++ & 0x0F) & 0xFF));
+        m_isProgramme = ((*figIter & 0x80) >> 7) == 0;
+        //uint8_t rfa = (*figIter & 0x70) >> 4;
+        m_scIdS = static_cast<uint8_t>(((*figIter++ & 0x0F) & 0xFF));
 
-            if (m_isProgramme) {
-                m_serviceId = static_cast<uint32_t>(((*figIter++ & 0xFF) << 8) |
-                                                    (*figIter++ & 0xFF));
-            } else {
-                m_serviceId = static_cast<uint32_t>(((*figIter++ & 0xFF) << 24) |
-                                                    ((*figIter++ & 0xFF) << 16) |
-                                                    ((*figIter++ & 0xFF) << 8) |
-                                                    (*figIter++ & 0xFF));
-            }
-
-            if (std::distance(figIter, figData.cend()) >= 18) {
-                parseLabel(std::vector<uint8_t>(figIter, figIter + 18), m_srvCompLabel,
-                           m_srvCompShortLabel);
-                figIter += 18;
-            }
+        m_serviceId;
+        if(m_isProgramme) {
+            m_serviceId = static_cast<uint32_t>(((*figIter++ & 0xFF) << 8) | (*figIter++ & 0xFF));
+        } else {
+            m_serviceId = static_cast<uint8_t>(((*figIter++ & 0xFF) << 24) | ((*figIter++ & 0xFF) << 16) | ((*figIter++ & 0xFF) << 8) | (*figIter++ & 0xFF));
         }
+
+        parseLabel(std::vector<uint8_t>(figIter, figIter+18), m_srvCompLabel, m_srvCompShortLabel);
+
+        figIter += 18;
     }
 }
 
