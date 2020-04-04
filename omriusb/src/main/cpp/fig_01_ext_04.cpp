@@ -35,11 +35,10 @@ void Fig_01_Ext_04::parseFigData(const std::vector<uint8_t>& figData) {
         //uint8_t rfa = (*figIter & 0x70) >> 4;
         m_scIdS = static_cast<uint8_t>(((*figIter++ & 0x0F) & 0xFF));
 
-        m_serviceId;
         if(m_isProgramme) {
             m_serviceId = static_cast<uint32_t>(((*figIter++ & 0xFF) << 8) | (*figIter++ & 0xFF));
         } else {
-            m_serviceId = static_cast<uint8_t>(((*figIter++ & 0xFF) << 24) | ((*figIter++ & 0xFF) << 16) | ((*figIter++ & 0xFF) << 8) | (*figIter++ & 0xFF));
+            m_serviceId = static_cast<uint32_t>(((*figIter++ & 0xFF) << 24) | ((*figIter++ & 0xFF) << 16) | ((*figIter++ & 0xFF) << 8) | (*figIter++ & 0xFF));
         }
 
         parseLabel(std::vector<uint8_t>(figIter, figIter+18), m_srvCompLabel, m_srvCompShortLabel);
