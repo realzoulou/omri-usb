@@ -223,9 +223,19 @@ abstract class RadioEpgParser
     GeoLocationPoint parseGeoLocationPoint(final XmlPullParser parser) throws XmlPullParserException, IOException {
         parser.require(XmlPullParser.START_TAG, RadioEpgParser.NAMESPACE, GEOLOCATION_POINT_TAG);
         GeoLocationPoint retPoint = null;
-        final String[] pointSplit = this.readTagText(parser).split("\\s+");
+        final String tag = this.readTagText(parser);
+        // some separate with ", " instead of only " "
+        final String correctedTag = tag.replaceAll(",", "");
+        final String[] pointSplit = correctedTag.split("\\s+");
         if (pointSplit.length == 2) {
-            retPoint = new GeoLocationPoint(Double.parseDouble(pointSplit[0].trim()), Double.parseDouble(pointSplit[1].trim()));
+            try {
+                retPoint = new GeoLocationPoint(Double.parseDouble(pointSplit[0].trim()), Double.parseDouble(pointSplit[1].trim()));
+            } catch (Exception e) {
+                if(DEBUG) {
+                    Log.d(TAG, GEOLOCATION_POINT_TAG + ":'" + tag + "'");
+                    e.printStackTrace();
+                }
+            }
         }
         parser.require(XmlPullParser.END_TAG, RadioEpgParser.NAMESPACE, GEOLOCATION_POINT_TAG);
         return retPoint;
