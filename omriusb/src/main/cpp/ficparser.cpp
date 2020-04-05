@@ -42,20 +42,22 @@ FicParser::~FicParser() {
 }
 
 void FicParser::call(const std::vector<uint8_t> &data) {
-    auto ficIter = data.begin();
-    while (ficIter < data.end()) {
-        long remainingBytes = std::distance(ficIter, data.end());
-        if (remainingBytes < 32) {
-            std::cout << M_LOG_TAG << "FIB too short: exp:32, rcv:" << +remainingBytes << std::endl;
+    auto ficIter = data.cbegin();
+    int loop = 0;
+    while (ficIter < data.cend()) {
+        loop++;
+        long remainingBytes = std::distance(ficIter, data.cend());
+        if (remainingBytes < FIB_SIZE) {
+            std::cout << M_LOG_TAG << "FIB " << +loop << " too short: exp:" << FIB_SIZE << ", rcv:" << +remainingBytes << std::endl;
         }
-        std::vector<uint8_t> fib(ficIter, ficIter+32);
+        std::vector<uint8_t> fib(ficIter, ficIter+FIB_SIZE);
         if(FIB_CRC_CHECK(fib.data())) {
             m_fibDataQueue.push(fib);
         } else {
-            std::cout << M_LOG_TAG << " FIB crc corrupted: " << std::hex << data[0] << " : " << data[1] << std::dec << std::endl;
+            std::cout << M_LOG_TAG << "FIB " << +loop << " crc corrupted: " << std::hex << +data[0] << " : " << +data[1] << std::dec << std::endl;
         }
 
-        ficIter += 32;
+        ficIter += FIB_SIZE;
     }
 }
 
@@ -81,20 +83,21 @@ void FicParser::processFib() {
                 uint8_t figLength = (*figIter & 0x1F);
 
                 ++figIter;
-                remainingBytes = std::distance(figIter, fibData.end());
-                if (remainingBytes < figLength) {
-                    std::cout << M_LOG_TAG << "FIG too short: exp:" << +figLength << ", rcv:"
-                        << +remainingBytes << std::endl;
-                }
-                if(figType != 7 && figLength != 31 && figLength > 0) {
 
+                if(figType != 7 && figLength != 31 && figLength > 0) {
+                    remainingBytes = std::distance(figIter, fibData.end());
+                    if (remainingBytes < figLength) {
+                        std::cout << M_LOG_TAG << "FIG too short: exp:" << +figLength << ", rcv:"
+                                  << +remainingBytes << std::endl;
+                    }
+                    const std::vector<uint8_t> figData(figIter, figIter+figLength);
                     switch (figType) {
                         case 0: {
-                            parseFig_00(std::vector<uint8_t>(figIter, figIter+figLength));
+                            parseFig_00(figData);
                             break;
                         }
                         case 1: {
-                            parseFig_01(std::vector<uint8_t>(figIter, figIter+figLength));
+                            parseFig_01(figData);
                             break;
                         }
                         default:
@@ -104,6 +107,9 @@ void FicParser::processFib() {
 
                     figIter += figLength;
                 } else {
+                    // figType=7, figLength=31: End Marker
+                    // -OR-
+                    // figLength = 0
                     break;
                 }
             }

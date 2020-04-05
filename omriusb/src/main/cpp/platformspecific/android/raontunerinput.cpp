@@ -26,6 +26,7 @@
 #include <sstream>
 #include <unistd.h>
 #include <sys/endian.h>
+#include "../../ficparser.h"
 #include "raontunerinput.h"
 #include "demousbtunerinput.h"
 
@@ -472,6 +473,10 @@ void RaonTunerInput::switchPage(RaonTunerInput::REGISTER_PAGE regPage) {
     std::vector<uint8_t> switchData{0x21, 0x00, 0x00, 0x02, 0x03, static_cast<uint8_t >(regPage)};
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, switchData);
+        if (bytesTransfered < switchData.size()) {
+            std::clog << LOG_TAG << "switchPage write exp:" << +switchData.size()
+                      << ", rcv:" << +bytesTransfered << std::endl;
+        }
     }
 }
 
@@ -479,18 +484,30 @@ void RaonTunerInput::setRegister(uint8_t reg, uint8_t val) {
     std::vector<uint8_t> setRegData{0x21, 0x00, 0x00, 0x02, reg, val};
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, setRegData);
+        if (bytesTransfered < setRegData.size()) {
+            std::clog << LOG_TAG << "setRegister write exp:" << +setRegData.size()
+                      << ", rcv:" << +bytesTransfered << std::endl;
+        }
     }
 }
 
 uint8_t RaonTunerInput::readRegister(uint8_t reg) {
-    std::vector<uint8_t> readRegReqData{0x22, 0x00, 0x01, 0x00, reg};
+    std::vector<uint8_t> xferbuff{0x22, 0x00, 0x01, 0x00, reg};
     if (m_usbDevice != nullptr) {
-        int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, readRegReqData);
+        int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, xferbuff);
+        if (bytesTransfered < xferbuff.size()) {
+            std::clog << LOG_TAG << "readRegister write exp:" << +xferbuff.size()
+                      << ", rcv:" << +bytesTransfered << std::endl;
+        }
 
-        std::vector<uint8_t> readBuffer(5);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, readBuffer);
-
-        return readBuffer[4];
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, xferbuff);
+        if (bytesTransfered < xferbuff.size()) {
+            std::clog << LOG_TAG << "readRegister read exp:" << +xferbuff.size()
+                << ", rcv:" << +bytesTransfered << std::endl;
+            return 0;
+        } else {
+            return xferbuff[4];
+        }
     } else {
         std::cout << LOG_TAG << "readRegister: no USB device" << std::endl;
         return 0;
@@ -1178,25 +1195,8 @@ void RaonTunerInput::readFic() {
     bool ficInt = (demodStat & FIC_E_INT);
 
     if(ficInt && (m_usbDevice != nullptr)) {
-        switchPage(REGISTER_PAGE_FIC);
 
-        std::vector<uint8_t> reqFic = {0x22, 0x00, 0x80, 0x01, 0x10};
-        int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, reqFic);
-
-        std::vector<uint8_t> reFicRet(400);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, reFicRet);
-
-        switchPage(REGISTER_PAGE_DD);
-        /* FIC interrupt status clear */
-        setRegister(INT_E_UCLRL, 0x01);
-
-        if(bytesTransfered >= 4) {
-            for(int i = 0; i < ((bytesTransfered - 4) / 32); i++) {
-                const std::vector<uint8_t> ficData(reFicRet.begin()+4+i*32, reFicRet.begin()+4+i*32+32);
-                rawRecordFicWrite(ficData);
-                dataInput(ficData, 0x64, false);
-            }
-        }
+        readFicData();
 
         --m_ficCollectionWaitLoops;
         std::cout << LOG_TAG << "FicRetries: " << +m_ficCollectionWaitLoops << std::endl;
@@ -1477,11 +1477,15 @@ void RaonTunerInput::readMscData() {
 }
 
 void RaonTunerInput::readFicData() {
-    switchPage(REGISTER_PAGE_FIC);
     if (m_usbDevice != nullptr) {
+
+        switchPage(REGISTER_PAGE_FIC);
+
         std::vector<uint8_t> reqFic = {0x22, 0x00, 0x80, 0x01, 0x10};
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, reqFic);
-
+        if (bytesTransfered < reqFic.size()) {
+            std::clog << LOG_TAG << "readFicData write exp:5, rcvd:" << + bytesTransfered << std::endl;
+        }
         std::vector<uint8_t> reFicRet(400);
         bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, reFicRet);
 
@@ -1489,18 +1493,24 @@ void RaonTunerInput::readFicData() {
         /* FIC interrupt status clear */
         setRegister(INT_E_UCLRL, 0x01);
 
-        //std::cout << LOG_TAG << "FicData Hdr: " << +reFicRet.size() << " : " << +bytesTransfered  << " : " << std::hex << std::setfill('0') << std::setw(2) << +reFicRet[0] << +reFicRet[1] << +reFicRet[2] << +reFicRet[3] << std::dec << std::endl;
-        //std::cout << LOG_TAG << "FicData: " << std::hex << std::setfill('0') << std::setw(2) << +reFicRet[5] << +reFicRet[6] << +reFicRet[7] << +reFicRet[8] << std::dec << std::endl;
+        //std::cout << LOG_TAG << "FicData Hdr: " << +reFicRet.size() << " : " << +bytesTransfered  << " : " << std::hex << std::setfill('0') << std::setw(2) << +reFicRet[0] << " " << +reFicRet[1] << " " << +reFicRet[2] << " " << +reFicRet[3] << std::dec << std::endl;
+        //std::cout << LOG_TAG << "FicData: " << std::hex << std::setfill('0') << std::setw(2) << +reFicRet[5] << " " << +reFicRet[6] << " " << +reFicRet[7] << " " << +reFicRet[8] << std::dec << std::endl;
 
-        for (int i = 0; i < ((bytesTransfered - 4) / 32); i++) {
-            try {
-                const std::vector<uint8_t> ficData(reFicRet.begin() + 4 + i * 32, reFicRet.begin() + 4 + i * 32 + 32);
-                rawRecordFicWrite(ficData);
-                dataInput(ficData, 0x64, false);
-            } catch (std::length_error &lenErr) {
-                std::cout << LOG_TAG << "Length error..." << std::endl;
+        if(bytesTransfered >= 4) {
+            auto it = reFicRet.begin() + 4;
+            int payloadLen = bytesTransfered - 4;
+            if (payloadLen % FicParser::FIB_SIZE != 0) {
+                std::clog << LOG_TAG << "readFicData payloadLen " << +payloadLen
+                    << " not a multiple of " << +FicParser::FIB_SIZE << std::endl;
             }
+            const std::vector<uint8_t> ficData(it, it + payloadLen);
+            rawRecordFicWrite(ficData);
+            dataInput(ficData, 0x64, false);
+        } else {
+            std::clog << LOG_TAG << "readFicData read exp:4, rcvd:" << +bytesTransfered << std::endl;
         }
+    } else {
+        std::clog << LOG_TAG << "readFicData no USB device" << std::endl;
     }
 }
 
@@ -1554,30 +1564,7 @@ void RaonTunerInput::readData() {
               std::noboolalpha << std::endl;
 
     if(ficInt && (m_usbDevice != nullptr)) {
-        switchPage(REGISTER_PAGE_FIC);
-
-        std::vector<uint8_t> reqFic = {0x22, 0x00, 0x80, 0x01, 0x10};
-        int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, reqFic);
-
-        std::vector<uint8_t> reFicRet(400);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, reFicRet);
-
-        switchPage(REGISTER_PAGE_DD);
-        /* FIC interrupt status clear */
-        setRegister(INT_E_UCLRL, 0x01);
-
-        //std::cout << LOG_TAG << "FicData Hdr: " << +reFicRet.size() << " : " << +bytesTransfered  << " : " << std::hex << std::setfill('0') << std::setw(2) << +reFicRet[0] << +reFicRet[1] << +reFicRet[2] << +reFicRet[3] << std::dec << std::endl;
-        //std::cout << LOG_TAG << "FicData: " << std::hex << std::setfill('0') << std::setw(2) << +reFicRet[5] << +reFicRet[6] << +reFicRet[7] << +reFicRet[8] << std::dec << std::endl;
-
-        for(int i = 0; i < ((bytesTransfered - 4) / 32); i++) {
-            try {
-                const std::vector<uint8_t> ficData(reFicRet.begin() + 4 + i * 32, reFicRet.begin() + 4 + i * 32 + 32);
-                rawRecordFicWrite(ficData);
-                dataInput(ficData, 0x64, false);
-            } catch(std::length_error& lenErr) {
-                std::cout << LOG_TAG << "Length error..." << std::endl;
-            }
-        }
+        readFicData();
     }
 
     if(msc1Overrun) {

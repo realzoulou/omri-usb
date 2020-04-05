@@ -131,6 +131,9 @@ public:
 
     void reset();
 
+public:
+    static constexpr size_t FIB_SIZE = 32;
+
 private:
     const std::string M_LOG_TAG = "[FicParser] ";
 
@@ -215,7 +218,7 @@ private:
     static inline bool FIB_CRC_CHECK(const uint8_t* data) {
 
         //fixed fib size
-        uint16_t dataLen = 32;
+        uint16_t dataLen = FIB_SIZE;
 
         //initial register
         uint16_t crc = 0xffff;
