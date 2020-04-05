@@ -142,8 +142,12 @@ abstract class RadioEpgParser
         if (bearerCostString != null) {
             try {
                 bearerCost = Integer.parseInt(bearerCostString.trim());
+            } catch (Exception e) {
+                if(DEBUG) {
+                    Log.d(TAG, BEARER_TAG + ":'" + bearerCostString + "'");
+                    e.printStackTrace();
+                }
             }
-            catch (NumberFormatException ex) {}
         }
         if (bearerIdString != null) {
             bearer = new Bearer(bearerIdString, bearerCost, bearerMimeString, 0);
@@ -261,16 +265,29 @@ abstract class RadioEpgParser
                 int mmWidth = -1;
                 int mmHeight = -1;
                 if (multimediaWidth != null) {
+                    // some use "1.920" instead of "1920"
+                    multimediaWidth = multimediaWidth.replaceAll("\\p{Punct}", "");
                     try {
                         mmWidth = Integer.parseInt(multimediaWidth.trim());
+
+                    } catch (Exception e) {
+                        if (DEBUG) {
+                            Log.d(TAG, WIDTH_ATTR + ":'" + multimediaWidth + "'");
+                            e.printStackTrace();
+                        }
                     }
-                    catch (NumberFormatException ex) {}
                 }
                 if (multimediaHeight != null) {
+                    // some use "1.920" instead of "1920"
+                    multimediaHeight = multimediaHeight.replaceAll("\\p{Punct}", "");
                     try {
                         mmHeight = Integer.parseInt(multimediaHeight.trim());
+                    } catch (Exception e) {
+                        if (DEBUG) {
+                            Log.d(TAG, HEIGHT_ATTR + ":'" + multimediaHeight + "'");
+                            e.printStackTrace();
+                        }
                     }
-                    catch (NumberFormatException ex2) {}
                 }
                 mmRet = new Multimedia(mmType, multimediaLang, multimediaUrl, multimediaMime, mmWidth, mmHeight);
             }
