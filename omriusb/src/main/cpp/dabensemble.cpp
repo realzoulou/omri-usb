@@ -298,6 +298,8 @@ void DabEnsemble::fig00_02_input(const Fig_00_Ext_02 &fig02) {
                             m_streamComponentsMap.insert(std::make_pair(srvCom.subChannelId, componentPtr));
 
                             service.addServiceComponent(componentPtr);
+                        } else {
+                            service.addServiceComponent(compIter->second);
                         }
 
                         break;
@@ -448,12 +450,13 @@ void DabEnsemble::fig00_08_input(const Fig_00_Ext_08& fig08) {
         if(srvGlobalDef.isShortForm) {
             auto subChanIter = m_streamComponentsMap.find(srvGlobalDef.subchannelId);
             if(subChanIter != m_streamComponentsMap.cend()) {
+                //std::cout << m_logTag << " FIG 00 Ext 08 setting ScIdS for SId: " << std::hex << +srvGlobalDef.serviceId << ", SubChanId: " << +srvGlobalDef.subchannelId << ", SubChanId: " << +subChanIter->second->getSubChannelId() << " to: " << +srvGlobalDef.scIdS << std::dec << std::endl;
                 subChanIter->second->setServiceComponentIdWithinService(srvGlobalDef.scIdS);
             }
         } else {
             auto packCompIter = m_packetComponentsMap.find(srvGlobalDef.serviceComponentId);
             if(packCompIter != m_packetComponentsMap.cend()) {
-                std::cout << m_logTag << " FIG 00 Ext 08 setting ScIdS for SId: " << std::hex << +srvGlobalDef.serviceId << ", ScId: " << +srvGlobalDef.serviceComponentId << ", SubChanId: " << +packCompIter->second->getSubChannelId() << " to: " << +srvGlobalDef.scIdS << std::dec << std::endl;
+                //std::cout << m_logTag << " FIG 00 Ext 08 setting ScIdS for SId: " << std::hex << +srvGlobalDef.serviceId << ", ScId: " << +srvGlobalDef.serviceComponentId << ", SubChanId: " << +packCompIter->second->getSubChannelId() << " to: " << +srvGlobalDef.scIdS << std::dec << std::endl;
                 packCompIter->second->setServiceComponentIdWithinService(srvGlobalDef.scIdS);
             }
         }

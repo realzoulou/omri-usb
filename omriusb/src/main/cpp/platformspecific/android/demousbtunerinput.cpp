@@ -140,8 +140,8 @@ void DemoUsbTunerInput::setService() {
         std::clog << LOG_TAG << "setService: not found SId " << std::hex
             << +m_startServiceLink->getServiceId() << std::dec << std::endl;
     } else if (!foundSrvPrimary) {
-        std::clog << LOG_TAG << "setService: not found primary srv "
-            << +m_startServiceLink->getServiceId() << std::endl;
+        std::clog << LOG_TAG << "setService: not found primary srv " << std::hex
+            << +m_startServiceLink->getServiceId() << std::dec << std::endl;
     }
 }
 
