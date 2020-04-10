@@ -35,6 +35,8 @@ import static org.omri.BuildConfig.DEBUG;
 class VisualLogoManager {
 
 	private final static String TAG = "VisualLogoManager";
+	private final static String VIS_CACHE_DIR = "logo_cache";
+    private final static String LOGOS_FILENAME = "logos.json";
 
 	private static VisualLogoManager mManagerInstance = null;
 
@@ -48,7 +50,7 @@ class VisualLogoManager {
 	private VisualLogoManager() {
 		final Context context = ((RadioImpl) Radio.getInstance()).mContext;
 		if (context != null) {
-			mLogoDir = new File(context.getCacheDir(), "logo_cache");
+			mLogoDir = new File(context.getCacheDir(), VIS_CACHE_DIR);
 			if (DEBUG) Log.d(TAG, "LogoCacheDir: " + mLogoDir.getAbsolutePath());
 
 			if (!mLogoDir.exists()) {
@@ -156,7 +158,7 @@ class VisualLogoManager {
 			if (DEBUG) Log.d(TAG, "LogoJson Serializing " + mLogoList.size() + " LogoVisuals");
 
 			if (((RadioImpl) Radio.getInstance()).mContext != null) {
-				File visCacheDir = new File(((RadioImpl) Radio.getInstance()).mContext.getFilesDir() + "/logo_cache");
+				File visCacheDir = new File(((RadioImpl) Radio.getInstance()).mContext.getCacheDir(), VIS_CACHE_DIR);
 				if (!visCacheDir.exists()) {
 					boolean cacheDirCreated = visCacheDir.mkdir();
 					if (DEBUG) {
@@ -199,7 +201,7 @@ class VisualLogoManager {
 							//save to file
 							if (DEBUG) Log.d(TAG, "Serializing LogoJson writing to file...");
 
-							File srvListFile = new File(visCacheDir + "/" + "logos.json");
+							File srvListFile = new File(visCacheDir, LOGOS_FILENAME);
 							logoListWriter = new BufferedWriter(new FileWriter(srvListFile));
 							logoListWriter.write(visArr.toString(2));
 							logoListWriter.close();
@@ -237,7 +239,8 @@ class VisualLogoManager {
 			mDeserializingInProgress.set(true);
 
 			if (DEBUG) Log.d(TAG, "Restoring LogoJson");
-			File visCacheFile = new File(((RadioImpl) Radio.getInstance()).mContext.getFilesDir() + "/logo_cache/logos.json");
+			File visCacheFile = new File(((RadioImpl) Radio.getInstance()).mContext.getCacheDir().getAbsolutePath()
+					+ File.separatorChar + VIS_CACHE_DIR + File.separatorChar + LOGOS_FILENAME);
 			if (visCacheFile.exists()) {
 				if (mLogoList != null) {
 					mLogoList.clear();
@@ -296,7 +299,10 @@ class VisualLogoManager {
 							}
 						}
 
-						deserList.add(logo);
+						// sanity check
+						if (logo.isAvailable()) {
+							deserList.add(logo);
+						}
 					}
 
 					mLogoList.addAll(deserList);
