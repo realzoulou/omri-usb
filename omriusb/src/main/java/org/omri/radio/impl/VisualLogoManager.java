@@ -28,10 +28,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.omri.BuildConfig.DEBUG;
 
-//TODO how to detect new logos with same dimensions, mime and same URL?
-//TODO maybe delete logos after some time e.g. after 1 month
-//TODO optimize (cache) calls to getLogoVisuals()
-
 class VisualLogoManager {
 
 	private final static String TAG = "VisualLogoManager";
@@ -40,26 +36,24 @@ class VisualLogoManager {
 
 	private static VisualLogoManager mManagerInstance = null;
 
-	private CopyOnWriteArrayList<VisualLogoImpl> mLogoList = mLogoList = new CopyOnWriteArrayList<>();
+	private CopyOnWriteArrayList<VisualLogoImpl> mLogoList = new CopyOnWriteArrayList<>();
 	private AtomicBoolean mSerializingInProgress = new AtomicBoolean();
 	private AtomicBoolean mDeserializingInProgress = new AtomicBoolean();
 
-	private File mLogoDir = null;
 	private Thread mDeSerThread = null;
 
 	private VisualLogoManager() {
 		final Context context = ((RadioImpl) Radio.getInstance()).mContext;
 		if (context != null) {
-			mLogoDir = new File(context.getCacheDir(), VIS_CACHE_DIR);
-			if (DEBUG) Log.d(TAG, "LogoCacheDir: " + mLogoDir.getAbsolutePath());
+			File logoDir = new File(context.getCacheDir(), VIS_CACHE_DIR);
+			if (DEBUG) Log.d(TAG, "LogoCacheDir: " + logoDir.getAbsolutePath());
 
-			if (!mLogoDir.exists()) {
-				boolean logoCacheCreated = mLogoDir.mkdir();
+			if (!logoDir.exists()) {
+				boolean logoCacheCreated = logoDir.mkdir();
 				if (logoCacheCreated) {
 					if (DEBUG) Log.d(TAG, "Created successfully LogoCacheDir");
 				} else {
-					if (DEBUG) Log.d(TAG, "Creating LogoCacheDir failed");
-					mLogoDir = null;
+					Log.w(TAG, "Creating LogoCacheDir failed");
 				}
 			} else {
 				mDeSerThread = new Thread(new Runnable() {

@@ -1,18 +1,14 @@
 package org.omri.radio.impl;
 
-import android.content.Context;
 import android.os.Build;
 import android.util.Log;
 
 import org.omri.BuildConfig;
-import org.omri.radio.Radio;
 import org.omri.radioservice.metadata.VisualType;
 
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,7 +65,7 @@ public class VisualLogoImpl extends VisualImpl implements Serializable {
 	}
 
 	boolean isAvailable() {
-		File dir = IpServiceScanner.getInstance().getLogoCacheDir();
+		File dir = IpServiceScanner.getInstance().getLogoFilesCacheDir();
 		return mLogoFileName != null && dir != null &&
 				new File(dir, mLogoFileName).exists();
 	}
@@ -96,26 +92,27 @@ public class VisualLogoImpl extends VisualImpl implements Serializable {
 
 	@Override
 	public byte[] getVisualData() {
-		final Context context = ((RadioImpl) Radio.getInstance()).mContext;
-		if(mLogoFileName != null && context != null) {
-			if(BuildConfig.DEBUG) Log.d(TAG, "Reading file to bytearray: " + (context.getCacheDir().getAbsolutePath() + "/logofiles_cache/" + mLogoFileName));
-			File file = new File(context.getCacheDir().getAbsolutePath() + "/logofiles_cache/" + mLogoFileName);
-			int size = (int) file.length();
-			byte[] bytes = new byte[size];
+		final File logoFilesCacheDir = IpServiceScanner.getInstance().getLogoFilesCacheDir();
+		if(mLogoFileName != null && logoFilesCacheDir != null) {
+			if(BuildConfig.DEBUG) Log.d(TAG, "Reading file: " + logoFilesCacheDir.getAbsolutePath() + File.separatorChar + mLogoFileName);
+			File file = new File(logoFilesCacheDir, mLogoFileName);
+			if (file.exists()) {
+				int size = (int) file.length();
+				if (size > 0 && size < 100 * 1024 * 1024) {
+					byte[] bytes = new byte[size];
 
-			try {
-				BufferedInputStream buf = new BufferedInputStream(new FileInputStream(file));
-				buf.read(bytes, 0, bytes.length);
-				buf.close();
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-				bytes = new byte[0];
-			} catch (IOException e) {
-				e.printStackTrace();
-				bytes = new byte[0];
+					BufferedInputStream buf = null;
+					try {
+						buf = new BufferedInputStream(new FileInputStream(file));
+						buf.read(bytes, 0, bytes.length);
+						buf.close();
+					} catch (Exception e) {
+						if (BuildConfig.DEBUG) e.printStackTrace();
+						bytes = new byte[0];
+					}
+					return bytes;
+				}
 			}
-
-			return bytes;
 		}
 
 		return new byte[0];
