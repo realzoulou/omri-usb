@@ -69,10 +69,9 @@ public class VisualLogoImpl extends VisualImpl implements Serializable {
 	}
 
 	boolean isAvailable() {
-		final Context context = ((RadioImpl) Radio.getInstance()).mContext;
-		return mLogoFileName != null &&
-				context != null &&
-				new File(context.getCacheDir().getAbsolutePath() + "/logofiles_cache/" + mLogoFileName).exists();
+		File dir = IpServiceScanner.getInstance().getLogoCacheDir();
+		return mLogoFileName != null && dir != null &&
+				new File(dir, mLogoFileName).exists();
 	}
 
 	void addBearer(RadioDnsEpgBearer bearer) {

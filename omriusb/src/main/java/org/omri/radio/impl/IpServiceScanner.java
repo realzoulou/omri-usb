@@ -3,6 +3,8 @@ package org.omri.radio.impl;
 import android.os.Bundle;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
+
 import org.omri.BuildConfig;
 import org.omri.radio.Radio;
 import org.omri.radioservice.RadioService;
@@ -91,21 +93,7 @@ class IpServiceScanner {
 	private File mLogoCacheDir;
 
 	private IpServiceScanner() {
-		if(((RadioImpl)Radio.getInstance()).mContext != null) {
-			mLogoCacheDir = new File(((RadioImpl)Radio.getInstance()).mContext.getCacheDir(), "logofiles_cache");
-			if(DEBUG)Log.d(TAG, "LogoCacheDir: " + mLogoCacheDir.getAbsolutePath());
-			if(!mLogoCacheDir.exists()) {
-				boolean logoCacheCreated = mLogoCacheDir.mkdir();
-				if(logoCacheCreated) {
-					if(DEBUG)Log.d(TAG, "Created successfully LogoCacheDir");
-				} else {
-					if(DEBUG)Log.d(TAG, "Creating LogoCacheDir failed");
-					mLogoCacheDir = null;
-				}
-			}
-		} else {
-			mLogoCacheDir = null;
-		}
+		createLogoCacheDir();
 	}
 
 	static IpServiceScanner getInstance() {
@@ -962,6 +950,31 @@ class IpServiceScanner {
 		return mOutput.toByteArray();
 	}
 
+	@Nullable File getLogoCacheDir() {
+	    if (mLogoCacheDir == null) {
+	        createLogoCacheDir();
+        }
+		return mLogoCacheDir;
+	}
+
+	private void createLogoCacheDir() {
+		if(((RadioImpl)Radio.getInstance()).mContext != null) {
+			mLogoCacheDir = new File(((RadioImpl)Radio.getInstance()).mContext.getCacheDir(), "logofiles_cache");
+			if(DEBUG)Log.d(TAG, "LogoCacheDir: " + mLogoCacheDir.getAbsolutePath());
+			if(!mLogoCacheDir.exists()) {
+				boolean logoCacheCreated = mLogoCacheDir.mkdir();
+				if(logoCacheCreated) {
+					if(DEBUG)Log.d(TAG, "Created successfully LogoCacheDir");
+				} else {
+					if(DEBUG)Log.d(TAG, "Creating LogoCacheDir failed");
+					mLogoCacheDir = null;
+				}
+			}
+		} else {
+			Log.w(TAG, "Radio context null");
+			mLogoCacheDir = null;
+		}
+	}
 	private String downloadHttpLogoFile(String logoUrl, Multimedia mm, VisualLogoImpl logo) {
 		if (DEBUG) Log.d(TAG, "LogoDownload URL: " + (logoUrl != null ? logoUrl : "null"));
 		InputStream mInput = null;
