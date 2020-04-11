@@ -266,21 +266,21 @@ std::string DemoUsbTunerInput::callJavaRadioServiceGetDescription(jobject radioS
         }
     }
     const char *strReturn;
+    std::string retString("");
     if (radioService != nullptr
         && m_radioServiceGetLongDescriptionMId != nullptr ) {
 
-        jstr = (jstring) enve->CallObjectMethod(radioService, m_radioServiceGetLongDescriptionMId, 0);
+        jstr = (jstring) enve->CallObjectMethod(radioService, m_radioServiceGetLongDescriptionMId);
         strReturn = enve->GetStringUTFChars(jstr, 0);
+        retString = strReturn;
         enve->ReleaseStringUTFChars(jstr, strReturn);
-    } else {
-        strReturn = "";
     }
 
     if (wasDetached) {
         m_javaVm->DetachCurrentThread();
     }
 
-    return std::string(strReturn);
+    return retString;
 }
 
 
