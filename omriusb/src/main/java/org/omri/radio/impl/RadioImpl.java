@@ -607,6 +607,8 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 	public final static String SERVICE_SEARCH_OPT_USE_HRADIO = "use_hradio";
 	public final static String SERVICE_SEARCH_OPT_DELETE_SERVICES = "delete_services";
 	public final static String SERVICE_SEARCH_OPT_HYBRID_SCAN = "hybrid_scan";
+	public final static String SERVICE_SEARCH_OPT_LOGO_MAX_WIDTH = "logo_max_width"; // argument type: int
+	public final static String SERVICE_SEARCH_OPT_LOGO_MAX_HEIGHT = "logo_max_width"; // argument type: int
 	public final static String RADIO_INIT_OPT_VERBOSE_NATIVE_LOGS = "verbose_native_logs";
 	public final static String RADIO_INIT_OPT_RAW_RECORDING_PATH = "raw_recording_path";
 	public final static String RADIO_INIT_OPT_DEMO_MODE = "demo_mode";

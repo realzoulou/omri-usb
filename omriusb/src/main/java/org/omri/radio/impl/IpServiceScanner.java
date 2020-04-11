@@ -95,6 +95,8 @@ class IpServiceScanner {
 
 	private File mLogoCacheDir;
 
+	private Bundle mScanRdnsOptionsBundle = null;
+
 	private IpServiceScanner() {
 		createLogoFilesCacheDir();
 	}
@@ -752,11 +754,25 @@ class IpServiceScanner {
 								stationLogo.setHeight(multiMedia.getHeight());
 								stationLogo.setWidth(multiMedia.getWidth());
 
-								//TODO logo size restrictions
-								if(false) {
-								//if(multiMedia.getHeight() < 128 || multiMedia.getHeight() > 128) {
-									if(DEBUG)Log.d(TAG, "Not downloading logo because of size restriction");
-									continue;
+								//check for logo size restrictions
+								if (mScanRdnsOptionsBundle != null && (
+										mScanRdnsOptionsBundle.containsKey(RadioImpl.SERVICE_SEARCH_OPT_LOGO_MAX_WIDTH)
+										|| mScanRdnsOptionsBundle.containsKey(RadioImpl.SERVICE_SEARCH_OPT_LOGO_MAX_HEIGHT)
+								)) {
+									boolean downloadAllowed = true;
+									int maxWidth = mScanRdnsOptionsBundle.getInt(RadioImpl.SERVICE_SEARCH_OPT_LOGO_MAX_WIDTH,-1);
+									int maxHeight = mScanRdnsOptionsBundle.getInt(RadioImpl.SERVICE_SEARCH_OPT_LOGO_MAX_HEIGHT,-1);
+									if (maxWidth != -1 && multiMedia.getWidth() > maxWidth) {
+										downloadAllowed = false;
+									}
+									if (maxHeight != -1 && multiMedia.getHeight() > maxHeight) {
+										downloadAllowed = false;
+									}
+									if (!downloadAllowed) {
+										if(DEBUG)Log.d(TAG, "Not downloading logo " + multiMedia.getWidth() + "x" + multiMedia.getHeight()
+												+ " due to restriction " + maxWidth + "x" + maxHeight);
+										continue;
+									}
 								}
 
 								VisualMimeType logoMime = VisualMimeType.METADATA_VISUAL_MIMETYPE_UNKNOWN;
@@ -825,6 +841,7 @@ class IpServiceScanner {
 			if(finished) {
 				listener.scanFinished();
 				mIsScanning = false;
+				mScanRdnsOptionsBundle = null;
 			}
 		}
 	}
@@ -832,14 +849,18 @@ class IpServiceScanner {
 	void scanServices(Bundle searchOptions) {
 		if(!mIsScanning) {
 			if (searchOptions != null) {
-				scanHradioServices(searchOptions);
+				if (searchOptions.containsKey(RadioImpl.SERVICE_SEARCH_OPT_USE_HRADIO)) {
+					scanHradioServices(searchOptions);
+				} else {
+					scanRdnsServices(searchOptions);
+				}
 			} else {
-				scanRdnsServices();
+				scanRdnsServices(searchOptions);
 			}
 		}
 	}
 
-	private void scanRdnsServices() {
+	private void scanRdnsServices(@Nullable Bundle searchOptions) {
 		if(DEBUG)Log.d(TAG, "Starting ServiceScan: " + mIsScanning);
 		if(((RadioImpl)Radio.getInstance()).mContext != null) {
 			if (!mIsScanning) {
@@ -848,6 +869,10 @@ class IpServiceScanner {
 				mLookups.clear();
 				mAvailableServices.clear();
 				mSiCallbacksPendings.set(0);
+				mScanRdnsOptionsBundle = null;
+				if (searchOptions != null) {
+					mScanRdnsOptionsBundle = new Bundle(searchOptions);
+				}
 
 				for (IpScannerListener listener : mScannerListeners) {
 					listener.scanStarted();

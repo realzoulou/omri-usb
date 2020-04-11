@@ -206,21 +206,15 @@ public class TunerIpShoutcast implements Tuner, IcyStreamDataSource.IcyMetadataL
 			mScannedServicesWithoutStream.clear();
 
 			Bundle optBundle = null;
-			boolean useHradioSearch = false;
 			if (scanOptions instanceof Bundle) {
 				optBundle = (Bundle) scanOptions;
-				useHradioSearch = optBundle.getBoolean(RadioImpl.SERVICE_SEARCH_OPT_USE_HRADIO, false);
 				if(optBundle.getBoolean(RadioImpl.SERVICE_SEARCH_OPT_DELETE_SERVICES, false)) {
 					if(DEBUG)Log.d(TAG, "Clearing existing services before new scan");
 					RadioServiceManager.getInstance().clearServiceList(RadioServiceType.RADIOSERVICE_TYPE_IP);
 				}
 			}
 
-			if (useHradioSearch) {
-				IpServiceScanner.getInstance().scanServices(optBundle);
-			} else {
-				IpServiceScanner.getInstance().scanServices(null);
-			}
+			IpServiceScanner.getInstance().scanServices(optBundle);
 		}
 	}
 
