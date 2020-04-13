@@ -36,7 +36,7 @@ FicParser::~FicParser() {
     m_fibProcessThreadRunning = false;
 
     if(m_fibProcessorThread.joinable()) {
-        std::cout << M_LOG_TAG << " Joining FIB processor thread" << std::endl;
+        std::cout << M_LOG_TAG << " Joining FIB processor thread " << getParserThreadName() << std::endl;
         m_fibProcessorThread.join();
     }
 }
@@ -69,6 +69,9 @@ void FicParser::processFib() {
     snprintf(name, 12, "FIB-%08x", (int) self);
     name[12] = '\0';
     pthread_setname_np(pthread_self(), name); // crashes when passing self instead of pthread_self()
+    m_ficProcessorThreadName = name;
+
+    std::cout << M_LOG_TAG << "FIB Processor thread started: " << m_ficProcessorThreadName << std::endl;
 
     while (m_fibProcessThreadRunning) {
         std::vector<uint8_t> fibData;
@@ -78,7 +81,7 @@ void FicParser::processFib() {
             if (remainingBytes < 2) {
                 std::cout << M_LOG_TAG << "popped FIB too short: exp:2, rcv:" << +remainingBytes << std::endl;
             }
-            while(figIter < fibData.end() - 2) {
+            while(figIter < fibData.end() - 2 && m_fibProcessThreadRunning) {
                 uint8_t figType = (*figIter & 0xE0) >> 5;
                 uint8_t figLength = (*figIter & 0x1F);
 
@@ -115,8 +118,9 @@ void FicParser::processFib() {
             }
         }
     }
-
-    std::cout << M_LOG_TAG << "FIB Processor thread stopped" << std::endl;
+    std::cout << M_LOG_TAG << "FIB Processor thread stopped: " << name << std::endl;
+    m_ficProcessorThreadName = "";
+    m_fibProcessThreadRunning = false;
 }
 
 void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {

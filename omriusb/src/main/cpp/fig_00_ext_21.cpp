@@ -33,6 +33,7 @@ Fig_00_Ext_21::~Fig_00_Ext_21() {
 }
 
 void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
+    bool foundUnknownRangeModulation = false;
     auto figIter = figData.cbegin() +1;
     while(figIter < figData.cend()) {
         uint16_t rfa = static_cast<uint16_t>(((*figIter++ & 0xFF) << 3) | (((*figIter & 0xE0) >> 5) & 0xFF));
@@ -64,6 +65,7 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
 
             auto freqListIter = freqListData.cbegin();
             while(freqListIter < freqListData.cend()) {
+                bool freqInfoValid = true;
                 //R&M = 0000: DAB Ensemble
                 if(rangeModulation == 0) {
                     /*
@@ -107,7 +109,7 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                     freqInfo.frequencyInformationType = FrequencyInformationType::DAB_ENSEMBLE;
                     freqInfo.frequenciesKHz.push_back(frequency*16);
                     freqInfo.id = idField;
-                }
+                } else
 
                 //R&M = 1000: FM with RDS
                 if(rangeModulation == 8) {
@@ -131,7 +133,7 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
 
                     freqInfo.frequencyInformationType = FrequencyInformationType::FM_RDS;
                     freqInfo.frequenciesKHz.push_back(frequency*100 + 87500);
-                }
+                } else
 
                 //R&M = 0110: DRM
                 //R&M = 1110: AMSS
@@ -140,7 +142,7 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                      * Id field 2: this 8-bit field represents the AMSS Service Identifier (most significant byte) (see ETSI TS 102 386)
                      */
                     /*
-                     *  Id field 2: this 8-bit field represents the DRM Service Identifier (most significant byte) (see ETSIES 201 980).
+                     *  Id field 2: this 8-bit field represents the DRM Service Identifier (most significant byte) (see ETSI ES 201 980).
                      */
                     uint8_t idField2 = static_cast<uint8_t>(*freqListIter++ & 0xFF);
 
@@ -175,11 +177,26 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                     }
 
                     freqInfo.id = idField2 << 8 | idField;
+                } else {
+                    // ETSI 300 401 v1.4.1 still had
+                    // rangeModulation = 10
+                    // 1 0 1 0:    AM (MW in 9 kHz steps & LW)
+                    // rangeModulation = 12
+                    // 1 1 0 0:    AM (MW in 5 kHz steps & SW);
+
+                    freqInfoValid = false;
+                    // print this message only once per Fig_00_Ext_21::parseFigData
+                    if (!foundUnknownRangeModulation) {
+                        std::cout << m_logTag << " unknown R&M=" << +rangeModulation << std::endl;
+                        foundUnknownRangeModulation = true;
+                    }
                 }
 
-                //sorting list for easier compare
-                std::sort(freqInfo.frequenciesKHz.begin(), freqInfo.frequenciesKHz.end());
-                m_frequencyInformations.push_back(freqInfo);
+                if (freqInfoValid) {
+                    m_frequencyInformations.push_back(freqInfo);
+                } else {
+                    break; // while freqListIter
+                }
             }
         }
     }

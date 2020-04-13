@@ -34,15 +34,21 @@ DabEnsemble::DabEnsemble() {
 
 DabEnsemble::~DabEnsemble() {
     std::cout << m_logTag << " Destructing" << std::endl;
+    if (m_ficPtr != nullptr) {
+        m_ficPtr.reset();
+    }
+    std::cout << m_logTag << " Destructed " << std::endl;
 }
 
 void DabEnsemble::reset() {
-    std::cout << m_logTag << " Reseting Ensemble informations" << std::endl;
+    std::cout << m_logTag << " Resetting Ensemble informations" << std::endl;
 
     m_reseting = true;
     m_ensembleCollectFinished = false;
 
-    m_ficPtr = std::unique_ptr<FicParser>(new FicParser);
+    if (m_ficPtr != nullptr) {
+        m_ficPtr.get()->reset();
+    }
 
     m_ensembleId = 0xFFFF;
     m_cifCntHigh = 0x00;
@@ -77,7 +83,7 @@ uint8_t DabEnsemble::getCurrentCifCountLow() const {
     return m_cifCntLow;
 }
 
-bool DabEnsemble::isAlarmAnnouncemnetSupported() const {
+bool DabEnsemble::isAlarmAnnouncementSupported() const {
     return m_announcementsSupported;
 }
 

@@ -131,6 +131,8 @@ public:
 
     void reset();
 
+    const std::string getParserThreadName() const { return m_ficProcessorThreadName; }
+
 public:
     static constexpr size_t FIB_SIZE = 32;
 
@@ -171,6 +173,7 @@ private:
     ConcurrentQueue<std::vector<uint8_t> > m_fibDataQueue;
     std::atomic<bool> m_fibProcessThreadRunning;
     std::thread m_fibProcessorThread;
+    std::string m_ficProcessorThreadName{""};
 
     std::vector<std::vector<uint8_t> > ficBuffer;
 

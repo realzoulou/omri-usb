@@ -44,7 +44,7 @@ public:
     virtual uint16_t getEnsembleId() const;
     virtual uint8_t getCurrentCifCountHigh() const;
     virtual uint8_t getCurrentCifCountLow() const;
-    virtual bool isAlarmAnnouncemnetSupported() const;
+    virtual bool isAlarmAnnouncementSupported() const;
 
     virtual uint8_t getEnsembleLabelCharset() const;
     virtual std::string getEnsembleLabel() const;
