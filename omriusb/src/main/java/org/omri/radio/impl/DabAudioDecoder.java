@@ -82,12 +82,14 @@ class DabAudioDecoder {
 
 	private ConcurrentLinkedQueue<byte[]> mDataQ = new ConcurrentLinkedQueue<>();
 
-	DabAudioDecoder() {
+	DabAudioDecoder(int dabCodec) {
 		if(DEBUG)Log.d(TAG, "Creating new decoder instance");
 
-		if(!mHasBuiltInMpegDec) {
-			mHasMpegDecPlug = mpegDecPluginInstalled2();
-			if(DEBUG)Log.d(TAG, "MPEG Decoder service bound: " + mHasMpegDecPlug);
+		if (dabCodec == DAB_CODEC_MP2) {
+			if (!mHasBuiltInMpegDec) {
+				mHasMpegDecPlug = mpegDecPluginInstalled2();
+				if (DEBUG) Log.d(TAG, "MPEG Decoder service bound: " + mHasMpegDecPlug);
+			}
 		}
 	}
 
@@ -225,7 +227,10 @@ class DabAudioDecoder {
 		if(mDecoderServiceBound) {
 			final Context context = ((RadioImpl)Radio.getInstance()).mContext;
 			if (context != null) {
+				if (DEBUG) Log.d(TAG, "unbind decoder");
 				context.unbindService(mDecoderConnection);
+			} else {
+				if (DEBUG) Log.w(TAG, "Radio context null");
 			}
 			mDecoderServiceBound = false;
 		}
@@ -256,10 +261,19 @@ class DabAudioDecoder {
 	private final IDabPluginCallback.Stub mDecSrvCallback = new IDabPluginCallback.Stub() {
 
 		@Override
-		public void decodedPcmData(byte[] pcmData) throws RemoteException {
+		public void decodedAudioData(byte[] pcmData, int samplerate, int channels) throws RemoteException {
 			if(DEBUG)Log.d(TAG, "Decoderservice audiodata: " + pcmData.length);
 			if (mCallback != null)
-				mCallback.decodedAudioData(pcmData, mOutputSampling, mOutputChannels);
+				mCallback.decodedAudioData(pcmData, samplerate, channels);
+		}
+
+		@Override
+		public void outputFormatChanged(int sampleRate, int chanCnt) throws RemoteException {
+			if(DEBUG)Log.d(TAG, "outputFormatChanged: sample rate:" + sampleRate + ", channels:"+ chanCnt);
+			mOutputSampling = sampleRate;
+			mOutputChannels = chanCnt;
+			if (mCallback != null)
+				mCallback.outputFormatChanged(mOutputSampling, mOutputChannels);
 		}
 	};
 
@@ -331,12 +345,6 @@ class DabAudioDecoder {
 
 	boolean configure(int dabCodec, int samplingRate, int channelCnt, boolean sbr, boolean ps) {
 		if(DEBUG)Log.d(TAG, "Configuring Codec: "+ dabCodec + " with: " + samplingRate + " kHz, " + channelCnt + " Channels and SBR: " + sbr);
-		if(dabCodec == DAB_CODEC_MP2) {
-			mOutputChannels = channelCnt;
-			mOutputSampling = samplingRate;
-		}
-
-		if(DEBUG)Log.d(TAG, "Reconfiguring Decoder!");
 
 		mDecode = false;
 		if(mDecodeThread != null) {
@@ -453,7 +461,7 @@ class DabAudioDecoder {
 			}
 
 			if(mMediaCodec == null) {
-				if(DEBUG)Log.w(TAG, "MediaCodec createByCodecName failed, falling back to createDecoderByType");
+				Log.w(TAG, "MediaCodec createByCodecName failed, falling back to createDecoderByType");
 				try {
 					mMediaCodec = MediaCodec.createDecoderByType(mMediaFormat.getString(MediaFormat.KEY_MIME));
 				} catch (Exception e) {
@@ -462,10 +470,10 @@ class DabAudioDecoder {
 			}
 			//
 		} catch(Exception e) {
-			if(DEBUG)e.printStackTrace();
+			e.printStackTrace();
 		}
 		if(mMediaCodec != null) {
-			if(DEBUG)if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)Log.d(TAG, "MediaCodecName: " + mMediaCodec.getName());
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)Log.d(TAG, "MediaCodecName: " + mMediaCodec.getName());
 			try {
 				mMediaCodec.configure(mMediaFormat, null, null, 0);
 				mMediaCodec.start();
@@ -475,10 +483,10 @@ class DabAudioDecoder {
 
 				mBufferInfo = new MediaCodec.BufferInfo();
 			} catch(Exception e) {
-				if(DEBUG)e.printStackTrace();
+				e.printStackTrace();
 			}
 		} else {
-			if(DEBUG)Log.e(TAG, "Configuring MediaCodec is null!");
+			Log.e(TAG, "Configuring MediaCodec is null!");
 		}
 	}
 

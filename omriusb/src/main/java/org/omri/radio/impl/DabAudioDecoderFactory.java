@@ -40,7 +40,7 @@ class DabAudioDecoderFactory implements DabAudioDecoder.DabAudioDecoderStateCall
 	}
 
 	DabAudioDecoder getDecoder(int dabCodec, int samplingRate, int channelCnt, boolean sbr, boolean ps) {
-		DabAudioDecoder retDec = new DabAudioDecoder();
+		DabAudioDecoder retDec = new DabAudioDecoder(dabCodec);
 		if(retDec.configure(dabCodec, samplingRate, channelCnt, sbr, ps)) {
 			retDec.registerDabAudioDecoderStateCallBack(this);
 			mDecoderInstances.add(retDec);

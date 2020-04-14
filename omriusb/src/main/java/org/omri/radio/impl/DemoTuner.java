@@ -195,6 +195,7 @@ public class DemoTuner implements Tuner {
 	public void serviceStopped(RadioService radioService) {
 		for (TunerListener listener : mTunerlisteners) {
 			listener.radioServiceStopped(this, radioService);
+			((RadioServiceImpl) radioService).serviceStopped();
 		}
 	}
 	/*  --------- callbacks from native code END */
