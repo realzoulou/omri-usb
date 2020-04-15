@@ -18,7 +18,31 @@
  *
  */
 
+#include <iostream>
+#include <sstream>
+#include <iomanip>
+
 #include "ficparser.h"
+
+// helper template and method for dumping a vector of uint8_t as hex to a string stream
+template <typename T> std::string to_hex(T data) {
+    std::ostringstream result;
+    result << std::setw(2) << std::setfill('0') << std::hex << std::uppercase << static_cast<int>(data);
+    return result.str();
+}
+
+std::string dump(const std::vector<uint8_t>& data) {
+    if (data.empty()) return "";
+    auto size = data.size();
+    std::ostringstream result;
+    for(size_t i=0; i < size; i++)
+    {
+        result << "0x" + to_hex(data[i]);
+        if (i != size)
+            result << " ";
+    }
+    return result.str();
+}
 
 constexpr uint16_t FicParser::CRC_CCITT_TABLE[];
 
@@ -76,45 +100,54 @@ void FicParser::processFib() {
     while (m_fibProcessThreadRunning) {
         std::vector<uint8_t> fibData;
         if(m_fibDataQueue.tryPop(fibData, std::chrono::milliseconds(24))) {
-            auto figIter = fibData.begin();
-            long remainingBytes = std::distance(figIter, fibData.end());
-            if (remainingBytes < 2) {
-                std::cout << M_LOG_TAG << "popped FIB too short: exp:2, rcv:" << +remainingBytes << std::endl;
-            }
-            while(figIter < fibData.end() - 2 && m_fibProcessThreadRunning) {
-                uint8_t figType = (*figIter & 0xE0) >> 5;
-                uint8_t figLength = (*figIter & 0x1F);
-
-                ++figIter;
-
-                if(figType != 7 && figLength != 31 && figLength > 0) {
-                    remainingBytes = std::distance(figIter, fibData.end());
-                    if (remainingBytes < figLength) {
-                        std::cout << M_LOG_TAG << "FIG too short: exp:" << +figLength << ", rcv:"
-                                  << +remainingBytes << std::endl;
-                    }
-                    const std::vector<uint8_t> figData(figIter, figIter+figLength);
-                    switch (figType) {
-                        case 0: {
-                            parseFig_00(figData);
-                            break;
-                        }
-                        case 1: {
-                            parseFig_01(figData);
-                            break;
-                        }
-                        default:
-                            std::cout << M_LOG_TAG << "Unknown FIG Type: " << figType << std::endl;
-                            break;
-                    }
-
-                    figIter += figLength;
-                } else {
-                    // figType=7, figLength=31: End Marker
-                    // -OR-
-                    // figLength = 0
-                    break;
+            try {
+                auto figIter = fibData.begin();
+                auto remainingBytes = std::distance(figIter, fibData.end());
+                if (remainingBytes < 2) {
+                    std::cout << M_LOG_TAG << "popped FIB too short: exp:2, rcv:" << +remainingBytes
+                              << std::endl;
                 }
+                while (figIter < fibData.end() - 2 && m_fibProcessThreadRunning) {
+                    uint8_t figType = static_cast<uint8_t>((*figIter & 0xE0) >> 5);
+                    uint8_t figLength = static_cast<uint8_t>(*figIter & 0x1F);
+
+                    ++figIter;
+
+                    if (figType != 7 && figLength != 31 && figLength > 0) {
+                        remainingBytes = std::distance(figIter, fibData.end());
+                        if (remainingBytes < figLength) {
+                            std::cout << M_LOG_TAG << "FIG too short: exp:" << +figLength
+                                      << ", rcv:"
+                                      << +remainingBytes << std::endl;
+                        }
+                        const std::vector<uint8_t> figData(figIter, figIter + figLength);
+                        switch (figType) {
+                            case 0: {
+                                parseFig_00(figData);
+                                break;
+                            }
+                            case 1: {
+                                parseFig_01(figData);
+                                break;
+                            }
+                            default:
+                                std::cout << M_LOG_TAG << "Unknown FIG Type: " << figType
+                                          << std::endl;
+                                break;
+                        }
+
+                        figIter += figLength;
+                    } else {
+                        // figType=7, figLength=31: End Marker
+                        // -OR-
+                        // figLength = 0
+                        break;
+                    }
+                }
+            } catch (std::exception e) {
+                std::clog << M_LOG_TAG << "Caught exception: " << e.what() << std::endl;
+                std::clog << M_LOG_TAG << "FIB size: " << +fibData.size() << std::endl;
+                std::clog << M_LOG_TAG << dump(fibData) << std::endl;
             }
         }
     }
