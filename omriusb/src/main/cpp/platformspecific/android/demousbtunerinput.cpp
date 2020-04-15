@@ -475,6 +475,8 @@ file_at_beginning:
     if (m_inFileStream.eof() && m_readThreadRunning) {
         std::cout << LOG_TAG << "readThreadProc: EOF, rewinding ..." << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        reset();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         goto file_at_beginning;
     }
 

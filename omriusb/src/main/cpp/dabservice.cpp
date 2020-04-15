@@ -126,7 +126,7 @@ void DabService::setServiceShortLabel(const std::string& shortLabel) {
     if(m_serviceShortLabel.empty()) {
         m_serviceShortLabel = shortLabel;
 
-        std::cout << m_logTag << " Setting ServiceShortlabel: " << m_serviceShortLabel << " to SId: " << std::hex << m_serviceId << std::dec << std::endl;
+        std::cout << m_logTag << " Setting ServiceShortlabel: " << m_serviceShortLabel << " to SId: " << std::hex << +m_serviceId << std::dec << std::endl;
     }
 }
 
@@ -142,7 +142,7 @@ void DabService::setProgrammeTypeCode(uint8_t intPtyCode) {
         m_ptyName16 = registeredtables::PROGRAMME_TYPE_NAME[m_ptyCode][1];
         m_ptyName8 = registeredtables::PROGRAMME_TYPE_NAME[m_ptyCode][2];
 
-        std::cout << m_logTag << " Setting " << (m_ptyIsDynamic ? "dynamic" : "static") << " PTY for SId: " << std::hex << m_serviceId << std::dec << " to: " << +m_ptyCode << " : " << m_ptyNameFull << " : " << m_ptyName16 << " : " << m_ptyName8 << std::endl;
+        std::cout << m_logTag << " Setting " << (m_ptyIsDynamic ? "dynamic" : "static") << " PTY for SId: " << std::hex << +m_serviceId << std::dec << " to: " << +m_ptyCode << " : " << m_ptyNameFull << " : " << m_ptyName16 << " : " << m_ptyName8 << std::endl;
     }
 }
 

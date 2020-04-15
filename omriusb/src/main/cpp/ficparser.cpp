@@ -577,4 +577,10 @@ void FicParser::reset() {
     m_parsedFig0013.clear();
     m_parsedFig0014.clear();
     m_parsedFig0017.clear();
+    m_parsedFig0100.clear();
+    m_parsedFig0101.clear();
+    m_parsedFig0104.clear();
+    m_parsedFig0105.clear();
+    m_parsedFig0106.clear();
+    m_1wasDone = m_2wasDone = m_3wasDone = m_8wasDone = false;
 }

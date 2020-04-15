@@ -36,6 +36,6 @@ void Fig_00_Ext_07::parseFigData(const std::vector<uint8_t> &figData) {
         uint8_t services = (*figIter & 0xFC) >> 2;
         uint16_t count = (*figIter++ & 0x03) << 8 | (*figIter++ & 0xFF);
 
-        std::cout << m_logTag << " NumServices: " << +services << " Count: " << +count << std::endl;
+        //std::cout << m_logTag << " NumServices: " << +services << " Count: " << +count << std::endl;
     }
 }
