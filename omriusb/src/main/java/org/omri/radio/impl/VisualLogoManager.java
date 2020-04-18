@@ -233,6 +233,11 @@ class VisualLogoManager {
 			mDeserializingInProgress.set(true);
 
 			if (DEBUG) Log.d(TAG, "Restoring LogoJson");
+			if (((RadioImpl) Radio.getInstance()).mContext == null) {
+				Log.w(TAG, "deserializeLogos: Radio context null");
+				mDeserializingInProgress.set(false);
+				return;
+			}
 			File visCacheFile = new File(((RadioImpl) Radio.getInstance()).mContext.getCacheDir().getAbsolutePath()
 					+ File.separatorChar + VIS_CACHE_DIR + File.separatorChar + LOGOS_FILENAME);
 			if (visCacheFile.exists()) {
