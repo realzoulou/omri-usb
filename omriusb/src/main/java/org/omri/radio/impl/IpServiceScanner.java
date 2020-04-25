@@ -1018,6 +1018,15 @@ class IpServiceScanner {
 				if (httpUrlConnection != null) {
 					inputStream = httpUrlConnection.getInputStream();
 					if (DEBUG)Log.d(TAG, "Downloading LogoFile: " + logofile.getAbsolutePath());
+					if (!logofile.exists()) {
+						try {
+							if (!logofile.createNewFile()) {
+								if (DEBUG)Log.d(TAG, "Logofile: '" + logofile.getAbsolutePath() + "' failed to create");
+							}
+						} catch (Exception e) {
+							if (DEBUG) e.printStackTrace();
+						}
+					}
 					fileOutputStream = new FileOutputStream(logofile);
 
 					byte[] downBuff = new byte[16*1024];
@@ -1058,8 +1067,6 @@ class IpServiceScanner {
 				logofile.delete();
 				logofile = null;
 			}
-
-
 		}
 		return logofile != null ? logofile.getName() : null;
 	}
