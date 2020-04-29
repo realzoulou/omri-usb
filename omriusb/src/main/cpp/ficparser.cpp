@@ -72,13 +72,13 @@ void FicParser::call(const std::vector<uint8_t> &data) {
         loop++;
         long remainingBytes = std::distance(ficIter, data.cend());
         if (remainingBytes < FIB_SIZE) {
-            std::cout << M_LOG_TAG << "FIB " << +loop << " too short: exp:" << FIB_SIZE << ", rcv:" << +remainingBytes << std::endl;
+            std::clog << M_LOG_TAG << "FIB " << +loop << " too short: exp:" << FIB_SIZE << ", rcv:" << +remainingBytes << std::endl;
         }
         std::vector<uint8_t> fib(ficIter, ficIter+FIB_SIZE);
         if(FIB_CRC_CHECK(fib.data())) {
             m_fibDataQueue.push(fib);
         } else {
-            std::cout << M_LOG_TAG << "FIB " << +loop << " crc corrupted: " << std::hex << +data[0] << " : " << +data[1] << std::dec << std::endl;
+            std::clog << M_LOG_TAG << "FIB " << +loop << " crc corrupted: " << std::hex << +data[0] << " : " << +data[1] << std::dec << std::endl;
         }
 
         ficIter += FIB_SIZE;
@@ -131,7 +131,7 @@ void FicParser::processFib() {
                                 break;
                             }
                             default:
-                                std::cout << M_LOG_TAG << "Unknown FIG Type: " << figType
+                                std::cout << M_LOG_TAG << "Unknown FIG Type: " << +figType
                                           << std::endl;
                                 break;
                         }
@@ -306,6 +306,10 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
             }
             break;
         }
+        case Fig::FIG_00_TYPE::PROGRAMME_NUMBER: {
+            // is not needed and no more contained in v2.1.1
+            break;
+        }
         case Fig::FIG_00_TYPE::PROGRAMME_TYPE: {
             Fig_00_Ext_17 ext7Ten(ficData);
 
@@ -355,7 +359,7 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
             break;
         }
         default:
-            std::cout << M_LOG_TAG << "Unknown Extension0: " << +(ficData[0] & 0x1F) << " ##############################################################" << std::endl;
+            std::clog << M_LOG_TAG << "Unknown FIG 0/" << +(ficData[0] & 0x1F) << std::endl;
             break;
     }
 }

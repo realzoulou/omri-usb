@@ -57,6 +57,8 @@ public:
         USERAPPLICATION_INFORMATION = 13,
         //FIG 00 Extension 14 - FEC sub-channel organization
         FEC_SUBCHANNEL_ORGANIZATION,
+        //FIG 00 Extension 16 - Programme Number (v1.4.1, 8.1.4 Programme Number, no more contained in v2.1.1)
+        PROGRAMME_NUMBER = 16,
         //FIG 00 Extension 17 - Programme Type
         PROGRAMME_TYPE = 17,
         //FIG 00 Extension 18 - Announcement support
