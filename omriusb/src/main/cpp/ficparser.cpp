@@ -31,13 +31,16 @@ template <typename T> std::string to_hex(T data) {
     return result.str();
 }
 
-std::string dump(const std::vector<uint8_t>& data) {
+std::string toHexString(const std::vector<uint8_t>& data) {
     if (data.empty()) return "";
     auto size = data.size();
     std::ostringstream result;
+    if (size > 0) {
+        result << "0x";
+    }
     for(size_t i=0; i < size; i++)
     {
-        result << "0x" + to_hex(data[i]);
+        result << to_hex(data[i]);
         if (i != size)
             result << " ";
     }
@@ -78,7 +81,7 @@ void FicParser::call(const std::vector<uint8_t> &data) {
         if(FIB_CRC_CHECK(fib.data())) {
             m_fibDataQueue.push(fib);
         } else {
-            std::clog << M_LOG_TAG << "FIB " << +loop << " crc corrupted: " << std::hex << +data[0] << " : " << +data[1] << std::dec << std::endl;
+            std::clog << M_LOG_TAG << "FIB " << +loop << " crc corrupted: " << toHexString(fib) << std::endl;
         }
 
         ficIter += FIB_SIZE;
@@ -147,7 +150,7 @@ void FicParser::processFib() {
             } catch (std::exception e) {
                 std::clog << M_LOG_TAG << "Caught exception: " << e.what() << std::endl;
                 std::clog << M_LOG_TAG << "FIB size: " << +fibData.size() << std::endl;
-                std::clog << M_LOG_TAG << dump(fibData) << std::endl;
+                std::clog << M_LOG_TAG << toHexString(fibData) << std::endl;
             }
         }
     }
