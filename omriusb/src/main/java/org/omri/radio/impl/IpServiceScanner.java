@@ -82,16 +82,16 @@ class IpServiceScanner {
 
 	private final static String TAG = "IpServiceScanner";
 
-	private static IpServiceScanner mScannerInstance = new IpServiceScanner();
+	private final static IpServiceScanner mScannerInstance = new IpServiceScanner();
 
-	private List<IpScannerListener> mScannerListeners = new ArrayList<>();
+	private final List<IpScannerListener> mScannerListeners = new ArrayList<>();
 
 	private boolean mIsScanning = false;
-	private AtomicInteger mSiCallbacksPendings = new AtomicInteger();
+	private final AtomicInteger mSiCallbacksPendings = new AtomicInteger();
 	private int mCoreCallbacksTotal = -1;
 
-	private ConcurrentHashMap<RadioService, RadioDnsCore> mLookups = new ConcurrentHashMap<>();
-	private ConcurrentHashMap<RadioService, eu.hradio.core.radiodns.RadioDnsService> mAvailableServices = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<RadioService, RadioDnsCore> mLookups = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<RadioService, eu.hradio.core.radiodns.RadioDnsService> mAvailableServices = new ConcurrentHashMap<>();
 
 	private File mLogoCacheDir;
 
@@ -615,198 +615,218 @@ class IpServiceScanner {
 
 			if(radioEpgServiceInformation != null) {
 				List<RadioService> foundIpServices = new ArrayList<>();
-				for (Service siSrv : radioEpgServiceInformation.getServices()) {
-					if(DEBUG)Log.d(TAG, "SI ServiceName: " + (siSrv.getNames().size() > 0 ? siSrv.getNames().get(0).getName() : ""));
-					RadioServiceIpImpl ipSrv = new RadioServiceIpImpl();
+				final List<Service> siServices = radioEpgServiceInformation.getServices();
+				for (Service siSrv : siServices) {
+					if (siSrv != null) {
+						if (DEBUG)
+							Log.d(TAG, "SI ServiceName: " + (siSrv.getNames().size() > 0 ? siSrv.getNames().get(0).getName() : ""));
+						RadioServiceIpImpl ipSrv = new RadioServiceIpImpl();
 
-					for (Bearer bearer : siSrv.getBearers()) {
-						if(DEBUG)Log.d(TAG, "SI Bearer: " + bearer.getBearerIdString() + ", MIME: " + bearer.getMimeType());
-						ipSrv.addBearer(bearer);
+						for (Bearer bearer : siSrv.getBearers()) {
+							if (DEBUG)
+								Log.d(TAG, "SI Bearer: " + bearer.getBearerIdString() + ", MIME: " + bearer.getMimeType());
+							ipSrv.addBearer(bearer);
 
-						if(bearer.getBearerType() == BearerType.BEARER_TYPE_HTTP || bearer.getBearerType() == BearerType.BEARER_TYPE_HTTPS) {
-							RadioServiceIpStreamImpl stream = new RadioServiceIpStreamImpl();
-							stream.setBitrate(bearer.getBitrate());
-							stream.setCost(bearer.getCost());
-							stream.setOffset(bearer.getOffset());
-							stream.setStreamUrl(bearer.getBearerIdString());
-							switch (bearer.getMimeType()) {
-								case "audio/aac":
-								case "audio/aacp":
-								case "audio/x-scpls":
-									stream.setMimeType(RadioServiceMimeType.AUDIO_AAC);
-									break;
-								case "audio/mpeg":
-								case "audio/x-mpegurl":
-									stream.setMimeType(RadioServiceMimeType.AUDIO_MPEG);
-									break;
-								case "audio/edi":
-									stream.setMimeType(RadioServiceMimeType.AUDIO_EDI);
-									break;
-								default:
-									stream.setMimeType(RadioServiceMimeType.UNKNOWN);
-									break;
-							}
+							if (bearer.getBearerType() == BearerType.BEARER_TYPE_HTTP || bearer.getBearerType() == BearerType.BEARER_TYPE_HTTPS) {
+								RadioServiceIpStreamImpl stream = new RadioServiceIpStreamImpl();
+								stream.setBitrate(bearer.getBitrate());
+								stream.setCost(bearer.getCost());
+								stream.setOffset(bearer.getOffset());
+								stream.setStreamUrl(bearer.getBearerIdString());
+								switch (bearer.getMimeType()) {
+									case "audio/aac":
+									case "audio/aacp":
+									case "audio/x-scpls":
+										stream.setMimeType(RadioServiceMimeType.AUDIO_AAC);
+										break;
+									case "audio/mpeg":
+									case "audio/x-mpegurl":
+										stream.setMimeType(RadioServiceMimeType.AUDIO_MPEG);
+										break;
+									case "audio/edi":
+										stream.setMimeType(RadioServiceMimeType.AUDIO_EDI);
+										break;
+									default:
+										stream.setMimeType(RadioServiceMimeType.UNKNOWN);
+										break;
+								}
 
-							if(stream.getMimeType() != RadioServiceMimeType.UNKNOWN) {
-								ipSrv.addStream(stream);
+								if (stream.getMimeType() != RadioServiceMimeType.UNKNOWN) {
+									ipSrv.addStream(stream);
+								}
 							}
 						}
-					}
 
-					//TODO no IP bearers
-					boolean srvOkay = false;
-					if(ipSrv.getIpStreams().isEmpty()) {
-						if(DEBUG)Log.w(TAG, "IpStreams empty, searching available DAB service");
-						for(RadioService searchSrv : Radio.getInstance().getRadioServices()) {
-							if(searchSrv.getRadioServiceType() == RadioServiceType.RADIOSERVICE_TYPE_DAB || searchSrv.getRadioServiceType() == RadioServiceType.RADIOSERVICE_TYPE_EDI) {
-								RadioServiceDab dabSrv = (RadioServiceDab)searchSrv;
-								for (RadioDnsEpgBearer dnsBear : ipSrv.getBearers()) {
-									if (dnsBear.getBearerType() == RadioDnsEpgBearerType.DAB) {
-										RadioDnsEpgBearerDab dabBearer = (RadioDnsEpgBearerDab)dnsBear;
-										if(dabSrv.getEnsembleId() == dabBearer.getEnsembleId() && dabSrv.getEnsembleEcc() == dabBearer.getEnsembleEcc() && dabSrv.getServiceId() == dabBearer.getServiceId()) {
-											if(DEBUG)Log.d(TAG, "Found DAB service '" + dabSrv.getServiceLabel() + "' for IPService without IpStreams");
-											srvOkay = true;
-											break;
+						//TODO no IP bearers
+						boolean srvOkay = true;
+						if (ipSrv.getIpStreams().isEmpty()) {
+							if (DEBUG)
+								Log.w(TAG, "IpStreams empty, searching available DAB service");
+							srvOkay = false;
+							final List<RadioService> radioServiceList = Radio.getInstance().getRadioServices();
+							if (radioServiceList != null) {
+								for (RadioService searchSrv : radioServiceList) {
+									if (searchSrv != null &&
+											(searchSrv.getRadioServiceType() == RadioServiceType.RADIOSERVICE_TYPE_DAB
+													|| searchSrv.getRadioServiceType() == RadioServiceType.RADIOSERVICE_TYPE_EDI)) {
+										RadioServiceDab dabSrv = (RadioServiceDab) searchSrv;
+										final List<RadioDnsEpgBearer> epgBearers = ipSrv.getBearers();
+										if (epgBearers != null) {
+											for (RadioDnsEpgBearer dnsBear : epgBearers) {
+												if (dnsBear.getBearerType() == RadioDnsEpgBearerType.DAB) {
+													RadioDnsEpgBearerDab dabBearer = (RadioDnsEpgBearerDab) dnsBear;
+													if (dabSrv.getEnsembleId() == dabBearer.getEnsembleId()
+															&& dabSrv.getEnsembleEcc() == dabBearer.getEnsembleEcc()
+															&& dabSrv.getServiceId() == dabBearer.getServiceId()) {
+														if (DEBUG)
+															Log.d(TAG, "Found DAB service '" + dabSrv.getServiceLabel() + "' for IPService without IpStreams");
+														srvOkay = true;
+														break;
+													}
+												}
+											}
 										}
 									}
 								}
 							}
 						}
-					} else {
-						srvOkay = true;
-					}
 
-					if(srvOkay) {
-						for(Name srvName : siSrv.getNames()) {
-							switch (srvName.getType()) {
-								case NAME_LONG:
-									ipSrv.setServiceLabel(srvName.getName());
-									break;
-								case NAME_MEDIUM:
-									if(ipSrv.getServiceLabel().isEmpty()) {
+						if (srvOkay) {
+							for (Name srvName : siSrv.getNames()) {
+								switch (srvName.getType()) {
+									case NAME_LONG:
 										ipSrv.setServiceLabel(srvName.getName());
-									}
-									break;
-								case NAME_SHORT:
-									if(ipSrv.getServiceLabel().isEmpty()) {
-										ipSrv.setServiceLabel(srvName.getName());
-									}
-									break;
-							}
-						}
-
-						for(Genre genre : siSrv.getGenres()) {
-							TermIdImpl termId = new TermIdImpl();
-							termId.setGenreHref(genre.getGenreHref());
-							termId.setTermId(genre.getTvaCs().getScheme());
-							termId.setGenreText(genre.getGenre());
-							ipSrv.addGenre(termId);
-						}
-
-						if(siSrv.getKeywords() != null) {
-							for(String keyWord : siSrv.getKeywords().getKeywords()) {
-								ipSrv.addKeyword(keyWord);
-							}
-						}
-
-						if(siSrv.getLinks() != null && !siSrv.getLinks().isEmpty()) {
-							for(Link link : siSrv.getLinks()) {
-								ipSrv.addLink(link.getUri());
-							}
-						}
-
-						if(siSrv.getRadioDns() != null) {
-							ipSrv.setRadioDns(siSrv.getRadioDns());
-						}
-
-						for(MediaDescription mediaDesc : siSrv.getMediaDescriptions()) {
-							if(!mIsScanning) {
-								if(DEBUG)Log.d(TAG, "Stopping multimedia processing because scan was stopped");
-								return;
-							}
-
-							for(Description desc : mediaDesc.getDescriptions()) {
-								switch (desc.getType()) {
-									case DESCRIPTION_SHORT: {
-										ipSrv.setShortDescription(desc.getDescription());
 										break;
-									}
-									case DESCRIPTION_LONG: {
-										ipSrv.setLongDescription(desc.getDescription());
+									case NAME_MEDIUM:
+										if (ipSrv.getServiceLabel().isEmpty()) {
+											ipSrv.setServiceLabel(srvName.getName());
+										}
 										break;
+									case NAME_SHORT:
+										if (ipSrv.getServiceLabel().isEmpty()) {
+											ipSrv.setServiceLabel(srvName.getName());
+										}
+										break;
+								}
+							}
+
+							for (Genre genre : siSrv.getGenres()) {
+								TermIdImpl termId = new TermIdImpl();
+								termId.setGenreHref(genre.getGenreHref());
+								termId.setTermId(genre.getTvaCs().getScheme());
+								termId.setGenreText(genre.getGenre());
+								ipSrv.addGenre(termId);
+							}
+
+							if (siSrv.getKeywords() != null) {
+								for (String keyWord : siSrv.getKeywords().getKeywords()) {
+									ipSrv.addKeyword(keyWord);
+								}
+							}
+
+							if (siSrv.getLinks() != null && !siSrv.getLinks().isEmpty()) {
+								for (Link link : siSrv.getLinks()) {
+									ipSrv.addLink(link.getUri());
+								}
+							}
+
+							if (siSrv.getRadioDns() != null) {
+								ipSrv.setRadioDns(siSrv.getRadioDns());
+							}
+
+							for (MediaDescription mediaDesc : siSrv.getMediaDescriptions()) {
+								if (!mIsScanning) {
+									if (DEBUG)
+										Log.d(TAG, "Stopping multimedia processing because scan was stopped");
+									return;
+								}
+
+								for (Description desc : mediaDesc.getDescriptions()) {
+									switch (desc.getType()) {
+										case DESCRIPTION_SHORT: {
+											ipSrv.setShortDescription(desc.getDescription());
+											break;
+										}
+										case DESCRIPTION_LONG: {
+											ipSrv.setLongDescription(desc.getDescription());
+											break;
+										}
+									}
+								}
+
+								Multimedia multiMedia = mediaDesc.getMultimedia();
+								if (multiMedia != null) {
+									if (DEBUG)
+										Log.d(TAG, "SI Multimedia Type: " + multiMedia.getType().toString() + ", Width: " + multiMedia.getWidth() + ", Height: " + multiMedia.getHeight());
+
+									//check for dimensions if type is MultimediaType.MULTIMEDIA_LOGO_UNRESTRICTED
+									if (multiMedia.getType() == MultimediaType.MULTIMEDIA_LOGO_UNRESTRICTED) {
+										if (multiMedia.getHeight() <= 0 || multiMedia.getWidth() <= 0) {
+											if (DEBUG)
+												Log.w(TAG, MultimediaType.MULTIMEDIA_LOGO_UNRESTRICTED.toString() + " has invalid dimensions of: " + multiMedia.getWidth() + "x" + multiMedia.getHeight());
+											continue;
+										}
+									}
+
+									VisualLogoImpl stationLogo = new VisualLogoImpl();
+									stationLogo.setHeight(multiMedia.getHeight());
+									stationLogo.setWidth(multiMedia.getWidth());
+
+									//check for logo size restrictions
+									if (mScanRdnsOptionsBundle != null && (
+											mScanRdnsOptionsBundle.containsKey(RadioImpl.SERVICE_SEARCH_OPT_LOGO_MAX_WIDTH)
+													|| mScanRdnsOptionsBundle.containsKey(RadioImpl.SERVICE_SEARCH_OPT_LOGO_MAX_HEIGHT))) {
+										boolean downloadAllowed = true;
+										int maxWidth = mScanRdnsOptionsBundle.getInt(RadioImpl.SERVICE_SEARCH_OPT_LOGO_MAX_WIDTH, -1);
+										int maxHeight = mScanRdnsOptionsBundle.getInt(RadioImpl.SERVICE_SEARCH_OPT_LOGO_MAX_HEIGHT, -1);
+										if (maxWidth != -1 && multiMedia.getWidth() > maxWidth) {
+											downloadAllowed = false;
+										}
+										if (maxHeight != -1 && multiMedia.getHeight() > maxHeight) {
+											downloadAllowed = false;
+										}
+										if (!downloadAllowed) {
+											if (DEBUG)
+												Log.d(TAG, "Not downloading logo " + multiMedia.getWidth() + "x" + multiMedia.getHeight()
+														+ " due to restriction " + maxWidth + "x" + maxHeight);
+											continue;
+										}
+									}
+
+									VisualMimeType logoMime = VisualMimeType.METADATA_VISUAL_MIMETYPE_UNKNOWN;
+									for (VisualMimeType mimeType : VisualMimeType.values()) {
+										if (mimeType.getMimeTypeString().equalsIgnoreCase(multiMedia.getMime())) {
+											logoMime = mimeType;
+											break;
+										}
+									}
+
+									if (logoMime != VisualMimeType.METADATA_VISUAL_MIMETYPE_UNKNOWN) {
+										stationLogo.setVisualMimeType(logoMime);
+										stationLogo.setLogoUrl(multiMedia.getUrl());
+										stationLogo.addBearer(ipSrv.getBearers());
+
+										Collections.sort(stationLogo.getBearers());
+
+										String logoPath = downloadHttpLogoFile(multiMedia.getUrl(), multiMedia, stationLogo);
+										if (logoPath != null) {
+											stationLogo.setFilePath(logoPath);
+											VisualLogoManager.getInstance().addLogoVisual(stationLogo);
+										}
 									}
 								}
 							}
 
-							Multimedia multiMedia = mediaDesc.getMultimedia();
-							if(multiMedia != null) {
-								if(DEBUG)Log.d(TAG, "SI Multimedia Type: " + multiMedia.getType().toString() + ", Width: " + multiMedia.getWidth() + ", Height: " + multiMedia.getHeight());
 
-								//check for dimensions if type is MultimediaType.MULTIMEDIA_LOGO_UNRESTRICTED
-								if(multiMedia.getType() == MultimediaType.MULTIMEDIA_LOGO_UNRESTRICTED) {
-									if(multiMedia.getHeight() <= 0 || multiMedia.getWidth() <= 0) {
-										if(DEBUG)Log.w(TAG, MultimediaType.MULTIMEDIA_LOGO_UNRESTRICTED.toString() + " has invalid dimensions of: " + multiMedia.getWidth() + "x" + multiMedia.getHeight());
-										continue;
-									}
-								}
-
-								VisualLogoImpl stationLogo = new VisualLogoImpl();
-								stationLogo.setHeight(multiMedia.getHeight());
-								stationLogo.setWidth(multiMedia.getWidth());
-
-								//check for logo size restrictions
-								if (mScanRdnsOptionsBundle != null && (
-										mScanRdnsOptionsBundle.containsKey(RadioImpl.SERVICE_SEARCH_OPT_LOGO_MAX_WIDTH)
-										|| mScanRdnsOptionsBundle.containsKey(RadioImpl.SERVICE_SEARCH_OPT_LOGO_MAX_HEIGHT)
-								)) {
-									boolean downloadAllowed = true;
-									int maxWidth = mScanRdnsOptionsBundle.getInt(RadioImpl.SERVICE_SEARCH_OPT_LOGO_MAX_WIDTH,-1);
-									int maxHeight = mScanRdnsOptionsBundle.getInt(RadioImpl.SERVICE_SEARCH_OPT_LOGO_MAX_HEIGHT,-1);
-									if (maxWidth != -1 && multiMedia.getWidth() > maxWidth) {
-										downloadAllowed = false;
-									}
-									if (maxHeight != -1 && multiMedia.getHeight() > maxHeight) {
-										downloadAllowed = false;
-									}
-									if (!downloadAllowed) {
-										if(DEBUG)Log.d(TAG, "Not downloading logo " + multiMedia.getWidth() + "x" + multiMedia.getHeight()
-												+ " due to restriction " + maxWidth + "x" + maxHeight);
-										continue;
-									}
-								}
-
-								VisualMimeType logoMime = VisualMimeType.METADATA_VISUAL_MIMETYPE_UNKNOWN;
-								for(VisualMimeType mimeType : VisualMimeType.values()) {
-									if(mimeType.getMimeTypeString().equalsIgnoreCase(multiMedia.getMime())) {
-										logoMime = mimeType;
-										break;
-									}
-								}
-
-								if(logoMime != VisualMimeType.METADATA_VISUAL_MIMETYPE_UNKNOWN) {
-									stationLogo.setVisualMimeType(logoMime);
-									stationLogo.setLogoUrl(multiMedia.getUrl());
-									stationLogo.addBearer(ipSrv.getBearers());
-
-									Collections.sort(stationLogo.getBearers());
-
-									String logoPath = downloadHttpLogoFile(multiMedia.getUrl(), multiMedia, stationLogo);
-									if (logoPath != null) {
-										stationLogo.setFilePath(logoPath);
-										VisualLogoManager.getInstance().addLogoVisual(stationLogo);
-									}
-								}
+							if (ipSrv.getIpStreams().isEmpty()) {
+								if (DEBUG)
+									Log.w(TAG, "Empty IpStreams for: " + ipSrv.getServiceLabel() + " with " + ipSrv.getLogos().size() + " logos");
 							}
+
+							foundIpServices.add(ipSrv);
+						} else {
+							if (DEBUG) Log.d(TAG, "IpStreams empty and no DAB service found");
 						}
-
-
-						if(ipSrv.getIpStreams().isEmpty()) {
-							if(DEBUG)Log.w(TAG, "Empty IpStreams for: " + ipSrv.getServiceLabel() + " with " + ipSrv.getLogos().size() + " logos");
-						}
-
-						foundIpServices.add(ipSrv);
-					} else {
-						if(DEBUG)Log.d(TAG, "IpStreams empty and no DAB service found");
 					}
 				}
 
