@@ -9,8 +9,8 @@ import org.omri.radioservice.RadioServiceMimeType;
 
 import java.io.Serializable;
 import java.util.Objects;
-
-import static org.omri.BuildConfig.DEBUG;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Copyright (C) 2018 IRT GmbH
@@ -26,168 +26,211 @@ import static org.omri.BuildConfig.DEBUG;
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  * @author Fabian Sattler, IRT GmbH
  */
 
 public class RadioDnsEpgBearerDab extends RadioDnsEpgBearer implements Serializable {
 
-	private static final long serialVersionUID = -4897926993570436519L;
+    private static final long serialVersionUID = -4897926993570436519L;
 
-	private final String TAG = "RadioDnsEpgBearerDab";
+    private final String TAG = "RadioDnsEpgBearerDab";
 
-	private final String mBearerId;
-	private final int mCost;
-	private final int mBitrate;
-	private final String mMimeVal;
+    private final String mBearerId;
+    private final int mCost;
+    private final int mBitrate;
+    private final String mMimeVal;
 
-	private final int mEnsembleEcc;
-	private final int mEnsembleId;
-	private final int mServiceId;
-	private final int mScid;
+    private final int mEnsembleEcc;
+    private final int mEnsembleId;
+    private final int mServiceId;
+    private final int mScid;
+    private final int mUaType;
+    private final RadioServiceMimeType mMimeType;
 
-	private final RadioServiceMimeType mMimeType;
+    RadioDnsEpgBearerDab(String bearerId, int cost, String mimeVal, int bitrate) {
+        if (bearerId != null) {
+            mBearerId = bearerId;
+        } else {
+            Log.w(TAG, "bearerId null");
+            mBearerId = "";
+        }
+        if (mimeVal != null) {
+            mMimeVal = mimeVal;
+        } else {
+            Log.w(TAG, "mimeVal null");
+            mMimeVal = "";
+        }
+        mCost = cost;
+        mBitrate = bitrate;
 
-	RadioDnsEpgBearerDab(String bearerId, int cost, String mimeVal, int bitrate) {
-		mBearerId = bearerId;
-		mCost = cost;
-		mBitrate = bitrate;
-		mMimeVal = mimeVal;
+        // ETSI TS 103 270 V1.2.1, 5.1.2.4 Construction of bearerURI
+        // The bearerURI for a DAB/DAB+ service is compiled as follows:
+        //   dab:<gcc>.<eid>.<sid>.<scids>[.<uatype>]
+        // examples:
+        // dab:ce1.c185.e1c00098.0.004
+        // dab:de0.100c.d220.0
 
-		if(mBearerId.startsWith("dab:")) {
-			if(DEBUG)Log.d(TAG, "Parsing: " + bearerId);
+        final String regExNoUaType = "dab:(\\p{XDigit}+)\\.(\\p{XDigit}+)\\.(\\p{XDigit}+)\\.(\\p{XDigit}+)";
+        final String regExWithUaType = "dab:(\\p{XDigit}+)\\.(\\p{XDigit}+)\\.(\\p{XDigit}+)\\.(\\p{XDigit}+)\\.(\\p{XDigit}+)";
+        final Pattern patternNoUatype = Pattern.compile(regExNoUaType);
+        final Pattern patternWithUaType = Pattern.compile(regExWithUaType);
 
-			String[] valSplit = mBearerId.split(":");
+        Matcher m = patternNoUatype.matcher(mBearerId);
+        boolean hasMatched = m.matches();
+        if (!hasMatched) {
+            m = patternWithUaType.matcher(mBearerId);
+            hasMatched = m.matches();
+            if (!hasMatched) {
+                Log.w(TAG, "no valid bearer id:'" + bearerId + "'");
+            }
+        }
 
-			if(DEBUG)Log.d(TAG, "Split: " + valSplit.length);
-			if(valSplit.length == 2) {
-				String[] vals = valSplit[1].split("\\.");
+        int ecc = -1;
+        if (hasMatched) {
+            try {
+                ecc = Integer.parseInt(m.group(1), 16);
+                ecc = ecc & 0x000000FF; // ecc is last two digits of gcc
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        mEnsembleEcc = ecc;
 
-				for(String val : vals) {
-					if(DEBUG)Log.d(TAG, "Value: " + val);
-				}
+        int eid = -1;
+        if (hasMatched) {
+            try {
+                eid = Integer.parseInt(m.group(2), 16);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        mEnsembleId = eid;
 
-				//TODO clean this mess up
-				if(vals.length == 4) {
-					mEnsembleEcc = Integer.parseInt(vals[0].substring(1), 16);
-					mEnsembleId = Integer.parseInt(vals[1], 16);
-					mServiceId = Integer.parseInt(vals[2].trim(), 16);
-					mScid = Integer.parseInt(vals[3], 16);
+        int sid = -1;
+        if (hasMatched) {
+            try {
+                sid = (int) Long.parseLong(m.group(3), 16);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        mServiceId = sid;
 
-					if(mimeVal != null) {
-						if (mMimeVal.equalsIgnoreCase("audio/mpeg")) {
-							mMimeType = RadioServiceMimeType.AUDIO_MPEG;
-						} else if (mMimeVal.equalsIgnoreCase("audio/aac")) {
-							mMimeType = RadioServiceMimeType.AUDIO_AAC;
-						} else {
-							mMimeType = RadioServiceMimeType.UNKNOWN;
-						}
-					} else {
-						mMimeType = RadioServiceMimeType.UNKNOWN;
-					}
+        int scids = -1;
+        if (hasMatched) {
+            try {
+                scids = Integer.parseInt(m.group(4), 16);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        mScid = scids;
 
-					if(DEBUG)Log.d(TAG, "Parsed  ECC: " + mEnsembleEcc + " : " + Integer.toHexString(mEnsembleEcc));
-					if(DEBUG)Log.d(TAG, "Parsed  EID: " + mEnsembleId + " : " + Integer.toHexString(mEnsembleId));
-					if(DEBUG)Log.d(TAG, "Parsed  SID: " + mServiceId + " : " + Integer.toHexString(mServiceId));
-					if(DEBUG)Log.d(TAG, "Parsed SCID: " + mScid + " : " + Integer.toHexString(mScid));
-					if(DEBUG)Log.d(TAG, "Parsed MIME: " + mMimeType.toString());
-				} else {
-					mEnsembleEcc = -1;
-					mEnsembleId = -1;
-					mScid = -1;
-					mServiceId = -1;
-					mMimeType = RadioServiceMimeType.UNKNOWN;
-				}
-			} else {
-				mEnsembleEcc = -1;
-				mEnsembleId = -1;
-				mScid = -1;
-				mServiceId = -1;
-				mMimeType = RadioServiceMimeType.UNKNOWN;
-			}
-		} else {
-			mEnsembleEcc = -1;
-			mEnsembleId = -1;
-			mScid = -1;
-			mServiceId = -1;
-			mMimeType = RadioServiceMimeType.UNKNOWN;
-		}
-	}
+        int uatype = -1;
+        if (m.pattern().equals(patternWithUaType)) {
+            if (hasMatched) {
+                try {
+                    uatype = Integer.parseInt(m.group(5), 16);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        mUaType = uatype;
 
-	@Override
-	public String getBearerId() {
-		return mBearerId;
-	}
+        if (mMimeVal.equalsIgnoreCase("audio/mpeg")) {
+            mMimeType = RadioServiceMimeType.AUDIO_MPEG;
+        } else if (mMimeVal.equalsIgnoreCase("audio/aac")) {
+            mMimeType = RadioServiceMimeType.AUDIO_AAC;
+        } else {
+            mMimeType = RadioServiceMimeType.UNKNOWN;
+        }
+    }
 
-	@Override
-	public RadioDnsEpgBearerType getBearerType() {
-		return RadioDnsEpgBearerType.DAB;
-	}
+    @Override
+    public String getBearerId() {
+        return mBearerId;
+    }
 
-	@Override
-	public int getCost() {
-		return 0;
-	}
+    @Override
+    public RadioDnsEpgBearerType getBearerType() {
+        return RadioDnsEpgBearerType.DAB;
+    }
 
-	@Override
-	public int getBitrate() {
-		return 0;
-	}
+    @Override
+    public int getCost() {
+        return mCost;
+    }
 
-	@Override
-	public String getMimeValue() {
-		return mMimeVal;
-	}
+    @Override
+    public int getBitrate() {
+        return mBitrate;
+    }
 
-	public int getServiceId() {
-		return mServiceId;
-	}
+    @Override
+    public String getMimeValue() {
+        return mMimeVal;
+    }
 
-	public int getEnsembleEcc() {
-		return mEnsembleEcc;
-	}
+    public RadioServiceMimeType getMimeType() {
+        return mMimeType;
+    }
 
-	public int getServiceComponentId() {
-		return mScid;
-	}
+    public int getServiceId() {
+        return mServiceId;
+    }
 
-	public int getEnsembleId() {
-		return mEnsembleId;
-	}
+    public int getEnsembleEcc() {
+        return mEnsembleEcc;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if(obj != null) {
-			if(obj instanceof RadioDnsEpgBearerDab) {
-				RadioDnsEpgBearerDab compSrv = (RadioDnsEpgBearerDab) obj;
-				return ((compSrv.getEnsembleId() == this.mEnsembleId) && compSrv.getBearerId().equals(this.mBearerId) && (compSrv.getServiceId() == this.mServiceId) && (compSrv.getEnsembleEcc() == this.mEnsembleEcc) && (compSrv.getServiceComponentId() == this.mScid));
-			}
-		}
+    public int getServiceComponentId() {
+        return mScid;
+    }
 
-		return false;
-	}
+    public int getEnsembleId() {
+        return mEnsembleId;
+    }
 
-	@Override
-	public int hashCode() {
-		if(android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-			return Objects.hash(mEnsembleId, mBearerId, mServiceId, mEnsembleEcc, mScid, mCost, mBitrate, mMimeVal);
-		} else {
-			int hash = 2;
-			hash = 63 * hash + (int)(this.mEnsembleId ^ (this.mEnsembleId >>> 32));
-			hash = 63 * hash + this.mBearerId.hashCode() ^ (this.mBearerId.hashCode() >>> 32);
-			hash = 63 * hash + (int)(this.mServiceId ^ (this.mServiceId >>> 32));
-			hash = 63 * hash + (int)(this.mEnsembleEcc ^ (this.mEnsembleEcc >>> 32));
-			hash = 63 * hash + (int)(this.mScid ^ (this.mScid >>> 32));
-			hash = 63 * hash + (int)(this.mCost ^ (this.mCost >>> 32));
-			hash = 63 * hash + (int)(this.mBitrate ^ (this.mBitrate >>> 32));
-			hash = 63 * hash + this.mMimeVal.hashCode() ^ (this.mMimeVal.hashCode() >>> 32);
+    public int getUserApplicationType() {
+        return mUaType;
+    }
 
-			return hash;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if(obj != null) {
+            if(obj instanceof RadioDnsEpgBearerDab) {
+                RadioDnsEpgBearerDab compSrv = (RadioDnsEpgBearerDab) obj;
+                return ((compSrv.getEnsembleId() == this.mEnsembleId) && compSrv.getBearerId().equals(this.mBearerId) && (compSrv.getServiceId() == this.mServiceId) && (compSrv.getEnsembleEcc() == this.mEnsembleEcc) && (compSrv.getServiceComponentId() == this.mScid));
+            }
+        }
 
-	@Override
-	public int compareTo(@NonNull RadioDnsEpgBearer o) {
-		return this.mBearerId.compareTo(o.getBearerId());
-	}
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        if(android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            return Objects.hash(mEnsembleId, mBearerId, mServiceId, mEnsembleEcc, mScid, mCost, mBitrate, mMimeVal, mUaType);
+        } else {
+            int hash = 2;
+            hash = 63 * hash + (int)(this.mEnsembleId ^ (this.mEnsembleId >>> 32));
+            hash = 63 * hash + this.mBearerId.hashCode() ^ (this.mBearerId.hashCode() >>> 32);
+            hash = 63 * hash + (int)(this.mServiceId ^ (this.mServiceId >>> 32));
+            hash = 63 * hash + (int)(this.mEnsembleEcc ^ (this.mEnsembleEcc >>> 32));
+            hash = 63 * hash + (int)(this.mScid ^ (this.mScid >>> 32));
+            hash = 63 * hash + (int)(this.mCost ^ (this.mCost >>> 32));
+            hash = 63 * hash + (int)(this.mBitrate ^ (this.mBitrate >>> 32));
+            hash = 63 * hash + this.mMimeVal.hashCode() ^ (this.mMimeVal.hashCode() >>> 32);
+            hash = 63 * hash + (int)(this.mUaType ^ (this.mUaType >>> 32));
+
+            return hash;
+        }
+    }
+
+    @Override
+    public int compareTo(@NonNull RadioDnsEpgBearer o) {
+        return this.mBearerId.compareTo(o.getBearerId());
+    }
 }

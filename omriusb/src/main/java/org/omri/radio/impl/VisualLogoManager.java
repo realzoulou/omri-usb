@@ -301,6 +301,8 @@ class VisualLogoManager {
 						// sanity check
 						if (logo.isAvailable()) {
 							deserList.add(logo);
+						} else {
+							if (DEBUG) Log.w(TAG, "not avail:" + logo.getFilePath());
 						}
 					}
 

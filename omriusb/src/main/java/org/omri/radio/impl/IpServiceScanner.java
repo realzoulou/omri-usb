@@ -955,6 +955,7 @@ class IpServiceScanner {
 					if(DEBUG)Log.d(TAG, "Created successfully LogoFilesCacheDir");
 				} else {
 					Log.w(TAG, "Creating LogoFilesCacheDir failed");
+					dir = null;
 				}
 			}
 		} else {
