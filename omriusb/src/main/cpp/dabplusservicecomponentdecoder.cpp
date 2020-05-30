@@ -27,6 +27,10 @@ extern "C" {
 #include <iostream>
 #include <iomanip>
 
+#include <pthread.h>
+#include <unistd.h>
+#include <errno.h>
+
 DabPlusServiceComponentDecoder::DabPlusServiceComponentDecoder() {
     std::cout << m_logTag << " Constructing" << std::endl;
     m_processThreadRunning = true;
@@ -131,7 +135,16 @@ std::shared_ptr<DabPlusServiceComponentDecoder::AUDIO_COMPONENT_DATA_CALLBACK> D
 }
 
 void DabPlusServiceComponentDecoder::processData() {
-    pthread_setname_np(pthread_self(), "DplusProcessData");
+    const char threadname[] = "DplusProcessData";
+    const int THREAD_PRIORITY_AUDIO = -16; // android.os.Process.THREAD_PRIORITY_AUDIO
+    pthread_setname_np(pthread_self(), threadname);
+    int newprio = nice(THREAD_PRIORITY_AUDIO);
+    if (newprio == -1) {
+        int lErrno = errno;
+        std::clog << m_logTag << "nice failed: " << strerror(lErrno) << std::endl;
+    } else {
+        std::cout << m_logTag << "nice: " << +newprio << std::endl;
+    }
     while(m_processThreadRunning) {
         std::vector<uint8_t> frameData;
         //For assembling all access units per superframe for always having 120 ms audio for feeding into decoder

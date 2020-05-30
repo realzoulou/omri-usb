@@ -14,6 +14,7 @@ import android.media.MediaCodecList;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Process;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -262,7 +263,8 @@ class DabAudioDecoder {
 
 		@Override
 		public void decodedAudioData(byte[] pcmData, int samplerate, int channels) throws RemoteException {
-			if(DEBUG)Log.d(TAG, "Decoderservice audiodata: " + pcmData.length);
+			if(DEBUG)Log.d(TAG, "Decoderservice audiodata: " + pcmData.length
+					+ ", tid: " + Process.myTid()  + ", prio: " + Process.getThreadPriority(Process.myTid()));
 			if (mCallback != null)
 				mCallback.decodedAudioData(pcmData, samplerate, channels);
 		}
@@ -510,6 +512,11 @@ class DabAudioDecoder {
 		public void run() {
 			if(DEBUG)Log.d(TAG, "Starting DecodeThread");
 			Thread.currentThread().setName("DabAudioDecoder");
+			try {
+				Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
+			} catch (Exception e) {
+				if (DEBUG) e.printStackTrace();
+			}
 			mDecode = true;
 			decode();
 		}

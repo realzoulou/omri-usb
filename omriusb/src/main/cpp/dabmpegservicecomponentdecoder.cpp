@@ -23,6 +23,10 @@
 
 #include <iomanip>
 
+#include <pthread.h>
+#include <unistd.h>
+#include <errno.h>
+
 constexpr uint8_t DabMpegServiceComponentDecoder::XPAD_SIZE[8];
 constexpr uint16_t DabMpegServiceComponentDecoder::M1L2_BITRATE_IDX[];
 constexpr uint16_t DabMpegServiceComponentDecoder::M1_SAMPLINGFREQUENCY_IDX[];
@@ -106,6 +110,16 @@ void DabMpegServiceComponentDecoder::synchronizeData(const std::vector<uint8_t>&
 }
 
 void DabMpegServiceComponentDecoder::processData() {
+    const char threadname[] = "MpegProcessData";
+    const int THREAD_PRIORITY_AUDIO = -16; // android.os.Process.THREAD_PRIORITY_AUDIO
+    pthread_setname_np(pthread_self(), threadname);
+    int newprio = nice(THREAD_PRIORITY_AUDIO);
+    if (newprio == -1) {
+        int lErrno = errno;
+        std::clog << m_logTag << "nice failed: " << strerror(lErrno) << std::endl;
+    } else {
+        std::cout << m_logTag << "nice: " << +newprio << std::endl;
+    }
     while(m_processThreadRunning) {
         std::vector<uint8_t> frameData;
         if(m_conQueue.tryPop(frameData, std::chrono::milliseconds(50))) {
