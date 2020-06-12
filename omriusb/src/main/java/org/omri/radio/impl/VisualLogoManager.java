@@ -298,12 +298,13 @@ class VisualLogoManager {
 							}
 						}
 
-						// sanity check
-						if (logo.isAvailable()) {
-							deserList.add(logo);
-						} else {
-							if (DEBUG) Log.w(TAG, "not avail:" + logo.getFilePath());
+						// sanity check, only in DEBUG build to not slow down the app startup
+						if (DEBUG) {
+							if (!logo.isAvailable()) {
+								Log.w(TAG, "not avail:" + logo.getFilePath());
+							}
 						}
+						deserList.add(logo);
 					}
 
 					mLogoList.addAll(deserList);
