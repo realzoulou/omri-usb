@@ -663,26 +663,24 @@ class IpServiceScanner {
 							if (DEBUG)
 								Log.w(TAG, "IpStreams empty, searching available DAB service");
 							srvOkay = false;
-							final List<RadioService> radioServiceList = Radio.getInstance().getRadioServices();
-							if (radioServiceList != null) {
-								for (RadioService searchSrv : radioServiceList) {
-									if (searchSrv != null &&
-											(searchSrv.getRadioServiceType() == RadioServiceType.RADIOSERVICE_TYPE_DAB
-													|| searchSrv.getRadioServiceType() == RadioServiceType.RADIOSERVICE_TYPE_EDI)) {
-										RadioServiceDab dabSrv = (RadioServiceDab) searchSrv;
-										final List<RadioDnsEpgBearer> epgBearers = ipSrv.getBearers();
-										if (epgBearers != null) {
-											for (RadioDnsEpgBearer dnsBear : epgBearers) {
-												if (dnsBear.getBearerType() == RadioDnsEpgBearerType.DAB) {
-													RadioDnsEpgBearerDab dabBearer = (RadioDnsEpgBearerDab) dnsBear;
-													if (dabSrv.getEnsembleId() == dabBearer.getEnsembleId()
-															&& dabSrv.getEnsembleEcc() == dabBearer.getEnsembleEcc()
-															&& dabSrv.getServiceId() == dabBearer.getServiceId()) {
-														if (DEBUG)
-															Log.d(TAG, "Found DAB service '" + dabSrv.getServiceLabel() + "' for IPService without IpStreams");
-														srvOkay = true;
-														break;
-													}
+							final List<RadioService> radioServiceList = new ArrayList<>(Radio.getInstance().getRadioServices());
+							for (RadioService searchSrv : radioServiceList) {
+								if (searchSrv != null &&
+										(searchSrv.getRadioServiceType() == RadioServiceType.RADIOSERVICE_TYPE_DAB
+												|| searchSrv.getRadioServiceType() == RadioServiceType.RADIOSERVICE_TYPE_EDI)) {
+									RadioServiceDab dabSrv = (RadioServiceDab) searchSrv;
+									final List<RadioDnsEpgBearer> epgBearers = ipSrv.getBearers();
+									if (epgBearers != null) {
+										for (RadioDnsEpgBearer dnsBear : epgBearers) {
+											if (dnsBear.getBearerType() == RadioDnsEpgBearerType.DAB) {
+												RadioDnsEpgBearerDab dabBearer = (RadioDnsEpgBearerDab) dnsBear;
+												if (dabSrv.getEnsembleId() == dabBearer.getEnsembleId()
+														&& dabSrv.getEnsembleEcc() == dabBearer.getEnsembleEcc()
+														&& dabSrv.getServiceId() == dabBearer.getServiceId()) {
+													if (DEBUG)
+														Log.d(TAG, "Found DAB service '" + dabSrv.getServiceLabel() + "' for IPService without IpStreams");
+													srvOkay = true;
+													break;
 												}
 											}
 										}
