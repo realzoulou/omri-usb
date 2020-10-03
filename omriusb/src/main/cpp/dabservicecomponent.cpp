@@ -28,7 +28,6 @@ DabServiceComponent::DabServiceComponent() {
 }
 
 DabServiceComponent::~DabServiceComponent() {
-    std::cout << "Dabservicecomponent base deleted" << std::endl;
 }
 
 DabServiceComponent::SERVICECOMPONENTTYPE DabServiceComponent::getServiceComponentType() const {
@@ -117,7 +116,13 @@ void DabServiceComponent::setIsPrimary(bool primary) {
 
 void DabServiceComponent::setServiceComponentIdWithinService(uint8_t scIdS) {
     m_scIdS = scIdS;
-    m_scIdS == 0 ? (m_isPrimary = true) : (m_isPrimary = false);
+    /* EN 300 401 6.3.5 Service component global definition :
+     * SCIdS (Service Component Identifier within the Service): this 4-bit field shall identify the
+     * service component within the service.
+     * The primary service component shall use the value 0.
+     * Each secondary service component of the service shall use a different SCIdS value other than 0.
+     */
+    // Note: better not to enforce above by using setIsPrimary() depending of value scIdS
 }
 
 void DabServiceComponent::setMscStartAddress(uint16_t startAddress) {
