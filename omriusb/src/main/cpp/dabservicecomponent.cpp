@@ -122,7 +122,10 @@ void DabServiceComponent::setServiceComponentIdWithinService(uint8_t scIdS) {
      * The primary service component shall use the value 0.
      * Each secondary service component of the service shall use a different SCIdS value other than 0.
      */
-    // Note: better not to enforce above by using setIsPrimary() depending of value scIdS
+    if (scIdS == 0 && !isPrimary()) {
+        std::cout << m_logTag << " Enforce isPrim with scIdS=0" << std::endl;
+        setIsPrimary(true);
+    }
 }
 
 void DabServiceComponent::setMscStartAddress(uint16_t startAddress) {
