@@ -175,7 +175,7 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
             if(!contains<Fig_00_Ext_01>(m_parsedFig0001, extOne)) {
                 m_parsedFig0001.push_back(extOne);
                 if(m_1wasDone) {
-                    std::cout << "FICParser Ext 2 done" << std::endl;
+                    std::cout << "FICParser Ext 1 was done" << std::endl;
                 }
             } else {
                 done = true;
@@ -253,7 +253,7 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
             bool done{false};
             if(!contains<Fig_00_Ext_08>(m_parsedFig0008, extEight)) {
                 if(m_8wasDone) {
-                    std::cout << "FICParser Ext 8 done" << std::endl;
+                    std::cout << "FICParser Ext 8 was done" << std::endl;
                 }
                 m_parsedFig0008.push_back(extEight);
             } else {

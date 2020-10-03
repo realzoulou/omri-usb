@@ -57,7 +57,7 @@ void DabPlusServiceComponentDecoder::setSubchannelBitrate(uint16_t bitrate) {
     //audio_super_frame_size (bytes) = subchannel_index × 110
     m_superFrameSize = static_cast<uint16_t>((m_subChanBitrate / 8) * 110);
 
-    std::cout << m_logTag << " SuperFrameSize: " << +m_superFrameSize << " SubchanBitrate: " << +m_subChanBitrate << std::endl;
+    //std::cout << m_logTag << " SuperFrameSize: " << +m_superFrameSize << " SubchanBitrate: " << +m_subChanBitrate << std::endl;
 }
 
 void DabPlusServiceComponentDecoder::componentDataInput(const std::vector<uint8_t> &frameData, bool synchronized) {

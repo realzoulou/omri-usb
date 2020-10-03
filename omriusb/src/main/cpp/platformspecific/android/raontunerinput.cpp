@@ -417,7 +417,7 @@ void RaonTunerInput::setService() {
 
                 for (const auto& srvComp : srv->getServiceComponents()) {
                     if(srvComp->isPrimary()) {
-                        std::cout << LOG_TAG << "Starting SrvComp: " << std::hex << +srvComp->getSubChannelId() << std::dec << std::endl;
+                        std::cout << LOG_TAG << "Starting SubChanId: " << std::hex << +srvComp->getSubChannelId() << std::dec << std::endl;
                         m_currentSubchanId = srvComp->getSubChannelId();
 
                         clearAndSetupMscMemory();

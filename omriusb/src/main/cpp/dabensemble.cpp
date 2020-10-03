@@ -765,31 +765,36 @@ void DabEnsemble::checkServiceSanity() {
                         if(packComp->getProtectionLevel() != 0xFF && packComp->getProtectionType() != 0xFF) {
                             continue;
                         } else {
-                            std::cout << m_logTag << " ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << ", SubchanId: "  << +srvComp->getSubChannelId() << std::dec << ", MSC: " << +srvComp->getMscStartAddress() << ", SubSize: " << +srvComp->getSubchannelSize() << std::endl;
+                            std::clog << m_logTag << "  ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << ", SubchanId: "  << +srvComp->getSubChannelId() << std::dec << ", MSC: " << +srvComp->getMscStartAddress() << ", SubSize: " << +srvComp->getSubchannelSize() << std::endl;
                             return;
                         }
                     }
                     case DabServiceComponent::SERVICECOMPONENTTYPE::MSC_STREAM_AUDIO: {
                         std::shared_ptr<DabServiceComponentMscStreamAudio> mscSaComp = std::static_pointer_cast<DabServiceComponentMscStreamAudio>(srvComp);
                         if(srv.getServiceLabel().empty()) {
-                            std::cout << m_logTag << " ServiceSanity failed for empty servicelabel" << std::endl;
+                            std::clog << m_logTag << "  ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << std::dec << " empty servicelabel" << std::endl;
                             return;
                         }
                         if(m_ensembleEcc == 0xFF) {
-                            std::cout << m_logTag << " ServiceSanity failed for EnsembleECC is 0xFF" << std::endl;
+                            std::clog << m_logTag << "  ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << std::dec << " EnsembleECC is 0xFF" << std::endl;
                             return;
                         }
-
                         break;
                     }
                     default: {
                         break;
                     }
                 }
-
+                if (srv.getNumberServiceComponents() == 1) {
+                    if (!srvComp->isPrimary()) {
+                        std::clog << m_logTag << "  ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << std::dec << " only service component SubChanId:"
+                            << std::hex << +srvComp->getSubChannelId() << std::dec << " not primary" << std::endl;
+                        return;
+                    }
+                }
                 continue;
             } else {
-                std::cout << m_logTag << " ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << ", SubchanId: "  << +srvComp->getSubChannelId() << std::dec << ", MSC: " << +srvComp->getMscStartAddress() << ", SubSize: " << +srvComp->getSubchannelSize() << " Components: " << +srv.getServiceComponents().size() << " : " << +srv.getNumberServiceComponents() << std::endl;
+                std::cout << m_logTag << "  ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << ", SubchanId: "  << +srvComp->getSubChannelId() << std::dec << ", MSC: " << +srvComp->getMscStartAddress() << ", SubSize: " << +srvComp->getSubchannelSize() << " Components: " << +srv.getServiceComponents().size() << " : " << +srv.getNumberServiceComponents() << std::endl;
                 return;
             }
         }

@@ -47,6 +47,7 @@ uint8_t DabServiceComponentMscStreamAudio::getAudioServiceComponentType() const 
 void DabServiceComponentMscStreamAudio::setAudioServiceComponentType(uint8_t ascty) {
     m_ascTy = ascty;
     if(m_ascTy == 0x3F) {
+        std::cout << m_logTag << " ############## Creating AAC component decoder: " << +m_subChanBitrate << std::endl;
         std::shared_ptr<DabPlusServiceComponentDecoder> componentDecoder = std::make_shared<DabPlusServiceComponentDecoder>();
         componentDecoder->setSubchannelBitrate(m_subChanBitrate);
         m_padCallback = componentDecoder->registerPadDataCallback(std::bind(&PadDecoder::padDataInput, &m_padDecoder, std::placeholders::_1));

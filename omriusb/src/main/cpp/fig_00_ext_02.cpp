@@ -31,7 +31,7 @@ Fig_00_Ext_02::~Fig_00_Ext_02() {
 }
 
 void Fig_00_Ext_02::parseFigData(const std::vector<uint8_t> &figData) {
-    //std::cout << m_logTag << " ------------- Begin ---------------- " << std::endl;
+    //std::cout << m_logTag << " ------------- Begin" << std::endl;
     auto figIter = figData.cbegin() +1;
     while(figIter < figData.cend()) {
         ServiceDescription srvDesc;
@@ -44,11 +44,12 @@ void Fig_00_Ext_02::parseFigData(const std::vector<uint8_t> &figData) {
             srvDesc.serviceId = static_cast<uint32_t>(((*figIter++ & 0xFF) << 24) | ((*figIter++ & 0xFF) << 16) | ((*figIter++ & 0xFF) << 8) | (*figIter++ & 0xFF));
         }
 
-        //std::cout << m_logTag << " ServiceId: " << std::hex << +srvDesc.serviceId << std::dec << " DataService: " << std::boolalpha << isDataService() << std::noboolalpha << std::endl;
-
         //bool Rfa = (*figIter >> 7) & 0x01;
         srvDesc.caId = static_cast<uint8_t>((*figIter & 0x70) >> 4);
         srvDesc.numServiceComponents = static_cast<uint8_t>((*figIter++ & 0x0F) & 0xFF);
+
+        /*std::cout << m_logTag << " ServiceId: " << std::hex << +srvDesc.serviceId << std::dec << " DataService: " << std::boolalpha << isDataService() << std::noboolalpha
+            << " NumComponents: " << +srvDesc.numServiceComponents << std::endl; */
 
         for(uint8_t i = 0; i < srvDesc.numServiceComponents; i++) {
             ServiceComponentDescription srvCompDesc;
@@ -62,12 +63,19 @@ void Fig_00_Ext_02::parseFigData(const std::vector<uint8_t> &figData) {
                     srvCompDesc.subChannelId = static_cast<uint8_t>((*figIter & 0xFC) >> 2);
                     srvCompDesc.isPrimary = ((*figIter & 0x02) >> 1) != 0;
                     srvCompDesc.isCaApplied = ((*figIter++ & 0x01) & 0xFF) != 0;
+                    /*std::cout << m_logTag << " [" << +i <<
+                        "] serviceComponentType:" << +srvCompDesc.serviceComponentType
+                        << " subChannelId:" << +srvCompDesc.subChannelId
+                        << " isPrimary: " << +srvCompDesc.isPrimary << std::endl;   */
                     break;
                 }
                 case Fig_00_Ext_02::TMID::MSC_PACKET_MODE_DATA: {
                     srvCompDesc.serviceComponentId = static_cast<uint16_t>((((*figIter++ & 0x3F) & 0xFF) << 6) | (((*figIter & 0xFC) & 0xFF) >> 2));
                     srvCompDesc.isPrimary = ((*figIter & 0x02) >> 1) != 0;
                     srvCompDesc.isCaApplied = ((*figIter++ & 0x01) & 0xFF) != 0;
+                    /*std::cout << m_logTag << " [" << +i <<
+                              "] serviceComponentId:" << +srvCompDesc.serviceComponentId
+                              << " isPrimary: " << +srvCompDesc.isPrimary << std::endl; */
                     break;
                 }
                 case Fig_00_Ext_02::TMID::RESERVED: {
@@ -82,7 +90,7 @@ void Fig_00_Ext_02::parseFigData(const std::vector<uint8_t> &figData) {
 
         m_serviceDescriptions.push_back(srvDesc);
     }
-    //std::cout << m_logTag << " ------------- End ---------------- " << std::endl;
+    //std::cout << m_logTag << " ------------- End" << std::endl;
 }
 
 const std::vector<Fig_00_Ext_02::ServiceDescription>& Fig_00_Ext_02::getServiceDescriptions() const {
