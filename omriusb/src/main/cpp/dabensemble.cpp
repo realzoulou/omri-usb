@@ -475,7 +475,7 @@ void DabEnsemble::fig00_09_input(const Fig_00_Ext_09& fig09) {
 }
 
 void DabEnsemble::fig00_10_input(const Fig_00_Ext_10& fig10) {
-    std::cout << m_logTag << " DateAndTime: " << +fig10.getDabTime().unixTimestampSeconds << std::endl;
+    //std::cout << m_logTag << " DateAndTime: " << +fig10.getDabTime().unixTimestampSeconds << std::endl;
 
     m_dateAndTimeDispatcher.invoke(fig10.getDabTime());
 }
