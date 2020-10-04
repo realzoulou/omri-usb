@@ -110,6 +110,9 @@ public:
     const static std::string DL_PLUS_CONTENT_TYPE_STRING[];
 
 private:
+    void parseDlsData();
+
+private:
     std::string m_logTag{"[DynamiclabelDecoder]"};
 
     std::vector<uint8_t> m_dlsData;
