@@ -109,6 +109,7 @@ private:
     std::string m_recordPath{""};
     std::recursive_mutex m_outFileWriteMutex;
     std::ofstream m_outFileStream;
+    std::string m_recordPathFilename{""};
     uint64_t m_lastFlushTime{0ULL};
 
 private:
@@ -134,7 +135,10 @@ private:
     void startScanCommand();
     void stopScanCommand();
 
-    void rawRecordOpen(const std::string recordPath, const std::shared_ptr<JDabService> serviceLink);
+    void rawRecordOpen(const std::shared_ptr<JDabService>& serviceLink); // raw recording while playing a service
+    void rawRecordOpen(const int freqMhz); // raw recording while ensemble scan
+    void __rawRecordOpen(const std::string& filenameAfterDateWithoutSuffix); // Note: called from the above two, not indended to be called directly
+
     void rawRecordFicWrite(const std::vector<uint8_t>& data);
     void rawRecordMscWrite(const std::vector<uint8_t>& data);
     void rawRecordClose();

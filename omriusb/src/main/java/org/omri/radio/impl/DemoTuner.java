@@ -226,6 +226,7 @@ public class DemoTuner implements Tuner {
 					}
 				});
 				if (filenames != null) {
+					int counter = 1;
 					for (String filename : filenames) {
 						File file = new File(inputDir, filename);
 						if (file.exists()) {
@@ -244,7 +245,13 @@ public class DemoTuner implements Tuner {
 								} catch (Exception e) {
 									e.printStackTrace();
 								}
-							} else {
+							} else if (splits.length == 4) {
+								// Y-m-d_H-M-S_scan_FreqMHz
+								label = splits[2] + " " + splits[3]; // e.g. "scan 178352"
+								eid = sid = counter; // a dummy EId/SId
+								counter++;
+							}
+							else {
 								Log.w(TAG, "split filename: " + Arrays.toString(splits));
 							}
 							RadioServiceDabImpl foundService = new RadioServiceDabImpl();

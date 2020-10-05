@@ -19,6 +19,7 @@
  */
 
 #include <chrono>
+#include <cstdio>
 #include <iomanip>
 #include <initializer_list>
 #include <iterator>
@@ -26,6 +27,7 @@
 #include <sstream>
 #include <unistd.h>
 #include <sys/endian.h>
+#include <sys/stat.h>
 #include "../../ficparser.h"
 #include "raontunerinput.h"
 #include "demousbtunerinput.h"
@@ -200,10 +202,8 @@ void RaonTunerInput::startServiceSync(std::shared_ptr<JDabService> serviceLink) 
     // need to refer to serviceLink, otherwise it may be destroyed
     m_startServiceLink = serviceLink;
 
-    // open raw recording file, if configured
-    if (m_recordPath.length() > 0) {
-        rawRecordOpen(m_recordPath, serviceLink);
-    }
+    // open raw recording file
+    rawRecordOpen(serviceLink);
 
     if(m_currentFrequency != serviceLink.get()->getEnsembleFrequency()) {
         m_ensembleCollectFinished = false;
@@ -353,7 +353,12 @@ void RaonTunerInput::scanNext() {
                 }
             }
         }
-        tuneFrequency(DAB_FREQ_TABLE_MHZ[++m_currentScanningEnsembleNum] * 1000);
+        int freqKhz = DAB_FREQ_TABLE_MHZ[++m_currentScanningEnsembleNum] * 1000;
+
+        // open raw recording file
+        rawRecordOpen(freqKhz / 1000);
+
+        tuneFrequency(freqKhz);
 
         if (m_usbDevice != nullptr) {
             m_usbDevice->scanProgress(m_currentScanningEnsembleNum * 100 / NUM_DAB_ENSEMBLES);
@@ -366,6 +371,9 @@ void RaonTunerInput::scanNext() {
         }
         m_isScanning = false;
         m_currentScanningEnsembleNum = 0;
+
+        // stop recording
+        rawRecordClose();
 
         stopReadFicThread();
         startReadDataThread();
@@ -1289,7 +1297,46 @@ void RaonTunerInput::readMsc() {
         setRegister(INT_E_UCLRL, 0x04);
     }
 }
-void RaonTunerInput::rawRecordOpen(const std::string recordPath, const std::shared_ptr<JDabService> serviceLink) {
+
+void RaonTunerInput::rawRecordOpen(const std::shared_ptr<JDabService>& serviceLink) {
+    std::string labelstring;
+    std::stringstream serviceidstring, ensembleidstring;
+
+    if (serviceLink != nullptr) {
+        std::shared_ptr<DabService> dabService = serviceLink.get()->getLinkDabService();
+        if (dabService != nullptr) {
+            labelstring = dabService->getServiceLabel();
+        } else {
+            labelstring = "labelunknown";
+        }
+        // "_" is used to find the infos from the filename, get rid of it in the label, but replace with " "
+        labelstring = std::regex_replace(labelstring, std::regex("_"), " ");
+        serviceidstring << std::hex << serviceLink->getServiceId();
+        ensembleidstring << std::hex << serviceLink->getEnsembleId();
+        const std::string filenameAfterDateWithoutSuffix =
+                labelstring
+                + "_" + ensembleidstring.str()
+                + "_" + serviceidstring.str();
+
+        __rawRecordOpen(filenameAfterDateWithoutSuffix);
+    }
+}
+
+void RaonTunerInput::rawRecordOpen(const int freqMhz) {
+    std::stringstream freqMhzStrStream;
+    freqMhzStrStream << std::dec << freqMhz;
+
+    const std::string filenameAfterDateWithoutSuffix =
+            "scan_" + freqMhzStrStream.str();
+
+    __rawRecordOpen(filenameAfterDateWithoutSuffix);
+}
+
+void RaonTunerInput::__rawRecordOpen(const std::string& filenameAfterDateWithoutSuffix) {
+    // if path not configured, then return
+    if (m_recordPath.empty()) {
+        return;
+    }
     // close any previously opened stream
     rawRecordClose();
 
@@ -1299,27 +1346,18 @@ void RaonTunerInput::rawRecordOpen(const std::string recordPath, const std::shar
     // open new one
     auto now = std::chrono::system_clock::now();
     auto in_time_t = std::chrono::system_clock::to_time_t(now);
-    std::stringstream timestring, serviceidstring, ensembleidstring;
-    std::string labelstring;
-
+    std::stringstream timestring;
     timestring << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d_%H-%M-%S");
-    std::shared_ptr<DabService> dabService = serviceLink.get()->getLinkDabService();
-    if (dabService != nullptr) {
-        labelstring = dabService->getServiceLabel();
-    } else {
-        labelstring = "labelunknown";
-    }
-    // "_" is used to find the infos from the filename, get rid of it in the label, but replace with " "
-    labelstring = std::regex_replace(labelstring, std::regex("_"), " ");
-    serviceidstring << std::hex << serviceLink.get()->getServiceId();
-    ensembleidstring << std::hex << serviceLink.get()->getEnsembleId();
-    const std::string filename = recordPath + "/" + "dab_" + timestring.str() + "_" +
-            labelstring + "_" + ensembleidstring.str() + "_" + serviceidstring.str() + ".raw";
+
+    const std::string filename =
+            m_recordPath + "/" + "dab_" + timestring.str() + "_" +
+            filenameAfterDateWithoutSuffix + ".raw";
 
     m_outFileStream.open(filename, std::ios::out | std::ios::binary);
 
     if (m_outFileStream.is_open()) {
         std::cout << LOG_TAG << "rawRecordOpen " << filename << std::endl;
+        m_recordPathFilename = filename;
     } else {
         std::clog << LOG_TAG << "rawRecordOpen failed to open " << filename << std::endl;
     }
@@ -1395,8 +1433,26 @@ void RaonTunerInput::rawRecordClose() {
     if (m_outFileStream.is_open()) {
         // acquire lock
         std::lock_guard<std::recursive_mutex> lockGuard(m_outFileWriteMutex);
-        std::cout << LOG_TAG << "rawRecordClose" << std::endl;
         m_outFileStream.close();
+
+        // delete a useless empty file
+        struct stat stat_buf{};
+        int rc = stat(m_recordPathFilename.c_str(), &stat_buf);
+        if (rc == 0) {
+            if (stat_buf.st_size == 0) {
+                if (std::remove(m_recordPathFilename.c_str()) != 0) {
+                    std::clog << LOG_TAG << "failed to remove empty " << m_recordPathFilename.c_str() << std::endl;
+                } else {
+                    std::cout << LOG_TAG << "removed empty file " << m_recordPathFilename.c_str() << std::endl;
+                }
+            } else {
+                std::cout << LOG_TAG << "rawRecordClose" << std::endl;
+            }
+        } else {
+            std::clog << LOG_TAG << "failed to stat " << m_recordPathFilename.c_str() << std::endl;
+        }
+
+        m_recordPathFilename = "";
     }
 }
 
