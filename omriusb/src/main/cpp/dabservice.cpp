@@ -118,7 +118,7 @@ void DabService::setServiceLabel(const std::string& label) {
     if(m_serviceLabel.empty()) {
         m_serviceLabel = label;
 
-        std::cout << m_logTag << " Setting ServiceLabel: " << m_serviceLabel << " to SId: " << std::hex << m_serviceId << std::dec << std::endl;
+        //std::cout << m_logTag << " Setting ServiceLabel: " << m_serviceLabel << " to SId: " << std::hex << +m_serviceId << std::dec << std::endl;
     }
 }
 
@@ -126,7 +126,7 @@ void DabService::setServiceShortLabel(const std::string& shortLabel) {
     if(m_serviceShortLabel.empty()) {
         m_serviceShortLabel = shortLabel;
 
-        std::cout << m_logTag << " Setting ServiceShortlabel: " << m_serviceShortLabel << " to SId: " << std::hex << +m_serviceId << std::dec << std::endl;
+        //std::cout << m_logTag << " Setting ServiceShortlabel: " << m_serviceShortLabel << " to SId: " << std::hex << +m_serviceId << std::dec << std::endl;
     }
 }
 

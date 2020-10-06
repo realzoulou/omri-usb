@@ -671,6 +671,7 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
         }
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_GLOBAL_DEFINITION: {
             if(!m_fig008done && m_fig001done && m_fig003done) {
+                std::cout << m_logTag << " ServiceSanity FIC 00_08 Done!" << std::endl;
                 m_013Ptr = m_ficPtr->registerFig_00_13_Callback(std::bind(&DabEnsemble::fig00_13_input, this, std::placeholders::_1));
                 m_014Ptr = m_ficPtr->registerFig_00_14_Callback(std::bind(&DabEnsemble::fig00_14_input, this, std::placeholders::_1));
                 m_017Ptr = m_ficPtr->registerFig_00_17_Callback(std::bind(&DabEnsemble::fig00_17_input, this, std::placeholders::_1));
@@ -757,7 +758,7 @@ void DabEnsemble::checkServiceSanity() {
     for(const auto& srvMap : m_servicesMap) {
         auto srv = srvMap.second;
         for(const auto& srvComp : srv.getServiceComponents()) {
-            std::cout << m_logTag << " ServiceSanity Check for SId: " << std::hex << +srv.getServiceId() << std::dec << " Components: " << +srv.getServiceComponents().size() << " : " << +srv.getNumberServiceComponents() << std::endl;
+            //std::cout << m_logTag << " ServiceSanity Check for SId: " << std::hex << +srv.getServiceId() << std::dec << " Components: " << +srv.getServiceComponents().size() << " : " << +srv.getNumberServiceComponents() << std::endl;
             if(srvComp->getSubChannelId() != 0xFF && srvComp->getMscStartAddress() != 0xFFFF && srvComp->getSubchannelSize() != 0xFFFF && (srv.getNumberServiceComponents() == srv.getServiceComponents().size()) ) {
                 switch(srvComp->getServiceComponentType()) {
                     case DabServiceComponent::SERVICECOMPONENTTYPE::MSC_PACKET_MODE_DATA: {

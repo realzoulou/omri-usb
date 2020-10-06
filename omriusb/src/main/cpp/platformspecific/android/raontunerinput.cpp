@@ -1192,7 +1192,10 @@ void RaonTunerInput::readFic() {
             m_scanCommandQueue.push(std::bind(&RaonTunerInput::scanNext, this));
         }
 
-        std::cout << LOG_TAG << "ScanRetries: " << +m_maxCollectionWaitLoops << " LockStat: " << +lockStatus << std::endl;
+        std::cout << LOG_TAG << "ScanRetries: " << +m_maxCollectionWaitLoops
+            << " Freq: " << +m_currentFrequency
+            << " LockStat: " << +lockStatus << std::endl;
+
         return;
     }
 
@@ -1701,7 +1704,7 @@ uint8_t RaonTunerInput::getLockStatus() {
         lockSt |= RTV_DAB_FEC_LOCK_MASK;
     }
 
-    std::cout << LOG_TAG << "LockState at: " << +m_currentFrequency << " : " << +lockSt << std::endl;
+    //std::cout << LOG_TAG << "LockState at: " << +m_currentFrequency << " : " << +lockSt << std::endl;
 
     return lockSt;
 }

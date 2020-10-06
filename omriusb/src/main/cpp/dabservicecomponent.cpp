@@ -122,9 +122,19 @@ void DabServiceComponent::setServiceComponentIdWithinService(uint8_t scIdS) {
      * The primary service component shall use the value 0.
      * Each secondary service component of the service shall use a different SCIdS value other than 0.
      */
+
+    /*std::cout << m_logTag << " Setting SCIdS: " << std::hex << +scIdS << " for subChanId: " << +m_subChanId << std::dec
+            << "label: '" << m_serviceComponentLabel << "'" << std::endl; */
+
     if (scIdS == 0 && !isPrimary()) {
-        std::cout << m_logTag << " Enforce isPrim with scIdS=0" << std::endl;
+        std::cout << m_logTag << " Enforce isPrim with SCIdS=0, subChanId=" << std::hex << +m_subChanId
+            << std::dec << ", label=" << m_serviceComponentLabel << std::endl;
+        // was found to be necessary for certain stations, e.g. BBC Radio 2
         setIsPrimary(true);
+    } else if (scIdS != 0 && isPrimary()) {
+        // spec violation: 'The primary service component shall use the value 0.'
+        std::clog << m_logTag << " isPrim but SCIdS=" << +scIdS << ", subChanId=" << std::hex << +m_subChanId
+            << std::dec << ", label=" << m_serviceComponentLabel << std::endl;
     }
 }
 

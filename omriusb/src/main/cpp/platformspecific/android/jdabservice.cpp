@@ -87,7 +87,7 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
     m_ensembleId = static_cast<uint16_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetEnsembleIdMId));
     m_serviceId = static_cast<uint32_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetServiceIdMId));
 
-    std::cout << m_logTag << "Constructed SId " << std::hex << m_serviceId << std::endl;
+    std::cout << m_logTag << "Constructed SId " << std::hex << m_serviceId << std::dec << std::endl;
 }
 
 JDabService::~JDabService() {
@@ -105,7 +105,7 @@ JDabService::~JDabService() {
     }
 
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << "Destroying SId " << std::hex << m_serviceId << std::endl;
+    std::cout << m_logTag << "Destroying SId " << std::hex << m_serviceId << std::dec << std::endl;
 
     // stop processing audioDataInput
     decodeAudio(false);
@@ -120,7 +120,7 @@ JDabService::~JDabService() {
 
 void JDabService::unlinkDabService() {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << "Un-Linking DABServices... for SId " << std::hex << m_serviceId << std::endl;
+    std::cout << m_logTag << "Un-Linking DABServices... for SId " << std::hex << m_serviceId << std::dec << std::endl;
     if (m_linkedDabService != nullptr) {
         m_linkedDabService.reset();
         m_linkedDabService = nullptr;
@@ -141,7 +141,7 @@ void JDabService::unlinkDabService() {
 
 void JDabService::setLinkDabService(std::shared_ptr<DabService> linkedDabSrv) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << "Linking DABServices... for SId " << std::hex << m_serviceId << std::endl;
+    std::cout << m_logTag << "Linking DABServices... for SId " << std::hex << m_serviceId << std::dec << std::endl;
     m_linkedDabService = linkedDabSrv;
 
     if(linkedDabSrv->isProgrammeService()) {

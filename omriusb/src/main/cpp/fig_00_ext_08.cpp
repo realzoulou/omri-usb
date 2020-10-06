@@ -47,15 +47,20 @@ void Fig_00_Ext_08::parseFigData(const std::vector<uint8_t> &figData) {
         //bool rfa = (*figIter & 0x70) >> 4;
         globalDef.scIdS = (*figIter++ & 0x0F) & 0xFF;
 
-        //std::cout << m_logTag << " SId: " << std::hex << +globalDef.serviceId << " ScIdS: " << +globalDef.scIdS << std::dec << std::endl;
-
         globalDef.isShortForm = ((*figIter & 0x80) >> 7) == 0;
         if(globalDef.isShortForm) {
             //bool rfu = (*figIter & 0x40) >> 6;
             globalDef.subchannelId = (*figIter++ & 0x3F) & 0xFF;
+            /*std::cout << m_logTag << " SId: " << std::hex << +globalDef.serviceId
+                << " ScIdS: " << +globalDef.scIdS
+                << " SubChanId: " << +globalDef.subchannelId << std::dec << std::endl;*/
         } else {
             //uint8_t rfaLs = (*figIter & 0x70) >> 4;
             globalDef.serviceComponentId = (*figIter++ & 0x0F) << 8 | (*figIter++ & 0xFF);
+            /*std::cout << m_logTag << " SId: " << std::hex << +globalDef.serviceId
+                      << " ScIdS: " << +globalDef.scIdS
+                      << " SCId: " << +globalDef.serviceComponentId << std::dec << std::endl;*/
+
         }
 
         if(extFLag) {

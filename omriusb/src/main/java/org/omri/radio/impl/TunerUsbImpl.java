@@ -326,6 +326,7 @@ public class TunerUsbImpl implements TunerUsb {
 			Log.d(TAG, "Scan New Service Num Components: " + service.getServiceComponents().size());
 			for (RadioServiceDabComponent comp : service.getServiceComponents()) {
 				Log.d(TAG, "Scan New Service Component SubChanID: " + ("0x" + Integer.toHexString(comp.getSubchannelId())));
+				Log.d(TAG, "Scan New Service Component SCIdS: " + ("0x" + Integer.toHexString(comp.getServiceComponentIdWithinService())));
 				Log.d(TAG, "Scan New Service Component Type: " + comp.getServiceComponentType());
 				Log.d(TAG, "Scan New Service Component Bitrate: " + comp.getBitrate());
 				Log.d(TAG, "Scan New Service Component TMID: " + comp.getTmId());
