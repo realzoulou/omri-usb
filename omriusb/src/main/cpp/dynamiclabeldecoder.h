@@ -21,8 +21,10 @@
 #ifndef DYNAMICLABELDECODER_H
 #define DYNAMICLABELDECODER_H
 
-#include "dabuserapplicationdecoder.h"
 #include "callbackhandle.h"
+#include "dabuserapplicationdecoder.h"
+
+struct DabDynamicLabel; // forward declaration needed
 
 class DynamiclabelDecoder : public DabUserapplicationDecoder {
 
@@ -35,6 +37,9 @@ public:
     virtual std::shared_ptr<UserapplicationDataCallback> registerUserapplicationDataCallback(UserapplicationDataCallback appSpecificDataCallback) override;
 
     virtual void reset() override;
+
+private:
+    void invokeDispatcher(const DabDynamicLabel& label);
 
 public:
     enum DL_PLUS_CONTENT_TYPE {
@@ -113,7 +118,7 @@ private:
     void parseDlsData();
 
 private:
-    std::string m_logTag{"[DynamiclabelDecoder]"};
+    const std::string m_logTag{"[DynamiclabelDecoder]"};
 
     std::vector<uint8_t> m_dlsData;
     uint8_t m_dlsFullSegNum{0};
@@ -121,6 +126,7 @@ private:
     uint8_t m_currentDlsCharset{0xFF};
 
     bool m_isDynamicPlus{false};
+    bool m_isFirstDL{true};
 
     CallbackDispatcher<UserapplicationDataCallback> m_userappDataDispatcher;
 
@@ -137,6 +143,19 @@ private:
         CLEAR_DISPLAY,
         DL_PLUS_COMMAND
     };
+};
+
+struct DabDynamicLabelPlusTag {
+    DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE contentType{DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE::DUMMY};
+    std::string dlPlusTagText;
+};
+
+struct DabDynamicLabel {
+    std::string dynamicLabel;
+    uint8_t charset;
+    bool itemToggle{false};
+    bool itemRunning{false};
+    std::vector<DabDynamicLabelPlusTag> dlPlusTags;
 };
 
 #endif // DYNAMICLABELDECODER_H

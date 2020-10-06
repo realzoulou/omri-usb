@@ -55,17 +55,4 @@ struct DabSlideshow {
     std::vector<uint8_t> slideshowData;
 };
 
-struct DabDynamicLabelPlusTag {
-    DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE contentType{DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE::DUMMY};
-    std::string dlPlusTagText;
-};
-
-struct DabDynamicLabel {
-    std::string dynamicLabel;
-    uint8_t charset;
-    bool itemToggle{false};
-    bool itemRunning{false};
-    std::vector<DabDynamicLabelPlusTag> dlPlusTags;
-};
-
 #endif //DATATYPES_H

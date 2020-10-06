@@ -24,14 +24,14 @@
 #include <iomanip>
 
 #include "global_definitions.h"
-#include "datatypes.h"
+#include "registered_tables.h"
 
 DynamiclabelDecoder::DynamiclabelDecoder() {
-
+    //std::cout << m_logTag << " Constructing" << std::endl;
 }
 
 DynamiclabelDecoder::~DynamiclabelDecoder() {
-
+    //std::cout << m_logTag << " Destructing" << std::endl;
 }
 
 registeredtables::USERAPPLICATIONTYPE DynamiclabelDecoder::getUserApplicationType() const {
@@ -44,6 +44,8 @@ void DynamiclabelDecoder::reset() {
     m_dlsFullData.clear();
     m_dlsFullSegNum = 0;
     m_currentDlsCharset = 0xFF;
+    m_isDynamicPlus = false;
+    m_isFirstDL = true;
 }
 
 void DynamiclabelDecoder::parseDlsData() {
@@ -121,12 +123,12 @@ void DynamiclabelDecoder::parseDlsData() {
 
                 //std::cout << m_logTag  << " SEGMENT_TYPE::LAST: length=" << +length << " " << std::string(m_dlsFullData.begin(), m_dlsFullData.end()) << std::endl;
 
-                if(!m_isDynamicPlus) {
+                if(!m_isDynamicPlus || m_isFirstDL) {
                     DabDynamicLabel label;
                     label.dynamicLabel = std::string(m_dlsFullData.begin(), m_dlsFullData.end());
                     label.charset = m_currentDlsCharset;
                     //std::cout << m_logTag  << " SEGMENT_TYPE::LAST: invoke" <<  std::endl;
-                    m_userappDataDispatcher.invoke(std::make_shared<DabDynamicLabel>(label));
+                    invokeDispatcher(label);
                 }
 
                 m_dlsData.clear();
@@ -145,9 +147,9 @@ void DynamiclabelDecoder::parseDlsData() {
 
             label.dynamicLabel = std::string(dlIter, dlIter+length);
 
-            if(!m_isDynamicPlus) {
+            if(!m_isDynamicPlus || m_isFirstDL) {
                 //std::cout << m_logTag  << " SEGMENT_TYPE::ONE_AND_ONLY: invoke" <<  std::endl;
-                m_userappDataDispatcher.invoke(std::make_shared<DabDynamicLabel>(label));
+                invokeDispatcher(label);
             }
 
             m_dlsFullSegNum = 0;
@@ -168,9 +170,10 @@ void DynamiclabelDecoder::parseDlsData() {
             case DLS_COMMAND::CLEAR_DISPLAY: {
                 //std::cout << m_logTag << " DLS_DATAGROUP COMMAND Clear Display" << std::endl;
                 DabDynamicLabel label;
-                label.charset = 0;
+                label.charset = registeredtables::EBU_LATIN;
                 label.dynamicLabel = "";
-                m_userappDataDispatcher.invoke(std::make_shared<DabDynamicLabel>(label));
+                invokeDispatcher(label);
+                m_isFirstDL = true; // next DLS is the 'first' one again
                 break;
             }
             case DLS_COMMAND::DL_PLUS_COMMAND: {
@@ -239,7 +242,7 @@ void DynamiclabelDecoder::parseDlsData() {
                         }
 
                         //std::cout << m_logTag  << " DL_PLUS_COMMAND: invoke" <<  std::endl;
-                        m_userappDataDispatcher.invoke(std::make_shared<DabDynamicLabel>(label));
+                        invokeDispatcher(label);
                     }
                 }
                 break;
@@ -275,6 +278,13 @@ std::shared_ptr<DabUserapplicationDecoder::UserapplicationDataCallback> Dynamicl
     return m_userappDataDispatcher.add(appSpecificDataCallback);
 }
 
+void DynamiclabelDecoder::invokeDispatcher(const DabDynamicLabel& label) {
+    //std::cout << m_logTag << " invokeDispatcher first: " << +m_isFirstDL << std::endl;
+    m_userappDataDispatcher.invoke(std::make_shared<DabDynamicLabel>(label));
+    m_isFirstDL = false;
+}
+
+/* yet unused
 const std::string DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE_STRING[] {
     "DUMMY",
     "ITEM_TITLE",
@@ -343,4 +353,4 @@ const std::string DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE_STRING[] {
     "DESCRIPTOR_IDENTIFIER",
     "DESCRIPTOR_PURCHASE",
     "DESCRIPTOR_GET_DATA"
-};
+}; */
