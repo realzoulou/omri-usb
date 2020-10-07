@@ -234,6 +234,15 @@ public class UsbHelper {
 
 	}
 
+	private void closeDeviceConnection(UsbDeviceConnection deviceConnection) {
+		if(DEBUG)Log.d(TAG, "Closing USB device connection");
+		try {
+			deviceConnection.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
 	static void create(Context context, UsbHelperCallback cb, boolean redirectCoutToALog,
 					   String rawRecordingPath) {
 		if(mInstance == null) {

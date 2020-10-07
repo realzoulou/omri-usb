@@ -72,6 +72,7 @@ private:
     jmethodID m_usbHelperGetInstanceMId;
     jmethodID m_usbHelperRequestPermissionMId;
     jmethodID m_usbHelperOpenDeviceMId;
+    jmethodID m_usbHelperCloseDeviceConnectionMId;
 
     jclass m_usbDeviceClass;
     jmethodID m_usbDeviceGetNameMId;

@@ -38,6 +38,7 @@ JUsbDevice::JUsbDevice(JavaVM* javaVm, JNIEnv *env, jobject usbDevice) {
     m_usbHelperGetInstanceMId = env->GetStaticMethodID(m_usbHelperClass, "getInstance", "()Lorg/omri/radio/impl/UsbHelper;");
     m_usbHelperRequestPermissionMId = env->GetMethodID(m_usbHelperClass, "requestPermission", "(Landroid/hardware/usb/UsbDevice;)V");
     m_usbHelperOpenDeviceMId = env->GetMethodID(m_usbHelperClass, "openDevice", "(Landroid/hardware/usb/UsbDevice;)Landroid/hardware/usb/UsbDeviceConnection;");
+    m_usbHelperCloseDeviceConnectionMId = env->GetMethodID(m_usbHelperClass, "closeDeviceConnection", "(Landroid/hardware/usb/UsbDeviceConnection;)V");
 
     //Android UsbDevice class definitions
     m_usbDeviceClass = static_cast<jclass>(env->NewGlobalRef(env->FindClass("android/hardware/usb/UsbDevice")));
@@ -97,15 +98,19 @@ JUsbDevice::~JUsbDevice() {
     std::cout << LOG_TAG << "Destructor" << std::endl;
 
     JNIEnv* env;
+    // close an open UsbDeviceConnection
     m_javaVm->GetEnv((void **)&env, JNI_VERSION_1_6);
-
+    if (m_usbDeviceConnectionObject != nullptr && m_usbHelperClass != nullptr) {
+        env->CallVoidMethod(env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId),
+                m_usbHelperCloseDeviceConnectionMId, m_usbDeviceConnectionObject);
+        env->DeleteGlobalRef(m_usbDeviceConnectionObject);
+    }
     env->DeleteGlobalRef(m_usbDeviceObject);
     env->DeleteGlobalRef(m_usbHelperClass);
     env->DeleteGlobalRef(m_usbDeviceClass);
     env->DeleteGlobalRef(m_usbDeviceConnectionClass);
     env->DeleteGlobalRef(m_usbDeviceInterfaceClass);
     env->DeleteGlobalRef(m_usbDeviceEndpointClass);
-    env->DeleteGlobalRef(m_usbDeviceConnectionObject);
 }
 
 std::string JUsbDevice::getDeviceName() const {
