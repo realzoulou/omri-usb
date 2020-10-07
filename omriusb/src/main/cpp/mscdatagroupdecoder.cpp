@@ -27,3 +27,7 @@ MscDatagroupDecoder::MscDatagroupDecoder() {
 MscDatagroupDecoder::~MscDatagroupDecoder() {
 
 }
+
+void MscDatagroupDecoder::mscDatagroupInput(const std::vector<uint8_t>& mscData) {
+
+}

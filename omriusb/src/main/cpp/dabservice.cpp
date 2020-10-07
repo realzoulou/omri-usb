@@ -130,7 +130,7 @@ void DabService::setServiceShortLabel(const std::string& shortLabel) {
     }
 }
 
-void DabService::addServiceComponent(std::shared_ptr<DabServiceComponent> component) {
+void DabService::addServiceComponent(const std::shared_ptr<DabServiceComponent>& component) {
     m_components.push_back(component);
     std::cout << m_logTag << " Adding ServicecomponentPtr with SubChanId: " << std::hex << +component->getSubChannelId()
         << " for SId: " << +m_serviceId << std::dec << " as Servicecomponent# " << +m_components.size()

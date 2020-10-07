@@ -66,7 +66,7 @@ protected:
     virtual void flushAllBufferedComponentData();
 
     std::unique_ptr<FicParser> m_ficPtr{nullptr};
-    uint32_t m_ensembleFrequency;
+    uint32_t m_ensembleFrequency{0};
     bool m_ensembleCollectFinished{false};
 
 private:

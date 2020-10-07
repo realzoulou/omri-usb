@@ -73,7 +73,7 @@ void Fig_00_Ext_13::parseFigData(const std::vector<uint8_t>& figData) {
              * User Application data: these 8-bit fields may be used to signal application specific information.
              * The interpretation of these fields is determined by the user application identified by the User Application Type
              */
-            for(uint8_t i = 0; i < uAppDataLength; i++) {
+            for(uint8_t j = 0; j < uAppDataLength; j++) {
                 userApp.userAppData.push_back(static_cast<uint8_t>(*figIter++ & 0xFF));
             }
 

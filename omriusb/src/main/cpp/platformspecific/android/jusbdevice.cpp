@@ -105,6 +105,7 @@ JUsbDevice::~JUsbDevice() {
     env->DeleteGlobalRef(m_usbDeviceConnectionClass);
     env->DeleteGlobalRef(m_usbDeviceInterfaceClass);
     env->DeleteGlobalRef(m_usbDeviceEndpointClass);
+    env->DeleteGlobalRef(m_usbDeviceConnectionObject);
 }
 
 std::string JUsbDevice::getDeviceName() const {

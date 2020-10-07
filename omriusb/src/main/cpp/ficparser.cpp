@@ -52,7 +52,6 @@ constexpr uint16_t FicParser::CRC_CCITT_TABLE[];
 //calling inherited constructor with FIC_ID
 FicParser::FicParser() {
     std::cout << M_LOG_TAG << " Constructing" << std::endl;
-    m_fibProcessThreadRunning = false;
 
     m_fibProcessorThread = std::thread(&FicParser::processFib, this);
 }
@@ -147,7 +146,7 @@ void FicParser::processFib() {
                         break;
                     }
                 }
-            } catch (std::exception e) {
+            } catch (std::exception& e) {
                 std::clog << M_LOG_TAG << "Caught exception: " << e.what() << std::endl;
                 std::clog << M_LOG_TAG << "FIB size: " << +fibData.size() << std::endl;
                 std::clog << M_LOG_TAG << toHexString(fibData) << std::endl;

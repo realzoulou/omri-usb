@@ -60,7 +60,6 @@ void Fig_00_Ext_20::parseFigData(const std::vector<uint8_t>& figData) {
             bool sidFlag = (((*figIter & 0x02) >> 1) & 0xFF) != 0;
             bool eidFlag = (*figIter++ & 0x01) != 0;
             if(sidFlag) {
-                uint32_t sId;
                 if(!isDataService()) {
                     sId = static_cast<uint32_t>((*figIter++ & 0xFF) << 8 | (*figIter++ & 0xFF));
                 } else {

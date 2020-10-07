@@ -548,8 +548,8 @@ void EdiInput::ediDataInput(const std::vector<uint8_t> &data, int size) {
 
             //AR
             bool crcFlag = (*ediIter & 0x80 >> 7) != 0;
-            uint8_t majVer = static_cast<uint8_t>((*ediIter & 0x70 >> 4));
-            uint8_t minVer = static_cast<uint8_t>(*ediIter++ & 0x0F);
+            uint8_t majVer8 = static_cast<uint8_t>((*ediIter & 0x70 >> 4));
+            uint8_t minVer8 = static_cast<uint8_t>(*ediIter++ & 0x0F);
 
             uint8_t protoType = static_cast<uint8_t >(*ediIter++ & 0xFF);
 
@@ -568,8 +568,8 @@ void EdiInput::ediDataInput(const std::vector<uint8_t> &data, int size) {
                 if (tagName == '*ptr') {
                     tagLenBits = static_cast<uint32_t>(((*afIter++ & 0xFF) << 24) | ((*afIter++ & 0xFF) << 16) | ((*afIter++ & 0xFF) << 8) | (*afIter++ & 0xFF));
                     uint32_t protoName = static_cast<uint32_t>(((*afIter++ & 0xFF) << 24) | ((*afIter++ & 0xFF) << 16) | ((*afIter++ & 0xFF) << 8) | (*afIter++ & 0xFF));
-                    uint16_t majVer = static_cast<uint16_t>(((*afIter++ & 0xFF) << 8) | (*afIter++ & 0xFF));
-                    uint16_t minVer = static_cast<uint16_t>(((*afIter++ & 0xFF) << 8) | (*afIter++ & 0xFF));
+                    uint16_t maxVer16 = static_cast<uint16_t>(((*afIter++ & 0xFF) << 8) | (*afIter++ & 0xFF));
+                    uint16_t minVer16 = static_cast<uint16_t>(((*afIter++ & 0xFF) << 8) | (*afIter++ & 0xFF));
                 }
 
                 if (tagName == 'deti') {

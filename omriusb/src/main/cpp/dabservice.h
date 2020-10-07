@@ -61,7 +61,7 @@ public:
     virtual void setServiceLabel(const std::string& label);
     virtual void setServiceShortLabel(const std::string& shortLabel);
 
-    virtual void addServiceComponent(std::shared_ptr<DabServiceComponent> component);
+    virtual void addServiceComponent(const std::shared_ptr<DabServiceComponent>& component);
 
     virtual void setProgrammeTypeCode(uint8_t intPtyCode);
     virtual void setProgrammeTypeIsDynamic(bool dynamic);
