@@ -187,6 +187,8 @@ private:
     std::map<uint16_t, std::vector<Fig_00_Ext_21::FrequencyInformation>> m_frequencyInformationDb;
     std::map<uint16_t, std::vector<Fig_00_Ext_24::OtherEnsembleServiceInformation>> m_oeSrvInfoDb;
 
+    void dumpServiceLinkDb() const;
+    void dumpFrequencyDb() const;
 private:
     //Announcements
     std::map<uint8_t, Fig_00_Ext_19::AnnouncementSwitching> m_activeAnnouncements;

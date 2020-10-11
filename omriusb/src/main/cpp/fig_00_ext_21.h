@@ -21,6 +21,8 @@
 #ifndef FIG_00_EXT_21_H
 #define FIG_00_EXT_21_H
 
+#include <algorithm>
+
 #include "fig_00.h"
 
 /*
@@ -57,18 +59,67 @@ public:
     };
 
     enum DabEnsembleAdjacent {
-        GEOGRAPHICALLY_ADJACENT_UNKNOWN,
+        GEOGRAPHICALLY_ADJACENT_UNKNOWN = 0,
         GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED,
         GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE,
         GEOGRAPHICALLY_NOT_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED,
         GEOGRAPHICALLY_NOT_ADJACENT_TRANSMISSION_MODE_ONE
     };
 
+    union FrequencyListItemAdditionalInfo {
+        /*
+         * Note: dabEnsembleAdjacent is only valid for frequencyInformationType = DAB_ENSEMBLE,
+         */
+        DabEnsembleAdjacent dabEnsembleAdjacent;
+
+        /*
+         * Id field 2: this 8-bit field represents the AMSS Service Identifier (most significant byte) (see ETSI TS 102 386)
+         *   or
+         * Id field 2: this 8-bit field represents the DRM Service Identifier (most significant byte) (see ETSI ES 201 980)
+         */
+        uint8_t serviceIdentifierDrmAmss{0};
+    };
+
+    struct FrequencyListItem {
+
+        uint32_t frequencyKHz{0};
+
+        FrequencyListItemAdditionalInfo additionalInfo;
+
+        inline bool operator==(const FrequencyListItem& other) const {
+            bool ret = true;
+            ret &= other.frequencyKHz == frequencyKHz;
+            ret &= other.additionalInfo.dabEnsembleAdjacent == additionalInfo.dabEnsembleAdjacent;
+            // test also the other union type
+            ret &= other.additionalInfo.serviceIdentifierDrmAmss == additionalInfo.serviceIdentifierDrmAmss;
+            return ret;
+        }
+
+        inline bool operator!=(const FrequencyListItem& other) const { return !operator==(other); }
+
+        inline bool operator<(const FrequencyListItem& other) {
+            return other.frequencyKHz < frequencyKHz;
+        }
+    };
+
     struct FrequencyInformation {
-        std::vector<uint32_t> frequenciesKHz{0x00};
-        uint16_t id{0x00};
+
+        /*
+         * List of frequencies
+         */
+        std::vector<FrequencyListItem> frequencies;
+
+        /* frequencyInformationType is derived from R&M */
         FrequencyInformationType frequencyInformationType{FrequencyInformationType::FREQUENCY_INFORMATIONTYPE_UNKNOWN};
-        DabEnsembleAdjacent adjacent{DabEnsembleAdjacent::GEOGRAPHICALLY_ADJACENT_UNKNOWN};
+
+        /*
+         * Id field (Identifier field): this 16-bit field shall depend on the following R&M field, as follows:
+         * - If R&M = 0000 Id field = DAB EId (see clause 6.4)
+         * - If R&M = 0110 Id field = DRM Service Identifier (two least significant bytes) (see ETSI ES 201 980)
+         * - If R&M = 1000 Id field = RDS PI-code (see IEC 62106 [10])
+         * - If R&M = 1110 Id field = AMSS Service Identifier (two least significant bytes) (see ETSI TS 102 386)
+         */
+        uint16_t id{0};
 
         /*
          * If R&M = "0000" the continuity flag shall signal that:
@@ -85,27 +136,47 @@ public:
          */
         bool continuousOutput{false};
 
+        /*
+         * derived from O/E flag in FIG header
+         */
         bool isOtherEnsemble{false};
 
         /* The Change Event Indication (CEI) is signalled by the Length of Freq list field = 0 */
         bool isChangeEvent{false};
 
-        /* The database key comprises the OE and P/D flags (see clause 5.2.2.1) and the Rfa, Id field, and R&M field */
-        uint32_t freqDbKey{0x00};
+        /*
+         * derived from C/N flag in FIG header
+         */
+        bool isContinuation{false};
 
-        inline bool operator==(const FrequencyInformation& other) const {
-            return other.id == id &&
+        /* The database key comprises the OE and P/D flags (see clause 5.2.2.1) and the Rfa, Id field, and R&M field */
+        uint32_t freqDbKey{0};
+
+        // too much code for inlining
+        bool operator==(const FrequencyInformation& other) const {
+            return other.freqDbKey == freqDbKey &&
+                   other.id == id &&
+                   other.frequencyInformationType == frequencyInformationType &&
                    other.isOtherEnsemble == isOtherEnsemble &&
                    other.continuousOutput == continuousOutput &&
-                   other.frequencyInformationType == frequencyInformationType &&
-                   other.adjacent == adjacent &&
-                   containsAllFreqs(other.frequenciesKHz);
+                   other.isChangeEvent == other.isChangeEvent &&
+                   other.isContinuation == other.isContinuation &&
+                   containsAllFreqs(other.frequencies);
         }
 
         inline bool operator!=(const FrequencyInformation& other) const { return !operator==(other); }
 
-        inline bool containsAllFreqs(const std::vector<uint32_t>& otherFreqList) const {
-            return std::includes(frequenciesKHz.begin(), frequenciesKHz.end(), otherFreqList.begin(), otherFreqList.end());
+        // too much code for inlining
+        bool containsAllFreqs(const std::vector<FrequencyListItem>& otherFreqList) const {
+            if (otherFreqList.size() == frequencies.size()) {
+                for (const auto & otherItem : otherFreqList) {
+                    if (std::find(frequencies.cbegin(), frequencies.cend(), otherItem) == frequencies.cend()) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
         }
     };
 

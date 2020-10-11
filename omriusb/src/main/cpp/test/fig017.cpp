@@ -24,7 +24,7 @@
 
 #include <assert.h>
 
-#include "fig_00_ext_17.h"
+#include "../fig_00_ext_17.h"
 
 int main() {
 /* complete FIB:
@@ -58,5 +58,6 @@ int main() {
     assert(ptyVec[0].serviceId == 0xF215);
     assert(!ptyVec[0].isDynamic);
     assert(ptyVec[0].intPtyCode == 0);
+    std::cout << "PASS" << std::endl;
     return 0;
 }

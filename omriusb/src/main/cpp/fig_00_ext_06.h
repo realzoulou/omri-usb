@@ -73,7 +73,6 @@ public:
 
 
         inline bool operator==(const ServiceLinkList& other) const {
-            //return std::includes(frequenciesKHz.begin(), frequenciesKHz.end(), otherFreqList.begin(), otherFreqList.end());
             return idListQualifier == other.idListQualifier &&
                    std::includes(idList.begin(), idList.end(), other.idList.begin(), other.idList.end());
         }

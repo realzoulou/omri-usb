@@ -33,41 +33,58 @@ Fig_00_Ext_21::~Fig_00_Ext_21() {
 }
 
 void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
-    bool foundUnknownRangeModulation = false;
     auto figIter = figData.cbegin() +1;
     while(figIter < figData.cend()) {
         uint16_t rfa = static_cast<uint16_t>(((*figIter++ & 0xFF) << 3) | (((*figIter & 0xE0) >> 5) & 0xFF));
-        uint8_t lenFiList = static_cast<uint8_t>((*figIter++ & 0x1F) & 0xFF);
+        uint8_t lenFiListBytes = static_cast<uint8_t>((*figIter++ & 0x1F) & 0xFF);
 
-        std::vector<uint8_t> fiListData(figData.cbegin() + std::distance(figData.cbegin(), figIter), figData.cbegin() + std::distance(figData.cbegin(), figIter) + lenFiList);
+        if (lenFiListBytes == 0) {
+            return;
+        }
+        while (figIter < figData.cend()) {
 
-        figIter += lenFiList;
-
-        auto fiListIter = fiListData.cbegin();
-        while(fiListIter < fiListData.cend()) {
-            uint16_t idField = static_cast<uint16_t>(((*fiListIter++ & 0xFF) << 8) | (*fiListIter++ & 0xFF));
-
-            auto rangeModulation =  static_cast<uint8_t>((((*fiListIter & 0xF0) >> 4) & 0xFF));
-            bool contFlag = (((*fiListIter & 0x08) >> 3) & 0xFF) != 0;
-            uint8_t frqListEntryLen = static_cast<uint8_t>(((*fiListIter++ & 0x07) & 0xFF));
-
-            std::vector<uint8_t> freqListData(fiListData.cbegin() + std::distance(fiListData.cbegin(), fiListIter), fiListData.cbegin() + std::distance(fiListData.cbegin(), fiListIter) + frqListEntryLen);
-
-            fiListIter += frqListEntryLen;
+            auto idField = static_cast<uint16_t>(((*figIter++ & 0xFF) << 8) | (*figIter++ & 0xFF));
+            auto rangeModulation =  static_cast<uint8_t>((((*figIter & 0xF0) >> 4) & 0xFF));
+            bool contFlag = (((*figIter & 0x08) >> 3) & 0xFF) != 0;
+            auto frqListEntryLen = static_cast<uint8_t>(((*figIter++ & 0x07) & 0xFF));
 
             FrequencyInformation freqInfo;
+            freqInfo.id = idField;
             freqInfo.continuousOutput = contFlag;
             freqInfo.isOtherEnsemble = isOtherEnsemble();
-
-            if(frqListEntryLen == 0) {
+            freqInfo.frequencyInformationType =
+                    (rangeModulation == 0b0000) ? Fig_00_Ext_21::FrequencyInformationType::DAB_ENSEMBLE :
+                    (rangeModulation == 0b0110) ? Fig_00_Ext_21::FrequencyInformationType::DRM:
+                    (rangeModulation == 0b1000) ? Fig_00_Ext_21::FrequencyInformationType::FM_RDS:
+                    (rangeModulation == 0b1110) ? Fig_00_Ext_21::FrequencyInformationType::AMSS:
+                    Fig_00_Ext_21::FrequencyInformationType::FREQUENCY_INFORMATIONTYPE_UNKNOWN;
+            /* The database key comprises the OE and P/D flags (see clause 5.2.2.1) and the Rfa, Id field, and R&M field */
+            freqInfo.freqDbKey = static_cast<uint32_t>(
+                     (((isOtherEnsemble() && (isDataService())) & 0b1) << 31)  // 1 bit
+                    | ((rfa & 0b11111111111) << 20)  // 11 bit
+                    | ((idField & 0b1111111111111111) << 4)  // 16 bit
+                    | (rangeModulation & 0b1111)  // 4 bit
+            );
+            bool isDbStart{false};
+            if(frqListEntryLen > 0) {
+                if(!isNextConfiguration()) {
+                    //Start of Database
+                    isDbStart = true;
+                } else {
+                    freqInfo.isContinuation = true;
+                }
+            } else {
+                //Database Change Event Indication (CEI)
                 freqInfo.isChangeEvent = true;
             }
 
-            auto freqListIter = freqListData.cbegin();
-            while(freqListIter < freqListData.cend()) {
-                bool freqInfoValid = true;
+            while (frqListEntryLen > 0 && figIter < figData.cend()) {
+
+                FrequencyListItem freqInfoItem;
+
                 //R&M = 0000: DAB Ensemble
-                if(rangeModulation == 0) {
+                if (rangeModulation == 0) {
+
                     /*
                      * Control field: this 5-bit field shall be used to qualify the immediately following Freq (Frequency) a field.
                      * The following functions are defined (the remainder shall be reserved for future use of the Freq a field):
@@ -77,23 +94,30 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                      *  0 0 0 0 1: not geographically adjacent area, no transmission mode signalled;
                      *  0 0 0 1 1: not geographically adjacent area, transmission mode I.
                      */
-                    uint8_t controlField = static_cast<uint8_t>((((*freqListIter & 0xF8) >> 3) & 0xFF));
+                    auto controlField = static_cast<uint8_t>((((*figIter & 0xF8) >> 3) & 0xFF));
 
                     switch (controlField) {
-                        case 0:
-                            freqInfo.adjacent = DabEnsembleAdjacent::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED;
-                        case 1:
-                            freqInfo.adjacent = DabEnsembleAdjacent::GEOGRAPHICALLY_NOT_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED;
-                        case 2:
-                            freqInfo.adjacent = DabEnsembleAdjacent::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE;
-                        case 3:
-                            freqInfo.adjacent = DabEnsembleAdjacent::GEOGRAPHICALLY_NOT_ADJACENT_TRANSMISSION_MODE_ONE;
+                        case 0b00000: // geographically adjacent area, no transmission mode signalled
+                            freqInfoItem.additionalInfo.dabEnsembleAdjacent = DabEnsembleAdjacent::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED;
+                            break;
+                        case 0b00010: // geographically adjacent area, transmission mode I
+                            freqInfoItem.additionalInfo.dabEnsembleAdjacent = DabEnsembleAdjacent::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE;
+                            break;
+                        case 0b00001: // not geographically adjacent area, no transmission mode signalled
+                            freqInfoItem.additionalInfo.dabEnsembleAdjacent = DabEnsembleAdjacent::GEOGRAPHICALLY_NOT_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED;
+                            break;
+                        case 0b00011: // not geographically adjacent area, transmission mode I
+                            freqInfoItem.additionalInfo.dabEnsembleAdjacent = DabEnsembleAdjacent::GEOGRAPHICALLY_NOT_ADJACENT_TRANSMISSION_MODE_ONE;
+                            break;
+                        default: // the remainder shall be reserved for future use of the Freq a field
+                            freqInfoItem.additionalInfo.dabEnsembleAdjacent = DabEnsembleAdjacent::GEOGRAPHICALLY_ADJACENT_UNKNOWN;
+                            break;
                     };
                     /*
                      * Freq (Frequency) a: this 19-bit field, coded as an unsigned binary number, shall represent the
                      * carrier frequency associated with the alternative service source or other service.
                      *
-                     * The centre carrier frequency of the other ensemble is given by (in this expression, the decimal equivalent of freq a is used):
+                     * The centre carrier frequency of the other ensemble is given by (in this expression, the decimal equivalent of freqInfoItem a is used):
                      *  0 Hz + (Freq a × 16 kHz).
                      *
                      * The following values of the carrier frequency are defined:
@@ -104,19 +128,19 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                      *  ..............................................................
                      *   1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1    524 287    : 8 388 592 kHz.
                      */
-                    uint32_t frequency = static_cast<uint32_t>(((*freqListIter++ & 0x07) << 16) | ((*freqListIter++ & 0xFF) << 8) | ((*freqListIter++ & 0xFF)));
+                    uint32_t frequency = static_cast<uint32_t>(
+                            ((*figIter++ & 0x07) << 16) | ((*figIter++ & 0xFF) << 8) |
+                            ((*figIter++ & 0xFF)));
 
-                    freqInfo.frequencyInformationType = FrequencyInformationType::DAB_ENSEMBLE;
-                    freqInfo.frequenciesKHz.push_back(frequency*16);
-                    freqInfo.id = idField;
+                    freqInfoItem.frequencyKHz = frequency * 16;
                 } else
 
-                //R&M = 1000: FM with RDS
-                if(rangeModulation == 8) {
+                    //R&M = 1000: FM with RDS
+                if (rangeModulation == 8) {
                     /*
                      * Freq (Frequency) b: this 8-bit field, coded as an unsigned binary number, shall represent the carrier frequency associated with the other service:
                      *
-                     * The carrier frequency of the FM transmission is given by (in this expression, the decimal equivalent of freq b is used):
+                     * The carrier frequency of the FM transmission is given by (in this expression, the decimal equivalent of freqInfoItem b is used):
                      *  87,5 MHz + (Freq b × 100 kHz).
                      *
                      * The following values of the carrier frequency are defined (other values shall be reserved for future use):
@@ -124,27 +148,29 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                      * b7           b0   Decimal
                      * 0 0 0 0 0 0 0 0      0       : Not to be used;
                      * 0 0 0 0 0 0 0 1      1       : 87,6 MHz;
-                     * 0 0 0 0 0 0 0 1      1       : 87,6 MHz;
+                     * 0 0 0 0 0 0 0 1      1       : 87,7 MHz;
                      * ...............................................
                      * 1 1 0 0 1 1 0 0     204      : 107,9 MHz.
                      */
-                    uint8_t frequency = static_cast<uint8_t>((*freqListIter++ & 0xFF));
-                    std::cout << m_logTag << " FM Frequency " << +frequency << " : " << +(frequency*100 + 87500) << " kHz" << std::endl;
-
-                    freqInfo.frequencyInformationType = FrequencyInformationType::FM_RDS;
-                    freqInfo.frequenciesKHz.push_back(frequency*100 + 87500);
+                    uint8_t frequency = static_cast<uint8_t>((*figIter++ & 0xFF));
+                    //std::cout << m_logTag << " FM Frequency " << +frequency << " : "
+                    //          << +(frequency * 100 + 87500) << " kHz" << std::endl;
+                    freqInfoItem.frequencyKHz = frequency * 100 + 87500;
+                    freqInfoItem.additionalInfo.dabEnsembleAdjacent = GEOGRAPHICALLY_ADJACENT_UNKNOWN;
+                    freqInfoItem.additionalInfo.serviceIdentifierDrmAmss = 0;
                 } else
 
-                //R&M = 0110: DRM
-                //R&M = 1110: AMSS
-                if(rangeModulation == 14 || rangeModulation == 6) {
+                    //R&M = 0110: DRM
+                    //R&M = 1110: AMSS
+                if (rangeModulation == 14 || rangeModulation == 6) {
                     /*
                      * Id field 2: this 8-bit field represents the AMSS Service Identifier (most significant byte) (see ETSI TS 102 386)
                      */
                     /*
                      *  Id field 2: this 8-bit field represents the DRM Service Identifier (most significant byte) (see ETSI ES 201 980).
                      */
-                    uint8_t idField2 = static_cast<uint8_t>(*freqListIter++ & 0xFF);
+                    uint8_t idField2 = static_cast<uint8_t>(*figIter++ & 0xFF);
+                    freqInfoItem.additionalInfo.serviceIdentifierDrmAmss = idField2;
 
                     /*
                      *  Freq (Frequency) c: this 16-bit field, consists of the following fields:
@@ -153,7 +179,7 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                     /*
                      * Rfu: this 1 bit field shall be reserved for future use of the frequency field and shall be set to zero until defined.
                      */
-                    bool rfu = (((*freqListIter & 0x80) >> 7) & 0xFF) != 0;
+                    bool rfu = (((*figIter & 0x80) >> 7) & 0xFF) != 0;
 
                     /*
                      * frequency: this 15-bit field, coded as an unsigned binary number, shall represent the centre frequency associated with the other service in kHz
@@ -167,16 +193,10 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                      * ........................................................
                      * 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1   32 767   : 32 767 kHz.
                      */
-                    bool multiplier = *freqListIter >> 7U != 0;
-                    uint16_t frequency = static_cast<uint8_t>(((*freqListIter++ & 0x7F) << 8) | ((*freqListIter++ & 0xFF)));
-                    freqInfo.frequenciesKHz.push_back(multiplier ? frequency*10 : frequency);
-                    if(rangeModulation == 6) {
-                        freqInfo.frequencyInformationType = FrequencyInformationType::DRM;
-                    } else {
-                        freqInfo.frequencyInformationType = FrequencyInformationType::AMSS;
-                    }
-
-                    freqInfo.id = idField2 << 8 | idField;
+                    bool multiplier = *figIter >> 7U != 0;
+                    uint16_t frequency = static_cast<uint8_t>(((*figIter++ & 0x7F) << 8) |
+                                                              ((*figIter++ & 0xFF)));
+                    freqInfoItem.frequencyKHz = (multiplier ? frequency * 10 : frequency);
                 } else {
                     // ETSI 300 401 v1.4.1 still had
                     // rangeModulation = 10
@@ -184,20 +204,14 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                     // rangeModulation = 12
                     // 1 1 0 0:    AM (MW in 5 kHz steps & SW);
 
-                    freqInfoValid = false;
-                    // print this message only once per Fig_00_Ext_21::parseFigData
-                    if (!foundUnknownRangeModulation) {
-                        std::cout << m_logTag << " unknown R&M=" << +rangeModulation << std::endl;
-                        foundUnknownRangeModulation = true;
-                    }
+                    // ignored
+                    break;
                 }
 
-                if (freqInfoValid) {
-                    m_frequencyInformations.push_back(freqInfo);
-                } else {
-                    break; // while freqListIter
-                }
+                freqInfo.frequencies.push_back(freqInfoItem);
             }
+
+            m_frequencyInformations.push_back(freqInfo);
         }
     }
 }

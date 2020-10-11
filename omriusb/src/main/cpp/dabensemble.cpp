@@ -22,6 +22,7 @@
 
 #include <functional>
 #include <iostream>
+#include <sstream>
 
 #include "callbackhandle.h"
 #include "timer.h"
@@ -211,19 +212,19 @@ void DabEnsemble::fig00_00_input(const Fig_00_Ext_00& fig00) {
     m_cifCntLow = fig00.getCifCountLow();
 
     if((m_cifCntHigh != m_cifCntHighNext || m_cifCntLow != m_cifCntLowNext) && !m_isInitializing) {
-        std::cout << m_logTag << " CIF Counter interrupted" << std::endl;
-        std::cout << m_logTag << " FIG 00 Ext 00 CifCnt    : " << +m_cifCntHigh << ":" << +m_cifCntLow << std::endl;
-        std::cout << m_logTag << " FIG 00 Ext 00 CifCntNext: " << +m_cifCntHighNext << ":" << +m_cifCntLowNext << std::endl;
+        //std::cout << m_logTag << " CIF Counter interrupted" << std::endl;
+        //std::cout << m_logTag << " FIG 00 Ext 00 CifCnt    : " << +m_cifCntHigh << ":" << +m_cifCntLow << std::endl;
+        //std::cout << m_logTag << " FIG 00 Ext 00 CifCntNext: " << +m_cifCntHighNext << ":" << +m_cifCntLowNext << std::endl;
     }
 
     m_cifCntHighNext = static_cast<uint8_t>((m_cifCntLowNext >= 246) ? ((m_cifCntHigh+1) % 20) : m_cifCntHigh);
     m_cifCntLowNext = static_cast<uint8_t>((m_cifCntLow + 4) % 250);
 
     if(fig00.getChangeFlag() != Fig_00_Ext_00::NO_CHANGE) {
-        std::cout << m_logTag << " Fig_00_Ext_00 ChangeFlag: " << +fig00.getChangeFlag() << " OccChange: " << +fig00.getOccurenceChange() << std::endl;
+        //std::cout << m_logTag << " Fig_00_Ext_00 ChangeFlag: " << +fig00.getChangeFlag() << " OccChange: " << +fig00.getOccurenceChange() << std::endl;
     }
     if(fig00.isNextConfiguration()) {
-        std::cout << m_logTag << " Fig_00_Ext_00 nextConfiguration" << std::endl;
+        //std::cout << m_logTag << " Fig_00_Ext_00 nextConfiguration" << std::endl;
     }
 
     m_isInitializing = false;
@@ -358,10 +359,8 @@ void DabEnsemble::fig00_03_input(const Fig_00_Ext_03& fig03) {
 //TODO service linking
 void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
     //std::cout << m_logTag << " LinkDB Received SLI" << std::endl;
-
-    /*
+    bool dbHasChanged = false;
     for(const auto& linkInfo : fig06.getServiceLinkingInformations()) {
-        //auto linkDbIter = m_serviceLinkDb.find(linkInfo.linkageSetNumber);
         auto linkDbIter = m_serviceLinkDb.find(linkInfo.linkDbKey);
         if(linkDbIter != m_serviceLinkDb.cend()) {
             //Linkageset already in Map
@@ -370,8 +369,8 @@ void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
                     for(const auto& srvLink : linkInfo.serviceLinks) {
                         if(!(*linkDbIter).second.containsServiceLinkList(srvLink)) {
                             (*linkDbIter).second.serviceLinks.push_back(srvLink);
-
-                            std::cout << m_logTag << " LinkDB update " << (linkInfo.isSoftLink ? "SoftLink " : "HardLink ") << "LinkageSetNumber: 0x" << std::hex << +linkInfo.linkageSetNumber << " with KeyServiceID: 0x" << +(*linkDbIter).second.keyServiceId << std::dec <<
+                            dbHasChanged = true;
+                            /*std::cout << m_logTag << " LinkDB update " << (linkInfo.isSoftLink ? "SoftLink " : "HardLink ") << "LinkageSetNumber: 0x" << std::hex << +linkInfo.linkageSetNumber << " with KeyServiceID: 0x" << +(*linkDbIter).second.keyServiceId << std::dec <<
                                 " links to " << "\n\t";
                                 for(const auto& sll : (*linkDbIter).second.serviceLinks) {
                                     std::cout << +sll.idList.size() << (sll.idListQualifier == 0 ? " DAB ServiceIds: " : " FM RDS PIs: ") << "\n\t\t";
@@ -380,21 +379,21 @@ void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
                                     }
                                     std::cout << std::dec;
                                 }
-                                std::cout << std::endl;
+                                std::cout << std::endl;*/
                         }
                     }
                 }
             } else {
                 if((*linkDbIter).second.isSoftLink != linkInfo.isSoftLink) {
-                    std::cout << m_logTag << " LinkDB ChangeEvent for LinkNum: " << (*linkDbIter).second.linkageSetNumber << " with KeyId 0x" << std::hex << +(*linkDbIter).second.keyServiceId << std::dec << " was " << ((*linkDbIter).second.isSoftLink ? "a SoftLink " : "a HardLink ") << "and is now" << (linkInfo.isSoftLink ? " a SoftLink" : " a HardLink") << std::endl;
-
+                    //std::cout << m_logTag << " LinkDB ChangeEvent for LinkNum: " << (*linkDbIter).second.linkageSetNumber << " with KeyId 0x" << std::hex << +(*linkDbIter).second.keyServiceId << std::dec << " was " << ((*linkDbIter).second.isSoftLink ? "a SoftLink " : "a HardLink ") << "and is now" << (linkInfo.isSoftLink ? " a SoftLink" : " a HardLink") << std::endl;
                     (*linkDbIter).second.isSoftLink = linkInfo.isSoftLink;
+                    dbHasChanged = true;
                 }
 
                 if((*linkDbIter).second.linkageActive != linkInfo.linkageActive) {
-                    std::cout << m_logTag << " LinkDB ChangeEvent for LinkNum: " << (*linkDbIter).second.linkageSetNumber << " with KeyId 0x" << std::hex << +(*linkDbIter).second.keyServiceId << std::dec << " LinkageActuator changed from " << ((*linkDbIter).second.linkageActive ? "active " : "inactive ") << "to " << (linkInfo.linkageActive ? "active" : "inactive") << std::endl;
-
+                    //std::cout << m_logTag << " LinkDB ChangeEvent for LinkNum: " << (*linkDbIter).second.linkageSetNumber << " with KeyId 0x" << std::hex << +(*linkDbIter).second.keyServiceId << std::dec << " LinkageActuator changed from " << ((*linkDbIter).second.linkageActive ? "active " : "inactive ") << "to " << (linkInfo.linkageActive ? "active" : "inactive") << std::endl;
                     (*linkDbIter).second.linkageActive = linkInfo.linkageActive;
+                    dbHasChanged = true;
                 }
             }
         } else {
@@ -402,8 +401,8 @@ void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
             if(!linkInfo.isContinuation && !linkInfo.isChangeEvent) {
                 //std::cout << m_logTag << " LinkDB adding new linkageSet with LinkDbKey: " << std::hex << +linkInfo.linkDbKey << " and LinkageNumber: " << +linkInfo.linkageSetNumber << " KeySeviceID: 0x" << +linkInfo.keyServiceId << std::dec << std::endl;
                 m_serviceLinkDb.insert(std::make_pair(linkInfo.linkDbKey, linkInfo));
-
-                std::cout << m_logTag << " LinkDB adding " << (linkInfo.isSoftLink ? "SoftLink " : "HardLink ") << "LinkageSetNumber: 0x" << std::hex << +linkInfo.linkageSetNumber << " with KeyServiceID: 0x" << +linkInfo.keyServiceId << std::dec <<
+                dbHasChanged = true;
+                /*std::cout << m_logTag << " LinkDB adding " << (linkInfo.isSoftLink ? "SoftLink " : "HardLink ") << "LinkageSetNumber: 0x" << std::hex << +linkInfo.linkageSetNumber << " with KeyServiceID: 0x" << +linkInfo.keyServiceId << std::dec <<
                           " links to " << "\n\t";
                 for(const auto& sll : linkInfo.serviceLinks) {
                     std::cout << +sll.idList.size() <<(sll.idListQualifier == 0 ? " DAB ServiceIds: " : " FM RDS PIs: ") << "\n\t\t";
@@ -412,34 +411,162 @@ void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
                     }
                     std::cout << std::dec;
                 }
-                std::cout << std::endl;
+                std::cout << std::endl;*/
             }
         }
     }
-    */
+    if (dbHasChanged) {
+        dumpServiceLinkDb();
+    }
+}
+
+void DabEnsemble::dumpServiceLinkDb() const {
+    std::cout << m_logTag << "ServiceLinkDb entries: " << +m_serviceLinkDb.size() << std::endl;
+    unsigned cnt = 0;
+    for (auto const & iter : m_serviceLinkDb) {
+        cnt++;
+        std::cout << m_logTag << +cnt
+                  << "|linkDbKey:0x" << std::hex << +iter.second.linkDbKey << std::dec
+                  << ",soft:" << +iter.second.isSoftLink
+                  << ",keyServiceId:0x" << std::hex << +iter.second.keyServiceId << std::dec
+                  << ",setNr:0x" << std::hex << +iter.second.linkageSetNumber << std::dec
+                  << ",isIls:" << +iter.second.isIls
+                  << ",isData:" << +iter.second.isDataService
+                  << ",links:" << +iter.second.serviceLinks.size() << std::endl;
+        for (auto const & i : iter.second.serviceLinks) {
+            std::string qualifier;
+            switch (i.idListQualifier) {
+                case Fig_00_Ext_06::DAB_SID:
+                    qualifier = "DAB SId";
+                    break;
+                case Fig_00_Ext_06::RDS_PI:
+                    qualifier = "RDS PI";
+                    break;
+                case Fig_00_Ext_06::DRM_AMSS_SID:
+                    qualifier = "DRM_AMSS SId";
+                    break;
+                case Fig_00_Ext_06::RFU:
+                    qualifier = "RFU";
+                    break;
+                default:
+                    qualifier = "???";
+                    break;
+            }
+            std::stringstream logString;
+            logString << m_logTag << " |- " << qualifier << ":";
+            for (auto j : i.idList) {
+                logString << " 0x" << std::hex << +j << std::dec;
+            }
+            std::cout << logString.str() << std::endl;
+        }
+    }
 }
 
 void DabEnsemble::fig00_21_input(const Fig_00_Ext_21& fig21) {
-    /*
-    std::cout << m_logTag << " FreqInfoDB received FrequencyInformation for OE: " << std::boolalpha << fig21.isOtherEnsemble() << std::noboolalpha << std::endl;
-
+    //std::cout << m_logTag << " FreqInfoDB received FrequencyInformation for OE: " << std::boolalpha << fig21.isOtherEnsemble() << std::noboolalpha << std::endl;
+    bool hasChanged = false;
     for(const auto& freqInfo : fig21.getFrequencyInformations()) {
-        auto freqInfoDbIter = m_frequencyInformationDb.find(freqInfo.id);
+        auto freqInfoDbIter = m_frequencyInformationDb.find(freqInfo.freqDbKey);
         if(freqInfoDbIter != m_frequencyInformationDb.cend()) {
-            if(std::find((*freqInfoDbIter).second.begin(), (*freqInfoDbIter).second.end(), freqInfo) == (*freqInfoDbIter).second.end()) {
-                std::cout << m_logTag << " FreqInfoDB adding FreqInfo entry for ID: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
-                (*freqInfoDbIter).second.push_back(freqInfo);
+            // already in db
+            if (!freqInfo.isChangeEvent) {
+                if(freqInfo.isContinuation) {
+                    if (std::find((*freqInfoDbIter).second.begin(), (*freqInfoDbIter).second.end(),
+                                  freqInfo) == (*freqInfoDbIter).second.end()) {
+                        //std::cout << m_logTag << " FreqInfoDB adding FreqInfo entry for ID: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
+                        (*freqInfoDbIter).second.push_back(freqInfo);
+                        hasChanged = true;
+                    } else {
+                        //std::cout << m_logTag << " FreqInfoDB already contains entry for ID: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
+                    }
+                }
             } else {
-                std::cout << m_logTag << " FreqInfoDB already contains entry for ID: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
+                // change event indication CEI
+                // TODO what to change here?
+                std::clog << m_logTag << " FIG 0/21 CEI not handled" << std::endl;
             }
         } else {
-            //add new entry to db
-            //TODO isCEI change Event Indication?
-            std::cout << m_logTag << " FreqInfoDB adding new entry for ID: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
-            m_frequencyInformationDb.insert(std::make_pair(freqInfo.id, std::vector<Fig_00_Ext_21::FrequencyInformation>{freqInfo}));
+            // not yet in map
+            if(!freqInfo.isContinuation && !freqInfo.isChangeEvent) {
+                //add new entry to db
+                //std::cout << m_logTag << " FreqInfoDB adding new entry for ID: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
+                m_frequencyInformationDb.insert(std::make_pair(freqInfo.freqDbKey,std::vector<Fig_00_Ext_21::FrequencyInformation>{freqInfo}));
+                hasChanged = true;
+            } else {
+                /*std::cout << m_logTag << " FreqInfoDB not adding ID: 0x" << std::hex << +freqInfo.id << std::dec
+                    << " isContinuation:" << std::boolalpha << freqInfo.isContinuation << ", isChangeEvent:" << freqInfo.isChangeEvent << std::noboolalpha
+                    <<  std::endl;*/
+            }
         }
     }
-    */
+    if (hasChanged) {
+        dumpFrequencyDb();
+    }
+}
+
+void DabEnsemble::dumpFrequencyDb() const {
+    std::cout << m_logTag << " FreqInfoDb entries: " << +m_frequencyInformationDb.size() << std::endl;
+    unsigned cnt = 0;
+    for (auto const & iter : m_frequencyInformationDb) {
+        std::stringstream logString;
+        unsigned cnt2 = 0;
+        cnt++;
+        std::string type;
+        for (auto const & v : iter.second) {
+            cnt2++;
+            switch (v.frequencyInformationType) {
+                case Fig_00_Ext_21::DAB_ENSEMBLE:
+                    type = "DAB Ensemble";
+                    break;
+                case Fig_00_Ext_21::FM_RDS:
+                    type = "FM RDS";
+                    break;
+                case Fig_00_Ext_21::AMSS:
+                    type = "AMSS";
+                    break;
+                case Fig_00_Ext_21::DRM:
+                    type = "DRM";
+                    break;
+                default:
+                    type = "???";
+                    break;
+            }
+
+            logString << m_logTag << " " << +cnt << ":" << +cnt2
+                      << "|freqDbKey:0x" << std::hex << +v.freqDbKey << std::dec
+                      << ",id:0x" << std::hex << +v.id << std::dec
+                      << ",oe:" << std::boolalpha << v.isOtherEnsemble << std::noboolalpha
+                      << ",type:" << type
+                      << ",frequencies(" << +v.frequencies.size() << ")";
+            for (auto const & freqInfo : v.frequencies) {
+                std::string adjacent;
+                if (v.frequencyInformationType == Fig_00_Ext_21::DAB_ENSEMBLE) {
+                    switch (freqInfo.additionalInfo.dabEnsembleAdjacent) {
+                        case Fig_00_Ext_21::DabEnsembleAdjacent::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED:
+                            adjacent = "(geoAdjModeNotSignld)";
+                            break;
+                        case Fig_00_Ext_21::DabEnsembleAdjacent::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE:
+                            adjacent = "(geoAdjModeOne)";
+                            break;
+                        case Fig_00_Ext_21::DabEnsembleAdjacent::GEOGRAPHICALLY_NOT_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED:
+                            adjacent = "(NotAdjModeNotSignld)";
+                            break;
+                        case Fig_00_Ext_21::DabEnsembleAdjacent::GEOGRAPHICALLY_NOT_ADJACENT_TRANSMISSION_MODE_ONE:
+                            adjacent = "(NotAdjModeOne)";
+                            break;
+                        case Fig_00_Ext_21::DabEnsembleAdjacent::GEOGRAPHICALLY_ADJACENT_UNKNOWN:
+                            adjacent = "(geoAdjUnknown)";
+                            break;
+                        default:
+                            adjacent = "???";
+                            break;
+                    }
+                }
+                logString << " " << +freqInfo.frequencyKHz << adjacent;
+            }
+            std::cout << logString.str() << std::endl;
+        }
+    }
 }
 
 void DabEnsemble::fig00_24_input(const Fig_00_Ext_24& fig24) {
@@ -555,26 +682,26 @@ void DabEnsemble::fig00_18_input(const Fig_00_Ext_18& fig18) {
 void DabEnsemble::fig00_19_input(const Fig_00_Ext_19& fig19) {
     for(const auto& aSwitched : fig19.getSwitchedAnnouncements()) {
         if(aSwitched.isNewlyIntroduced) {
-            std::cout << "[Fig_00_Ext_19]" << " Announcement for ClusterId: 0x" << std::hex << +aSwitched.clusterId << std::dec << " received. SwitchSize: " << +aSwitched.announcementsSwitched.size() << std::endl;
+            //std::cout << m_logTag << " Announcement for ClusterId: 0x" << std::hex << +aSwitched.clusterId << std::dec << " received. SwitchSize: " << +aSwitched.announcementsSwitched.size() << std::endl;
         }
         auto switchedIter = m_activeAnnouncements.find(aSwitched.clusterId);
         if(switchedIter != m_activeAnnouncements.cend()) {
-            std::cout << "[Fig_00_Ext_19]" << " Announcement for ClusterId: 0x" << std::hex << +aSwitched.clusterId << std::dec << " already in map, newly: " <<
-            std::boolalpha << aSwitched.isNewlyIntroduced << std::noboolalpha << ", AnnounceSize: " << +aSwitched.announcementsSwitched.size() << std::endl;
+            //std::cout << m_logTag << " Announcement for ClusterId: 0x" << std::hex << +aSwitched.clusterId << std::dec << " already in map, newly: " <<
+            //std::boolalpha << aSwitched.isNewlyIntroduced << std::noboolalpha << ", AnnounceSize: " << +aSwitched.announcementsSwitched.size() << std::endl;
             //if(!aSwitched.isNewlyIntroduced) {
             //Announcement in list, switched-list is empty....announcement ended
             if(aSwitched.announcementsSwitched.empty()) {
-                std::cout << "[Fig_00_Ext_19]" << " Announcement for ClusterId: 0x" << std::hex << +(*switchedIter).second.clusterId << std::dec << " ended, removing from map" << std::endl;
+                //std::cout << m_logTag << " Announcement for ClusterId: 0x" << std::hex << +(*switchedIter).second.clusterId << std::dec << " ended, removing from map" << std::endl;
                 m_activeAnnouncements.erase(switchedIter);
             }
             //}
         } else {
             if(aSwitched.isNewlyIntroduced) {
                 if(!aSwitched.announcementsSwitched.empty()) {
-                    std::cout << "[Fig_00_Ext_19]" << " Adding newlyIntroduced Announcement with ClusterId: 0x" << std::hex << +aSwitched.clusterId  << std::dec << std::endl;
+                    //std::cout << m_logTag << " Adding newlyIntroduced Announcement with ClusterId: 0x" << std::hex << +aSwitched.clusterId  << std::dec << std::endl;
                     m_activeAnnouncements.insert(std::make_pair(aSwitched.clusterId, aSwitched));
                 } else {
-                    std::cout << "[Fig_00_Ext_19]" << " Not adding newlyIntroduced Announcement with ClusterId: 0x" << std::hex << +aSwitched.clusterId  << std::dec << " , switched is empty" << std::endl;
+                    //std::cout << m_logTag << " Not adding newlyIntroduced Announcement with ClusterId: 0x" << std::hex << +aSwitched.clusterId  << std::dec << " , switched is empty" << std::endl;
                 }
             }
         }
@@ -835,3 +962,4 @@ std::shared_ptr<std::function<void()>> DabEnsemble::registerEnsembleCollectDoneC
 std::shared_ptr<DabEnsemble::Date_Time_Callback> DabEnsemble::registerDateTimeCallback(DabEnsemble::Date_Time_Callback cb) {
     return m_dateAndTimeDispatcher.add(cb);
 }
+
