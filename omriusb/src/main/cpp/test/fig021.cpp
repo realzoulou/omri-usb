@@ -155,11 +155,120 @@ void testDab() {
     assert(fi.freqDbKey == expFreqDbKey);
 }
 
+void testDRM() {
+    const std::vector <uint8_t> fig = {
+            0x15, 0x00, 0x17, 0x11, 0xF7, 0x63, 0xDE, 0xBE, 0xEF
+    };
+
+/* Following is an artificial, manually compiled message!
+
+   1   5   0   0   1   7   1   1   F   7   6   3   D   E   B   E   E   F
+000101010000000000010111000100011111011101100011110111101011111011101111
+000
+0 C/N
+ 0 OE
+  0 P/D
+   10101 Ext=21
+        00000000000 Rfa
+                   10111 Length of FI list = 24 bytes
+                        0001000111110111 Id field = 0x11F7
+                                        0110 R&M = 0 = DRM
+                                            0 Continuity flag = false
+                                             011 Length of Freq. list = 3 bytes
+                                                11011110 Id field 2 = 0xDE
+                                                        1 Multiplier => multiply with 10 kHz
+                                                          011111011101111 Frequency = 16111 x 10 kHz => 161110 kHz
+
+  // The database key comprises the OE and P/D flags (see clause 5.2.2.1) and the Rfa, Id field, and R&M field
+    00000000000000010001111101110000 = 0x11F70
+    0 OE
+    0 P/D
+     00000000000 Rfa
+                0001000111110111 Id field = 0x11F7
+                                0110 R&M = 0 = DRM
+*/
+    Fig_00_Ext_21 fig_0_21(fig);
+    assert(fig_0_21.isDataService() == false);
+    const auto &freqInfo = fig_0_21.getFrequencyInformations();
+    assert(freqInfo.size() == 1);
+    const auto &fi = freqInfo[0];
+    assert(fi.isContinuation == false);
+    assert(fi.isOtherEnsemble == false);
+    assert(fi.continuousOutput == false);
+    assert(fi.isChangeEvent == false);
+    assert(fi.id == 0x11F7);
+    assert(fi.frequencyInformationType == Fig_00_Ext_21::DRM);
+    assert(fi.frequencies.size() == 1);
+    assert(fi.frequencies[0].additionalInfo.serviceIdentifierDrmAmss == 0xDE);
+    if (fi.frequencies[0].frequencyKHz != 161110) {
+        std::cerr << "frequencyKHz was " << +fi.frequencies[0].frequencyKHz << std::endl;
+    }
+    assert(fi.frequencies[0].frequencyKHz == 161110);
+    uint32_t expFreqDbKey = 0x00011F76;
+    if (expFreqDbKey != fi.freqDbKey) {
+        std::cerr << "freqDbKey was 0x" << std::hex << +fi.freqDbKey
+                  << ", expected 0x" << +expFreqDbKey << std::dec << std::endl;
+    }
+    assert(fi.freqDbKey == expFreqDbKey);
+}
+
+void testCEI() {
+    const std::vector <uint8_t> fig = {
+            0x15, 0x00, 0x0C, 0x11, 0xF7, 0x00
+    };
+/*
+   1   5   0   0   0   C   1   1   F   7   0   0
+000101010000000000001100000100011111011100000000
+000
+0 C/N
+ 0 OE
+  0 P/D
+   10101 Ext=21
+        00000000000 Rfa
+                   01100 Length of FI list = 12 bytes
+                        0001000111110111 Id field = 0x11F7
+                                        0000 R&M = 0 = DAB Ensemble
+                                            0 Continuity flag = false
+                                             000 Length of Freq. list = 0 bytes => Change Event Indication CEI
+
+  // The database key comprises the OE and P/D flags (see clause 5.2.2.1) and the Rfa, Id field, and R&M field
+    00000000000000010001111101110000 = 0x11F70
+    0 OE
+    0 P/D
+     00000000000 Rfa
+                0001000111110111 Id field = 0x11F7
+                                0000 R&M = 0 = DAB Ensemble
+
+*/
+    Fig_00_Ext_21 fig_0_21(fig);
+    assert(fig_0_21.isDataService() == false);
+    const auto &freqInfo = fig_0_21.getFrequencyInformations();
+    assert(freqInfo.size() == 1);
+    const auto &fi = freqInfo[0];
+    assert(fi.isContinuation == false);
+    assert(fi.isOtherEnsemble == false);
+    assert(fi.continuousOutput == false);
+    assert(fi.isChangeEvent == true);
+    assert(fi.id == 0x11F7);
+    assert(fi.frequencyInformationType == Fig_00_Ext_21::DAB_ENSEMBLE);
+    assert(fi.frequencies.size() == 0);
+    uint32_t expFreqDbKey = 0x00011F70;
+    if (expFreqDbKey != fi.freqDbKey) {
+        std::cerr << "freqDbKey was 0x" << std::hex << +fi.freqDbKey
+                  << ", expected 0x" << +expFreqDbKey << std::dec << std::endl;
+    }
+    assert(fi.freqDbKey == expFreqDbKey);
+}
+
 int main() {
 
     testFmRds();
 
     testDab();
+
+    testDRM();
+
+    testCEI();
 
     std::cout << "PASS" << std::endl;
     return 0;

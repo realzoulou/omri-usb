@@ -176,27 +176,59 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                      *  Freq (Frequency) c: this 16-bit field, consists of the following fields:
                      */
 
-                    /*
-                     * Rfu: this 1 bit field shall be reserved for future use of the frequency field and shall be set to zero until defined.
-                     */
-                    bool rfu = (((*figIter & 0x80) >> 7) & 0xFF) != 0;
+                    if (rangeModulation == 0b0110) { // DRM
+                        /*
+                         *  multiplier: this 1-bit field shall indicate the frequency multiplier as follows:
+                         *     0: 1 kHz (the Freq c field can indicate from 0 to 32 767 kHz in 1 kHz steps;
+                         *        indicated transmission has robustness mode A, B, C or D).
+                         *     1: 10 kHz (the Freq c field can indicate from 0 to 327 670 kHz in 10 kHz steps;
+                         *        indicated transmission has robustness mode E).
+                         */
+                        bool multiplier = (((*figIter & 0x80) >> 7) & 0x01) != 0;
 
-                    /*
-                     * frequency: this 15-bit field, coded as an unsigned binary number, shall represent the centre frequency associated with the other service in kHz
-                     *
-                     * The following values of the reference frequency are defined:
-                     *
-                     * b14                        b0  Decimal
-                     * 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0     0      : Not to be used;
-                     * 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1     1      : 1 kHz;
-                     * 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1     1      : 1 kHz;
-                     * ........................................................
-                     * 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1   32 767   : 32 767 kHz.
-                     */
-                    bool multiplier = *figIter >> 7U != 0;
-                    uint16_t frequency = static_cast<uint8_t>(((*figIter++ & 0x7F) << 8) |
-                                                              ((*figIter++ & 0xFF)));
-                    freqInfoItem.frequencyKHz = (multiplier ? frequency * 10 : frequency);
+                        /*
+                         * frequency: this 15-bit field, coded as an unsigned binary number, shall represent the
+                         * reference frequency associated with the other service in multiples of 1 or 10 kHz,
+                         * depending on the value of the multiplier field.
+
+                          The following values of the reference frequency are defined:
+                         *
+                         * b14                         b0 : Decimal : multiplier = 0 : multiplier = 1
+                         * 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0  :   0     : Not to be used : Not to be used;
+                         * 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1  :   1     : 1 kHz;         : 10 kHz;
+                         * 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0  :   2     : 2 kHz;         : 20 kHz;
+                         *        "       "        "
+                         * 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1  :  32 767 : 32 767 kHz.    : 327 670 kHz.
+                         */
+                         uint16_t frequency = static_cast<uint16_t>(((*figIter++ & 0x7F) << 8) |
+                                                                     (*figIter++ & 0xFF));
+                         //std::cout << m_logTag << " DRM Frequency multiplier " << +multiplier
+                         //   << ", Frequency " <<  +frequency << " : "
+                         //   << (multiplier ? frequency * 10 : frequency) << " kHz" << std::endl;
+                         freqInfoItem.frequencyKHz = (multiplier ? frequency * 10 : frequency);
+
+                    }
+                    else { // AMSS
+                        /*
+                         * Rfu: this 1 bit field shall be reserved for future use of the frequency field and shall be set to zero until defined.
+                         */
+                        bool rfu = (((*figIter & 0x80) >> 7) & 0x01) != 0;
+
+                        /*
+                         * frequency: this 15-bit field, coded as an unsigned binary number, shall represent the centre frequency associated with the other service in kHz
+                         *
+                         * The following values of the reference frequency are defined:
+                         *
+                         * b14                        b0  Decimal
+                         * 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0     0      : Not to be used;
+                         * 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1     1      : 1 kHz;
+                         * 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1     1      : 1 kHz;
+                         * ........................................................
+                         * 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1   32 767   : 32 767 kHz.
+                         */
+                        freqInfoItem.frequencyKHz = static_cast<uint16_t>(((*figIter++ & 0x7F) << 8) |
+                                                                           (*figIter++ & 0xFF));
+                    }
                 } else {
                     // ETSI 300 401 v1.4.1 still had
                     // rangeModulation = 10

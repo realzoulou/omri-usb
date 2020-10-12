@@ -466,7 +466,7 @@ void DabEnsemble::fig00_21_input(const Fig_00_Ext_21& fig21) {
     //std::cout << m_logTag << " FreqInfoDB received FrequencyInformation for OE: " << std::boolalpha << fig21.isOtherEnsemble() << std::noboolalpha << std::endl;
     bool hasChanged = false;
     for(const auto& freqInfo : fig21.getFrequencyInformations()) {
-        auto freqInfoDbIter = m_frequencyInformationDb.find(freqInfo.freqDbKey);
+        auto freqInfoDbIter = m_frequencyInformationDb.find(freqInfo.freqDbKey); // TODO better use freqInfo.id as key ???
         if(freqInfoDbIter != m_frequencyInformationDb.cend()) {
             // already in db
             if (!freqInfo.isChangeEvent) {
