@@ -21,6 +21,9 @@
 #ifndef FIG_00_EXT_24_H
 #define FIG_00_EXT_24_H
 
+#include <algorithm>
+#include <cstdint>
+
 #include "fig_00.h"
 
 /*
@@ -47,11 +50,63 @@ class Fig_00_Ext_24 : public Fig_00 {
 
 public:
     struct OtherEnsembleServiceInformation {
-        uint32_t serviceId{0x00};
+        /*
+         * SId (Service Identifier): this 16-bit or 32-bit field shall identify a service.
+         * The coding details are given in clause 6.3.1
+         */
+        uint32_t serviceId{0};
+
+        /*
+         * CAId (Conditional Access Identifier): this 3-bit field shall identify the Access Control System (ACS) used for the
+         * service. The definition is given in ETSI TS 102 367 [4]. A non-CA capable DAB receiver shall not interpret this field.
+         * If no ACS is used for the service, CAId is set to zero.
+         */
         uint8_t caId{0x00};
+
+        /*
+         * List of EIds (Ensemble identifiers)
+         */
         std::vector<uint16_t> ensembleIds;
+
+        /*
+         * The database key comprises the OE and P/D flags (see clause 5.2.2.1) and the SId field.
+         */
+        uint32_t oeDbKey{0};
+
+        /*
+         * If the service is carried in the tuned ensemble the OE flag shall be set to "0"
+         * If the service is not carried in the tuned ensemble the OE flag shall be set to "1".
+         */
         bool isOtherEnsemble{false};
-        bool isCei{false};
+
+        /*
+         * The Change Event Indication (CEI) is signalled by the Number of EIds field = 0.
+         */
+        bool isChangeEvent{false};
+
+        inline bool operator==(const OtherEnsembleServiceInformation &other) const {
+            return serviceId == other.serviceId &&
+                   caId == other.caId &&
+                   oeDbKey == other.oeDbKey &&
+                   isOtherEnsemble == other.isOtherEnsemble &&
+                   isChangeEvent == other.isChangeEvent &&
+                   containsAllEnsembleIds(other.ensembleIds);
+        }
+
+        inline bool operator!=(const OtherEnsembleServiceInformation &other) const { { return !operator==(other); } }
+
+        inline bool containsAllEnsembleIds(const std::vector<uint16_t> &other) const {
+            if (ensembleIds.size() == other.size()) {
+                for (const auto otherEnsembledId : other) {
+                    if (std::find(ensembleIds.cbegin(), ensembleIds.cend(), otherEnsembledId) ==
+                            ensembleIds.cend()) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return true;
+        }
     };
 
 public:

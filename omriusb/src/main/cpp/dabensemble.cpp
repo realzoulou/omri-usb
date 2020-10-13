@@ -571,6 +571,61 @@ void DabEnsemble::dumpFrequencyDb() const {
 
 void DabEnsemble::fig00_24_input(const Fig_00_Ext_24& fig24) {
     //std::cout << m_logTag << " OtherEnsembleSrvDb received OeServiceInformation" << std::endl;
+    bool hasChanged = false;
+    for(const auto& oeInfo : fig24.getOtherEnsembleServiceInformations()) {
+        auto oeInfoDbIter = m_oeSrvInfoDb.find(oeInfo.oeDbKey);
+        if (oeInfoDbIter != m_oeSrvInfoDb.cend()) {
+            // already in db
+            if (!oeInfo.isChangeEvent) {
+                if (std::find((oeInfoDbIter)->second.cbegin(), (oeInfoDbIter)->second.cend(),
+                        oeInfo) == (*oeInfoDbIter).second.cend()) {
+                    //std::cout << m_logTag << " OeSrvInfoDb adding entry for ID: 0x" << std::hex << +oeInfo.serviceId << std::dec << std::endl;
+                    (*oeInfoDbIter).second.push_back(oeInfo);
+                    hasChanged = true;
+                } else {
+                    //std::cout << m_logTag << " OeSrvInfoDb already contains entry for ID: 0x" << std::hex << +oeInfo.serviceId << std::dec << std::endl;
+                }
+            } else {
+                // change event indication CEI
+                // TODO what to change here?
+                std::clog << m_logTag << " FIG 0/24 CEI not handled" << std::endl;
+            }
+        } else {
+            // not yet in map
+            if (!oeInfo.isChangeEvent) {
+                // add new entry to db
+                //std::cout << m_logTag << " OeSrvInfoDb adding new entry for ID: 0x" << std::hex
+                //          << +oeInfo.serviceId << std::dec << std::endl;
+                m_oeSrvInfoDb.insert(std::make_pair(oeInfo.oeDbKey, std::vector<Fig_00_Ext_24::OtherEnsembleServiceInformation>{oeInfo}));
+                hasChanged = true;
+            }
+        }
+    }
+    if (hasChanged) {
+        dumpOeSrvInfoDb();
+    }
+}
+
+void DabEnsemble::dumpOeSrvInfoDb() const {
+    //std::cout << m_logTag << " OeSrvInfo entries: " << +m_frequencyInformationDb.size() << std::endl;
+    unsigned cnt = 0;
+    for (const auto & iter : m_oeSrvInfoDb) {
+        std::stringstream logString;
+        unsigned cnt2 = 0;
+        for (auto const & v : iter.second) {
+            cnt++;
+            logString << m_logTag << " " << +cnt << ":" << +cnt2
+                << "|oeDbKey:0x" << std::hex << +v.oeDbKey << std::dec
+                << ",SId:0x" << std::hex << +v.serviceId << std::dec
+                << ",oe:" << std::boolalpha << v.isOtherEnsemble << std::noboolalpha
+                << ",caId:0x" << std::hex << +v.caId << std::dec
+                << ",EIds(" << +v.ensembleIds.size() << ")";
+            for (const auto & eid : v.ensembleIds) {
+                logString << " 0x" << std::hex << +eid << std::dec;
+            }
+        }
+        std::cout << logString.str() << std::endl;
+    }
 }
 
 void DabEnsemble::fig00_08_input(const Fig_00_Ext_08& fig08) {

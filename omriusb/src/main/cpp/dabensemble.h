@@ -189,6 +189,8 @@ private:
 
     void dumpServiceLinkDb() const;
     void dumpFrequencyDb() const;
+    void dumpOeSrvInfoDb() const;
+
 private:
     //Announcements
     std::map<uint8_t, Fig_00_Ext_19::AnnouncementSwitching> m_activeAnnouncements;
