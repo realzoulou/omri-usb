@@ -384,17 +384,18 @@ void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
                     }
                 }
             } else {
-                if((*linkDbIter).second.isSoftLink != linkInfo.isSoftLink) {
-                    //std::cout << m_logTag << " LinkDB ChangeEvent for LinkNum: " << (*linkDbIter).second.linkageSetNumber << " with KeyId 0x" << std::hex << +(*linkDbIter).second.keyServiceId << std::dec << " was " << ((*linkDbIter).second.isSoftLink ? "a SoftLink " : "a HardLink ") << "and is now" << (linkInfo.isSoftLink ? " a SoftLink" : " a HardLink") << std::endl;
-                    (*linkDbIter).second.isSoftLink = linkInfo.isSoftLink;
-                    dbHasChanged = true;
-                }
-
-                if((*linkDbIter).second.linkageActive != linkInfo.linkageActive) {
-                    //std::cout << m_logTag << " LinkDB ChangeEvent for LinkNum: " << (*linkDbIter).second.linkageSetNumber << " with KeyId 0x" << std::hex << +(*linkDbIter).second.keyServiceId << std::dec << " LinkageActuator changed from " << ((*linkDbIter).second.linkageActive ? "active " : "inactive ") << "to " << (linkInfo.linkageActive ? "active" : "inactive") << std::endl;
-                    (*linkDbIter).second.linkageActive = linkInfo.linkageActive;
-                    dbHasChanged = true;
-                }
+                /*
+                 * ETSI TS 103 176 V2.4.1    5.2.5.1 Reaction to CEI
+                 * When the CEI is received [...] receivers are informed that the part
+                 * of the linkage database corresponding to the database key - OE, P/D, S/H, ILS, LSN - is about to be changed or
+                 * deleted. The database entry corresponding to the database key is deleted (if present) and the receiver makes whatever
+                 * preparation is needed to begin to build a new database entry for the indicated database key.
+                 *
+                 * NOTE: Since network configurations change infrequently, the reception of CEI is likely to be unusual
+                 */
+                std::clog << m_logTag << " LinkDB deleted linkageSet LinkDbKey: " << std::hex << +linkInfo.linkDbKey << ", LinkageNumber: " << +linkInfo.linkageSetNumber << ", KeySeviceID: 0x" << +linkInfo.keyServiceId << std::dec << std::endl;
+                m_serviceLinkDb.erase(linkDbIter);
+                dbHasChanged = true;
             }
         } else {
             //Linkageset not yet in Map
@@ -481,9 +482,18 @@ void DabEnsemble::fig00_21_input(const Fig_00_Ext_21& fig21) {
                     }
                 }
             } else {
-                // change event indication CEI
-                // TODO what to change here?
-                std::clog << m_logTag << " FIG 0/21 CEI not handled" << std::endl;
+                /*
+                 * ETSI TS 103 176 V2.4.1, 5.4.5.1 Reaction to CEI
+                 * When the CEI is received [...] receivers are informed that the
+                 * part of the Frequency information database corresponding to the database key - OE, P/D, Rfa, Id field and R&M field -
+                 * is about to be changed or deleted. The database entry corresponding to the database key is deleted (if present) and the
+                 * receiver makes whatever preparation is needed to begin to build a new database entry for the indicated database key.
+                 *
+                 * NOTE: Since network configurations change infrequently, the reception of CEI is likely to be unusual.
+                 */
+                std::cout << m_logTag << " FreqInfoDB deleted FreqInfo entry for ID: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
+                m_frequencyInformationDb.erase(freqInfoDbIter);
+                hasChanged = true;
             }
         } else {
             // not yet in map
@@ -586,9 +596,18 @@ void DabEnsemble::fig00_24_input(const Fig_00_Ext_24& fig24) {
                     //std::cout << m_logTag << " OeSrvInfoDb already contains entry for ID: 0x" << std::hex << +oeInfo.serviceId << std::dec << std::endl;
                 }
             } else {
-                // change event indication CEI
-                // TODO what to change here?
-                std::clog << m_logTag << " FIG 0/24 CEI not handled" << std::endl;
+                /*
+                 * ETSI TS 103 176 V2.4.1, 5.3.5.1 Reaction to CEI
+                 * When the CEI is received [...] receivers are informed that the
+                 * part of the OE Services database corresponding to the database key - OE, P/D, SId - is about to be changed or deleted.
+                 * The database entry corresponding to the database key is deleted (if present) and the receiver makes whatever
+                 * preparation is needed to begin to build a new database entry in the database for the indicated database key.
+                 *
+                 * NOTE: Since network configurations change infrequently, the reception of CEI is likely to be unusual.
+                 */
+                std::cout << m_logTag << " OeSrvInfoDb deleting entry for ID: 0x" << std::hex << +oeInfo.serviceId << std::dec << std::endl;
+                m_oeSrvInfoDb.erase(oeInfoDbIter);
+                hasChanged = true;
             }
         } else {
             // not yet in map
