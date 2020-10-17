@@ -21,6 +21,16 @@
 #ifndef FIG
 #define FIG
 
+#include <iomanip>
+#include <sstream>
+
+// helper template for dumping a vector of uint8_t as hex to a string stream
+template <typename T> std::string to_hex_string(T data) {
+    std::ostringstream result;
+    result << std::setw(2) << std::setfill('0') << std::hex << std::uppercase << static_cast<int>(data);
+    return result.str();
+}
+
 class Fig {
 
 public:
@@ -89,6 +99,21 @@ public:
         //FIG 01/02 Extension 06 - X-PAD user application label
         XPAD_USERAPPLICATION_LABEL
     };
+
+    static const std::string toHexString(const std::vector<uint8_t>& data) {
+        std::ostringstream result;
+        if (data.empty()) return result.str();
+
+        auto size = data.size();
+
+        for(auto i=0; i < size; i++) {
+            result << "0x" << to_hex_string(data[i]);
+            if (i != size)
+                result << " ";
+        }
+        return result.str();
+    }
+
 };
 
 #endif // FIG

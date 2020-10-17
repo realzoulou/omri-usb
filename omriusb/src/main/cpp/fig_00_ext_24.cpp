@@ -23,31 +23,9 @@
 #include <sstream>
 
 #include "fig_00_ext_24.h"
-// helper template and method for dumping a vector of uint8_t as hex to a string stream
-template <typename T> std::string to_hex(T data) {
-    std::ostringstream result;
-    result << std::setw(2) << std::setfill('0') << std::hex << std::uppercase << static_cast<int>(data);
-    return result.str();
-}
-
-static std::string toHexString(const std::vector<uint8_t>& data) {
-    if (data.empty()) return "";
-    auto size = data.size();
-    std::ostringstream result;
-    if (size > 0) {
-        result << "0x";
-    }
-    for(size_t i=0; i < size; i++)
-    {
-        result << to_hex(data[i]);
-        if (i != size)
-            result << " ";
-    }
-    return result.str();
-}
 
 Fig_00_Ext_24::Fig_00_Ext_24(const std::vector<uint8_t> &figData) : Fig_00(figData) {
-    std::cout << m_logTag << toHexString(figData) << std::endl;
+    //std::cout << m_logTag << Fig::toHexString(figData) << std::endl;
     parseFigData(figData);
 }
 

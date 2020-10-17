@@ -24,29 +24,6 @@
 
 #include "ficparser.h"
 
-// helper template and method for dumping a vector of uint8_t as hex to a string stream
-template <typename T> std::string to_hex(T data) {
-    std::ostringstream result;
-    result << std::setw(2) << std::setfill('0') << std::hex << std::uppercase << static_cast<int>(data);
-    return result.str();
-}
-
-std::string toHexString(const std::vector<uint8_t>& data) {
-    if (data.empty()) return "";
-    auto size = data.size();
-    std::ostringstream result;
-    if (size > 0) {
-        result << "0x";
-    }
-    for(size_t i=0; i < size; i++)
-    {
-        result << to_hex(data[i]);
-        if (i != size)
-            result << " ";
-    }
-    return result.str();
-}
-
 constexpr uint16_t FicParser::CRC_CCITT_TABLE[];
 
 //calling inherited constructor with FIC_ID
@@ -80,7 +57,7 @@ void FicParser::call(const std::vector<uint8_t> &data) {
         if(FIB_CRC_CHECK(fib.data())) {
             m_fibDataQueue.push(fib);
         } else {
-            std::clog << M_LOG_TAG << "FIB " << +loop << " crc corrupted: " << toHexString(fib) << std::endl;
+            std::clog << M_LOG_TAG << "FIB " << +loop << " crc corrupted: " << Fig::toHexString(fib) << std::endl;
         }
 
         ficIter += FIB_SIZE;
@@ -149,7 +126,7 @@ void FicParser::processFib() {
             } catch (std::exception& e) {
                 std::clog << M_LOG_TAG << "Caught exception: " << e.what() << std::endl;
                 std::clog << M_LOG_TAG << "FIB size: " << +fibData.size() << std::endl;
-                std::clog << M_LOG_TAG << toHexString(fibData) << std::endl;
+                std::clog << M_LOG_TAG << Fig::toHexString(fibData) << std::endl;
             }
         }
     }

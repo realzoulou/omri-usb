@@ -21,6 +21,8 @@
 Unit tests in here are meant to be executed on a host.
 
 Compile example:
+
+    g++ -std=c++11 fig006.cpp ../fig_00_ext_06.cpp -o fig006
     g++ -std=c++11 fig017.cpp ../fig_00_ext_17.cpp -o fig017
     g++ -std=c++11 fig021.cpp ../fig_00_ext_21.cpp -o fig021
 

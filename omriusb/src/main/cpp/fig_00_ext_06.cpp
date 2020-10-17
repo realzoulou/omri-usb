@@ -18,13 +18,15 @@
  *
  */
 
-#include "fig_00_ext_06.h"
-
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
-#include <sstream>
+//#include <sstream>
+
+#include "fig_00_ext_06.h"
 
 Fig_00_Ext_06::Fig_00_Ext_06(const std::vector<uint8_t> &figData) : Fig_00(figData) {
+    std::cout << m_logTag << Fig::toHexString(figData) << std::endl;
     parseFigData(figData);
 }
 
@@ -33,34 +35,35 @@ Fig_00_Ext_06::~Fig_00_Ext_06() {
 }
 
 void Fig_00_Ext_06::parseFigData(const std::vector<uint8_t> &figData) {
-    /*
-     * Start of database indicated by:
-     *   isNextConfiguration() (C/N): false / 0
-     *   idListFlag: true / 1
-     */
-
-    /*
-     * Change Event Indication (CEI)
-     *   idListFLag: false / 0 / short form
-     */
 
     auto figIter = figData.cbegin() +1;
     while(figIter < figData.cend()) {
-        bool idListFlag = (((*figIter & 0x80) >> 7) & 0xFF) != 0;
 
         ServiceLinkingInformation sli;
         sli.isDataService = isDataService();
 
+        bool idListFlag = (((*figIter & 0x80) >> 7) & 0xFF) != 0;
+
+        /* ETSI TS 103 176 V2.4.1, 5.2 Service linking
+         *
+         * The short form has the Id list flag set to 0.
+         *  a. When the activation state of the linkage sets is being signalled the C/N flag is set to 1.
+         *  b. When the content of the database associated with a particular linkage set will be changed
+         *     - due to a network configuration change - the C/N flag is set to 0.
+         *
+         *  The long form has the Id list flag set to 1.
+         *  The C/N flag is used in the database definition mode and the flag indicates
+         *  a. the start of the database definition when set to 0 or
+         *  b. a continuation of the database definition when set to 1.
+         */
+
         bool isDbStart{false};
         if(idListFlag) {
-            if(!isNextConfiguration()) {
-                //Start of Database
-                isDbStart = true;
-            } else {
-                sli.isContinuation = true;
-            }
+            // long form
+            sli.isContinuation = isNextConfiguration();
+            isDbStart = !isNextConfiguration();
         } else {
-            //Database Change Event Indication (CEI)
+            // short form = Database Change Event Indication (CEI)
             sli.isChangeEvent = true;
         }
 
@@ -76,8 +79,9 @@ void Fig_00_Ext_06::parseFigData(const std::vector<uint8_t> &figData) {
         uint16_t linkageSetNumber = static_cast<uint16_t>((*figIter++ & 0x0F) << 8 | (*figIter++ & 0xFF));
         sli.linkageSetNumber = linkageSetNumber;
 
-        ServiceLinkList sll;
         if(idListFlag) {
+            ServiceLinkList sll;
+
             //bool rfu = ((*ficData & 0x80) >> 7) & 0xFF;
             auto lq = static_cast<uint8_t>(((*figIter & 0x60) >> 5) & 0xFF);
             auto idLq = static_cast<Fig_00_Ext_06::SERVICE_LINKING_IDENTIFIER_LIST_QUALIFIER>(lq);
@@ -111,9 +115,9 @@ void Fig_00_Ext_06::parseFigData(const std::vector<uint8_t> &figData) {
                     sll.idList.push_back(id);
                 }
             }
+            sli.serviceLinks.push_back(sll);
         }
 
-        sli.serviceLinks.push_back(sll);
         sli.linkDbKey = static_cast<uint16_t>(isOtherEnsemble() << 15 | isDataService() << 14 | shFlag << 13 | ilsFlag << 12 | (linkageSetNumber & 0x0FFF));
 
         m_sli.push_back(sli);

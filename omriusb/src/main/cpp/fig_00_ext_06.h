@@ -21,6 +21,8 @@
 #ifndef FIG_00_EXT_06_H
 #define FIG_00_EXT_06_H
 
+#include <algorithm>
+
 #include "fig_00.h"
 
 /*
