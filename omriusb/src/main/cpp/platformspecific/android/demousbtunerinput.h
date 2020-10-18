@@ -58,6 +58,7 @@ public:
     void startServiceScan() override;
     void stopServiceScan() override;
     std::string getDeviceName() const override;
+    std::set<std::shared_ptr<LinkedServiceDab>> getLinkedServices(const JDabService &service) const override;
 
 public:
     void setJavaClassDemoTuner(JNIEnv* env, jclass demoTunerClass);

@@ -181,12 +181,13 @@ private:
 
     void checkServiceSanity();
 
-private:
+protected:
     //Service Following DB
     std::map<uint16_t, Fig_00_Ext_06::ServiceLinkingInformation> m_serviceLinkDb;
     std::map<uint16_t, std::vector<Fig_00_Ext_21::FrequencyInformation>> m_frequencyInformationDb;
     std::map<uint16_t, std::vector<Fig_00_Ext_24::OtherEnsembleServiceInformation>> m_oeSrvInfoDb;
 
+private:
     void dumpServiceLinkDb() const;
     void dumpFrequencyDb() const;
     void dumpOeSrvInfoDb() const;

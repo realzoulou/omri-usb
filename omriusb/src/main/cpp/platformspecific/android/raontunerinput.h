@@ -60,6 +60,8 @@ public:
 
     std::string getDeviceName() const override;
 
+    std::set<std::shared_ptr<LinkedServiceDab>> getLinkedServices(const JDabService &service) const override;
+
 private:
     const std::string LOG_TAG{"[RaonUsbTuner] "};
     constexpr static uint8_t MAXIMUM_CONCURRENT_SUBCHANNELS{1};

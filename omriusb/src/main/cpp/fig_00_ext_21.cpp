@@ -26,6 +26,7 @@
 #include "global_definitions.h"
 
 Fig_00_Ext_21::Fig_00_Ext_21(const std::vector<uint8_t>& figData) : Fig_00(figData) {
+    //std::cout << m_logTag << Fig::toHexString(figData) << std::endl;
     parseFigData(figData);
 }
 

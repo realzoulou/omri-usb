@@ -26,7 +26,7 @@
 #include "fig_00_ext_06.h"
 
 Fig_00_Ext_06::Fig_00_Ext_06(const std::vector<uint8_t> &figData) : Fig_00(figData) {
-    std::cout << m_logTag << Fig::toHexString(figData) << std::endl;
+    //std::cout << m_logTag << Fig::toHexString(figData) << std::endl;
     parseFigData(figData);
 }
 

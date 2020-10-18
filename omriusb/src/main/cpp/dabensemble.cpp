@@ -356,7 +356,6 @@ void DabEnsemble::fig00_03_input(const Fig_00_Ext_03& fig03) {
     }
 }
 
-//TODO service linking
 void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
     //std::cout << m_logTag << " LinkDB Received SLI" << std::endl;
     bool dbHasChanged = false;
@@ -393,26 +392,17 @@ void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
                  *
                  * NOTE: Since network configurations change infrequently, the reception of CEI is likely to be unusual
                  */
-                std::clog << m_logTag << " LinkDB deleted linkageSet LinkDbKey: " << std::hex << +linkInfo.linkDbKey << ", LinkageNumber: " << +linkInfo.linkageSetNumber << ", KeySeviceID: 0x" << +linkInfo.keyServiceId << std::dec << std::endl;
+                std::clog << m_logTag << " LinkDB deleted LinkageSetNumber: 0x" << +linkInfo.linkageSetNumber << std::dec << std::endl;
                 m_serviceLinkDb.erase(linkDbIter);
                 dbHasChanged = true;
             }
         } else {
             //Linkageset not yet in Map
             if(!linkInfo.isContinuation && !linkInfo.isChangeEvent) {
-                //std::cout << m_logTag << " LinkDB adding new linkageSet with LinkDbKey: " << std::hex << +linkInfo.linkDbKey << " and LinkageNumber: " << +linkInfo.linkageSetNumber << " KeySeviceID: 0x" << +linkInfo.keyServiceId << std::dec << std::endl;
+                //std::cout << m_logTag << " LinkDB adding new linkageSet with LinkDbKey: 0x" << std::hex << +linkInfo.linkDbKey << " and LinkageNumber: 0x" << +linkInfo.linkageSetNumber << " KeySeviceID: 0x" << +linkInfo.keyServiceId << std::dec << std::endl;
                 m_serviceLinkDb.insert(std::make_pair(linkInfo.linkDbKey, linkInfo));
                 dbHasChanged = true;
-                /*std::cout << m_logTag << " LinkDB adding " << (linkInfo.isSoftLink ? "SoftLink " : "HardLink ") << "LinkageSetNumber: 0x" << std::hex << +linkInfo.linkageSetNumber << " with KeyServiceID: 0x" << +linkInfo.keyServiceId << std::dec <<
-                          " links to " << "\n\t";
-                for(const auto& sll : linkInfo.serviceLinks) {
-                    std::cout << +sll.idList.size() <<(sll.idListQualifier == 0 ? " DAB ServiceIds: " : " FM RDS PIs: ") << "\n\t\t";
-                    for(const auto& sllSrvId : sll.idList) {
-                        std::cout << "0x" << std::hex << +sllSrvId << "\n\t\t";
-                    }
-                    std::cout << std::dec;
-                }
-                std::cout << std::endl;*/
+                std::cout << m_logTag << " LinkDB adding " << (linkInfo.isSoftLink ? "SoftLink" : "HardLink") << " LinkageSetNumber: 0x" << std::hex << +linkInfo.linkageSetNumber << " KeyServiceID: 0x" << +linkInfo.keyServiceId << std::dec << std::endl;
             }
         }
     }
@@ -626,7 +616,7 @@ void DabEnsemble::fig00_24_input(const Fig_00_Ext_24& fig24) {
 }
 
 void DabEnsemble::dumpOeSrvInfoDb() const {
-    //std::cout << m_logTag << " OeSrvInfo entries: " << +m_frequencyInformationDb.size() << std::endl;
+    std::cout << m_logTag << " OeSrvInfo entries: " << +m_frequencyInformationDb.size() << std::endl;
     unsigned cnt = 0;
     for (const auto & iter : m_oeSrvInfoDb) {
         std::stringstream logString;

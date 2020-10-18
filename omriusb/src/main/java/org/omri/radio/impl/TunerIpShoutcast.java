@@ -5,8 +5,10 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.ArraySet;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.google.android.exoplayer2.C;
@@ -55,6 +57,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSocketFactory;
@@ -190,6 +193,12 @@ public class TunerIpShoutcast implements Tuner, IcyStreamDataSource.IcyMetadataL
 		} else {
 			return new ArrayList<>();
 		}
+	}
+
+	@Override
+	public @NonNull Set<RadioService> getLinkedRadioServices(@NonNull RadioService service) {
+		// not implemented
+		return new ArraySet<>();
 	}
 
 	@Override

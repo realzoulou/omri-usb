@@ -24,13 +24,17 @@
 #include <initializer_list>
 #include <iterator>
 #include <regex>
+#include <set>
 #include <sstream>
+
 #include <unistd.h>
 #include <sys/endian.h>
 #include <sys/stat.h>
+
 #include "../../ficparser.h"
-#include "raontunerinput.h"
+#include "../../linkedservicedab.h"
 #include "demousbtunerinput.h"
+#include "raontunerinput.h"
 
 constexpr uint8_t RaonTunerInput::g_abAdcClkSynTbl[4][7];
 constexpr uint8_t RaonTunerInput::g_aeAdcClkTypeTbl_DAB_B3[];
@@ -1799,4 +1803,175 @@ void RaonTunerInput::getAntennaLevel() {
     }
 }
 
+std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(const JDabService &service) const {
+
+    std::set<std::shared_ptr<LinkedServiceDab>> collectedServicesOrderedSet;
+
+    const auto ecc = service.getEnsembleEcc();
+    const auto eid = service.getEnsembleId();
+    const auto freqKHz = service.getEnsembleFrequency() / 1000;
+    const auto sid = service.getServiceId();
+
+    std::set<std::shared_ptr<LinkedServiceDab>> otherFrequenciesSortedByAdjacency;
+    std::set<std::shared_ptr<LinkedServiceDab>> sameSIdOtherEnsembles;
+
+    /*
+     * ETSI TS 103 176 V2.4.1, 5.6.3.2 Stage 1: Find same service
+     *
+     * In this stage, the receiver attempts to locate a DAB ensemble containing a service with ECC-SId equal to the Target Id.
+     *
+     * It may use FI (FIG 0/21) to find the same ensemble on another frequency
+     */
+
+
+    // TODO lock databases
+
+    std::cout << LOG_TAG << " Lookup EId 0x" << std::hex << +eid << std::dec
+        << " frequencyInformationDb (size " << +m_frequencyInformationDb.size() << ")" << std::endl;
+
+    for (const auto & freqInfoDbEntry : m_frequencyInformationDb) {
+        for (const auto & freqInfo : freqInfoDbEntry.second) {
+            if (freqInfo.frequencyInformationType == Fig_00_Ext_21::DAB_ENSEMBLE && freqInfo.id == eid) {
+                for (const auto & fli : freqInfo.frequencies) {
+
+                    // searching for a different frequency than the frequency of the current service
+                    if (freqKHz != fli.frequencyKHz) {
+                        auto servicePtr = std::make_shared<LinkedServiceDab>();
+                        servicePtr->setEnsembleEcc(ecc);
+                        servicePtr->setEnsembleId(eid);
+                        servicePtr->setEnsembleFrequencyKHz(fli.frequencyKHz);
+                        servicePtr->setServiceId(sid);
+
+                        std::cout << LOG_TAG << "   match: 0x" << std::hex << +freqInfo.id
+                                  << std::dec
+                                  << " type " << +freqInfo.frequencyInformationType
+                                  << " : ecc 0x" << std::hex << +servicePtr->getEnsembleEcc()
+                                  << ",sid 0x" << +servicePtr->getServiceId()
+                                  << ",eid 0x" << +servicePtr->getEnsembleId()
+                                  << std::dec
+                                  << "," << +servicePtr->getEnsembleFrequencyKHz() << std::dec
+                                  << " kHz" << std::endl;
+
+                        if (fli.additionalInfo.dabEnsembleAdjacent ==
+                            Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_UNKNOWN ||
+                            fli.additionalInfo.dabEnsembleAdjacent ==
+                            Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED ||
+                            fli.additionalInfo.dabEnsembleAdjacent ==
+                            Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE) {
+                            // adjacent services first
+                            otherFrequenciesSortedByAdjacency.insert(
+                                    otherFrequenciesSortedByAdjacency.cbegin(), servicePtr);
+                        } else {
+                            // not adjacent services at the end
+                            otherFrequenciesSortedByAdjacency.insert(
+                                    otherFrequenciesSortedByAdjacency.cend(), servicePtr);
+                        }
+                    } else {
+                        std::cout << LOG_TAG << "   skip'd same frequency match: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
+                    }
+                }
+            } else {
+                std::cout << LOG_TAG << "   no match: 0x" << std::hex << +freqInfo.id << std::dec
+                    << " type " << +freqInfo.frequencyInformationType << std::endl;
+            }
+        }
+    }
+    if (!otherFrequenciesSortedByAdjacency.empty()) {
+        for (const auto & a : otherFrequenciesSortedByAdjacency) {
+            collectedServicesOrderedSet.insert(collectedServicesOrderedSet.end(), a);
+        }
+    }
+
+    /*
+     *  ETSI TS 103 176 V2.4.1, 5.6.3.2 Stage 1: Find same service
+     *
+     * It may use [...] OE Services information (FIG 0/24) and FI to find another ensemble carrying the same service
+     */
+    std::cout << LOG_TAG << " Lookup other ensembles with SId 0x" << std::hex << +sid << std::dec
+              << " oeSrvInfoDb (size " << +m_serviceLinkDb.size() << ")" << std::endl;
+
+    for (const auto & oeSrvInfo : m_oeSrvInfoDb) {
+        for (const auto & oe : oeSrvInfo.second) {
+            if (oe.serviceId == sid) {
+                for (const auto & otherEId : oe.ensembleIds) {
+
+                    std::cout << LOG_TAG << "   have match: SId 0x" << std::hex << +sid
+                        << " EId 0x" << +otherEId << std::dec << std::endl;
+
+                    // lookup frequency of other ensemble
+
+                    for (const auto & freqInfoDbEntry : m_frequencyInformationDb) {
+                        for (const auto & freqInfo : freqInfoDbEntry.second) {
+                            if (freqInfo.frequencyInformationType == Fig_00_Ext_21::DAB_ENSEMBLE &&
+                                freqInfo.id == otherEId) {
+                                for (const auto & fli : freqInfo.frequencies) {
+                                    std::cout << LOG_TAG << "      have match: SId 0x" << std::hex << +sid
+                                        << " EId 0x" << +otherEId << std::dec << " freq " << +fli.frequencyKHz << std::endl;
+
+                                    auto servicePtr = std::make_shared<LinkedServiceDab>();
+                                    servicePtr->setEnsembleEcc(ecc);
+                                    servicePtr->setEnsembleId(otherEId);
+                                    servicePtr->setEnsembleFrequencyKHz(fli.frequencyKHz);
+                                    servicePtr->setServiceId(sid);
+
+                                    if (fli.additionalInfo.dabEnsembleAdjacent ==
+                                        Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_UNKNOWN ||
+                                        fli.additionalInfo.dabEnsembleAdjacent ==
+                                        Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED ||
+                                        fli.additionalInfo.dabEnsembleAdjacent ==
+                                        Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE) {
+                                        // adjacent services first
+                                        sameSIdOtherEnsembles.insert(sameSIdOtherEnsembles.cbegin(), servicePtr);
+                                    } else {
+                                        // not adjacent services at the end
+                                        sameSIdOtherEnsembles.insert(sameSIdOtherEnsembles.cend(), servicePtr);
+                                    }
+                                }
+                            } else {
+                                std::cout << LOG_TAG << "      no freq for EId 0x" << std::hex
+                                         << +otherEId << std::dec << std::endl;
+                            }
+                        }
+                    }
+                }
+            } else {
+                std::cout << LOG_TAG << "   no match: SId 0x" << std::hex << +oe.serviceId << std::dec << std::endl;
+            }
+        }
+    }
+    if (!sameSIdOtherEnsembles.empty()) {
+        for (const auto & a : sameSIdOtherEnsembles) {
+            collectedServicesOrderedSet.insert(collectedServicesOrderedSet.end(), a);
+        }
+    }
+
+    /*
+    std::cout << LOG_TAG << " Lookup SId 0x" << std::hex << +sid << std::dec
+              << " serviceLinkDb (size " << +m_serviceLinkDb.size() << ")" << std::endl;
+
+    for (const auto & serviceLink : m_serviceLinkDb) {
+        for (const auto & sli : serviceLink.second.serviceLinks) {
+            if (sli.idListQualifier == Fig_00_Ext_06::DAB_SID) {
+                for (const auto & id : sli.idList) {
+                    if (id == sid) {
+                        auto servicePtr = std::make_shared<LinkedServiceDab>();
+                        servicePtr->setEnsembleEcc(ecc);
+                        servicePtr->setEnsembleId(eid);
+                        servicePtr->setEnsembleFrequencyKHz(0xAFFE); // T . O . D . O
+                        servicePtr->setServiceId(sid);
+
+                    } else {
+                        std::cout << LOG_TAG << "   no match: 0x" << std::hex << +id << std::dec << std::endl;
+                    }
+                }
+            } else {
+                std::cout << LOG_TAG << "   no match: not DAB_SID" << std::endl;
+            }
+
+        }
+    }
+    */
+    std::cout << LOG_TAG << "collected " << collectedServicesOrderedSet.size() << " linked services" << std::endl;
+    return collectedServicesOrderedSet;
+}
 //TUNER METHODS END

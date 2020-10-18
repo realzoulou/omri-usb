@@ -1,8 +1,11 @@
 package org.omri.tuner;
 
-import java.util.List;
+import androidx.annotation.NonNull;
 
 import org.omri.radioservice.RadioService;
+
+import java.util.List;
+import java.util.Set;
 
 /**
  * Copyright (C) 2016 Open Mobile Radio Interface (OMRI) Group
@@ -62,7 +65,17 @@ public interface Tuner {
 	 * @return a list of {@link RadioService}s or an empty list
 	 */
 	public List<RadioService> getRadioServices();
-	
+
+	/**
+	 * Retrieve {@link RadioService}s for following the given service.
+	 * @param service
+	 * @return A set of {@link RadioService}s or an empty set. The set is sorted by a) affordance,
+	 * and b) likelyhood that the returned service matches with the given service.
+	 * The term 'affordance' here relates to the waiting time for the user for continuing to listen
+	 * to the service again once the system decides to start the returned service.
+	 */
+	public @NonNull Set<RadioService> getLinkedRadioServices(@NonNull RadioService service);
+
 	/**
 	 * Start a scan for available {@link RadioService}s
 	 */

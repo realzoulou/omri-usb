@@ -22,9 +22,11 @@
 #define DABUSBTUNERINPUT_H
 
 #include "../../dabinput.h"
+#include "../../linkedservicedab.h"
 #include "jdabservice.h"
 
 #include <memory>
+#include <set>
 #include <string>
 
 class DabUsbTunerInput : public DabInput {
@@ -38,5 +40,7 @@ public:
     virtual void stopAllRunningServices() = 0;
 
     virtual std::string getDeviceName() const = 0;
+
+    virtual std::set<std::shared_ptr<LinkedServiceDab>> getLinkedServices(const JDabService& service) const = 0;
 };
 #endif //DABUSBTUNERINPUT_H

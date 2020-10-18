@@ -1,19 +1,16 @@
 package org.omri.radio.impl;
 
 import android.os.Build;
-import android.util.Log;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
 
 import org.omri.radioservice.RadioService;
 import org.omri.radioservice.RadioServiceDab;
 import org.omri.radioservice.RadioServiceDabComponent;
 import org.omri.radioservice.RadioServiceType;
 
-import static org.omri.BuildConfig.DEBUG;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * Copyright (C) 2018 IRT GmbH
@@ -63,8 +60,7 @@ public class RadioServiceDabImpl extends RadioServiceImpl implements RadioServic
 	}
 	
 	void setEnsembleEcc(int ensembleEcc) {
-		this.mEnsembleEcc = ensembleEcc;
-		if(DEBUG)Log.d("DabService", " Ensemble ECC: " + mEnsembleEcc);
+		mEnsembleEcc = ensembleEcc;
 	}
 
 	@Override
@@ -73,8 +69,7 @@ public class RadioServiceDabImpl extends RadioServiceImpl implements RadioServic
 	}
 	
 	void setEnsembleId(int ensembleId) {
-		this.mEnsembleId = ensembleId;
-		if(DEBUG)Log.d("DabService", " Ensemble ID: " + mEnsembleId);
+		mEnsembleId = ensembleId;
 	}
 
 	@Override

@@ -11,6 +11,9 @@ import android.hardware.usb.UsbManager;
 import android.util.Log;
 import android.util.Pair;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import org.omri.radioservice.RadioService;
 import org.omri.radioservice.RadioServiceDab;
 import org.omri.radioservice.RadioServiceDabEdi;
@@ -19,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import static org.omri.BuildConfig.DEBUG;
 
@@ -72,6 +76,7 @@ public class UsbHelper {
 	private native void tuneFreq(String deviceName, long freq);
 	private native void startServiceScan(String deviceName);
 	private native void stopServiceScan(String deviceName);
+	private native Set<RadioServiceDab> getLinkedServices(String deviceName, RadioServiceDab dabService);
 
 	/* EdiStream */
 	private native void ediTunerAttached(TunerEdistream ediTuner);
@@ -193,6 +198,10 @@ public class UsbHelper {
 
 	void attachDevice(TunerUsb dev) {
 		deviceAttached(dev);
+	}
+
+	public @Nullable Set<RadioServiceDab> getLinkedDabServices(@NonNull String deviceName, @NonNull RadioServiceDab serviceDab) {
+		return getLinkedServices(deviceName, serviceDab);
 	}
 
 	/* Demo tuner */

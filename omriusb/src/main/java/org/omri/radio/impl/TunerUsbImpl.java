@@ -3,7 +3,10 @@ package org.omri.radio.impl;
 import android.hardware.usb.UsbDevice;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.ArraySet;
 import android.util.Log;
+
+import androidx.annotation.NonNull;
 
 import org.omri.radio.Radio;
 import org.omri.radioservice.RadioService;
@@ -21,6 +24,7 @@ import org.omri.tuner.TunerType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import static org.omri.BuildConfig.DEBUG;
 
@@ -224,6 +228,42 @@ public class TunerUsbImpl implements TunerUsb {
 	@Override
 	public RadioService getCurrentRunningRadioService() {
 		return mCurrentlyRunningService;
+	}
+
+	@Override
+	public @NonNull Set<RadioService> getLinkedRadioServices(@NonNull RadioService service) {
+		Set<RadioService> retLinkedRadioServices = new ArraySet<>();
+		if (service instanceof RadioServiceDab) {
+
+			// retrieve DAB services that are linked to the given service
+			final Set<RadioServiceDab> linkedDabServices =
+					UsbHelper.getInstance().getLinkedDabServices(mUsbDevice.getDeviceName(),
+							(RadioServiceDab) service);
+
+			if (linkedDabServices != null) {
+				// retrieve list of known DAB services
+				final List<RadioService> radioServices = getRadioServices();
+				// if linked DAB service is equal in ECC, EId, SId compared to a known service,
+				// then take the known service, otherwise the new linked DAB service
+				for (final RadioServiceDab linkedDabService : linkedDabServices) {
+					for (final RadioService radioService : radioServices) {
+						if (radioService instanceof RadioServiceDab) {
+							final RadioServiceDab radioServiceDab = (RadioServiceDab) radioService;
+							if (radioServiceDab.equals(linkedDabService)) { // strict check of ECC, SId, EId, Frequency
+								// add the already known RadioServiceDab
+								retLinkedRadioServices.add(radioServiceDab);
+								break;
+							} else {
+								// add the new RadioServiceDab, but may only be partly filled !
+								retLinkedRadioServices.add(linkedDabService);
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+		return retLinkedRadioServices;
 	}
 
 	@Override

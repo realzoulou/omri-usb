@@ -2,7 +2,10 @@ package org.omri.radio.impl;
 
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.ArraySet;
 import android.util.Log;
+
+import androidx.annotation.NonNull;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -39,6 +42,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -170,6 +174,11 @@ public class TunerEdistream implements Tuner, IpServiceScanner.IpScannerListener
 		}
 
 		return new ArrayList<>();
+	}
+	@Override
+	public @NonNull Set<RadioService> getLinkedRadioServices(@NonNull RadioService service) {
+		// not implemented
+		return new ArraySet<>();
 	}
 
 	private ConcurrentLinkedQueue<RadioServiceDabEdiImpl> mScanSrvQ = new ConcurrentLinkedQueue<>();

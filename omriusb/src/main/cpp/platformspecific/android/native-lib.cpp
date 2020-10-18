@@ -34,39 +34,58 @@
 
 extern "C" {
 
-const std::string LOG_TAG{"UsbHelperNative"};
+const static std::string LOG_TAG{"UsbHelperNative"};
 
-std::vector<std::shared_ptr<JUsbDevice>> m_usbDevices;
+static std::vector<std::shared_ptr<JUsbDevice>> m_usbDevices;
 
-std::vector<std::unique_ptr<DabUsbTunerInput>> m_dabInputs;
+static std::vector<std::unique_ptr<DabUsbTunerInput>> m_dabInputs;
 
-JavaVM* m_javaVm;
+static JavaVM* m_javaVm = nullptr;
 
-jclass m_usbTunerClass = nullptr;
-jclass m_dabServiceClass = nullptr;
-jclass m_radioServiceClass = nullptr;
-jclass m_dabServiceComponentClass = nullptr;
-jclass m_dabServiceUserApplicationClass = nullptr;
-jclass m_termIdClass = nullptr;
-jclass m_dynamicLabelClass = nullptr;
-jclass m_dynamicLabelPlusItemClass = nullptr;
-jclass m_slideshowClass = nullptr;
+static jclass m_usbTunerClass = nullptr;
+static jclass m_radioServiceDabImplClass = nullptr;
+static jmethodID m_radioServiceDabImpl_init_mId = nullptr;
+static jmethodID m_radioServiceDabImpl_setEnsembleEcc_mId = nullptr;
+static jmethodID m_radioServiceDabImpl_setEnsembleFrequency_mId = nullptr;
+static jmethodID m_radioServiceDabImpl_setEnsembleId_mId = nullptr;
+static jmethodID m_radioServiceDabImpl_setServiceId_mId = nullptr;
+static jclass m_radioServiceImplClass = nullptr;
+static jclass m_dabServiceComponentClass = nullptr;
+static jclass m_dabServiceUserApplicationClass = nullptr;
+static jclass m_termIdClass = nullptr;
+static jclass m_dynamicLabelClass = nullptr;
+static jclass m_dynamicLabelPlusItemClass = nullptr;
+static jclass m_slideshowClass = nullptr;
 
-jclass m_ediTunerClass = nullptr;
-jclass m_dabTimeClass = nullptr;
+static jclass m_ediTunerClass = nullptr;
+static jclass m_dabTimeClass = nullptr;
 
-jclass m_demoTunerClass = nullptr;
+static jclass m_demoTunerClass = nullptr;
 
-jboolean m_CoutRedirectedToALog = JNI_FALSE;
-std::string m_rawRecordingPath{""};
+static jclass m_ArraySetClass = nullptr;
+static jmethodID m_ArraySet_init_mId = nullptr;
+static jmethodID m_ArraySet_add_mId = nullptr;
 
-void cacheClassDefinitions(JavaVM *vm) {
+static jboolean m_CoutRedirectedToALog = JNI_FALSE;
+static std::string m_rawRecordingPath;
+
+static void cacheClassDefinitions(JavaVM *vm) {
     JNIEnv* env;
     vm->GetEnv ((void **) &env, JNI_VERSION_1_6);
 
+    // ArraySet
+    m_ArraySetClass = (jclass)env->NewGlobalRef(env->FindClass("android/util/ArraySet"));
+    m_ArraySet_init_mId = env->GetMethodID(m_ArraySetClass, "<init>", "(I)V");
+    m_ArraySet_add_mId = env->GetMethodID(m_ArraySetClass, "add", "(Ljava/lang/Object;)Z");
+
     m_usbTunerClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/TunerUsb"));
-    m_dabServiceClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceDabImpl"));
-    m_radioServiceClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceImpl"));
+    m_radioServiceImplClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceImpl"));
+    m_radioServiceDabImplClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceDabImpl"));
+    m_radioServiceDabImpl_init_mId = env->GetMethodID(m_radioServiceDabImplClass, "<init>", "()V");
+    m_radioServiceDabImpl_setEnsembleEcc_mId = env->GetMethodID(m_radioServiceDabImplClass, "setEnsembleEcc", "(I)V");
+    m_radioServiceDabImpl_setEnsembleFrequency_mId = env->GetMethodID(m_radioServiceDabImplClass, "setEnsembleFrequency", "(I)V");
+    m_radioServiceDabImpl_setEnsembleId_mId = env->GetMethodID(m_radioServiceDabImplClass, "setEnsembleId", "(I)V");
+    m_radioServiceDabImpl_setServiceId_mId = env->GetMethodID(m_radioServiceDabImplClass, "setServiceId", "(I)V");
     m_dabServiceComponentClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceDabComponentImpl"));
     m_dabServiceUserApplicationClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceDabUserApplicationImpl"));
 
@@ -83,13 +102,15 @@ void cacheClassDefinitions(JavaVM *vm) {
     m_demoTunerClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/DemoTuner"));
 }
 
-void cleanClassDefinitions(JavaVM *vm) {
+static void cleanClassDefinitions(JavaVM *vm) {
     JNIEnv* env;
     vm->GetEnv ((void **) &env, JNI_VERSION_1_6);
 
+    env->DeleteGlobalRef(m_ArraySetClass);
+
     env->DeleteGlobalRef(m_usbTunerClass);
-    env->DeleteGlobalRef(m_dabServiceClass);
-    env->DeleteGlobalRef(m_radioServiceClass);
+    env->DeleteGlobalRef(m_radioServiceDabImplClass);
+    env->DeleteGlobalRef(m_radioServiceImplClass);
     env->DeleteGlobalRef(m_dabServiceComponentClass);
     env->DeleteGlobalRef(m_dabServiceUserApplicationClass);
 
@@ -100,9 +121,7 @@ void cleanClassDefinitions(JavaVM *vm) {
     env->DeleteGlobalRef(m_slideshowClass);
 
     env->DeleteGlobalRef(m_ediTunerClass);
-    //DABtime class
     env->DeleteGlobalRef(m_dabTimeClass);
-
     env->DeleteGlobalRef(m_demoTunerClass);
 }
 
@@ -190,7 +209,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceAttached(JNIEnv*
     std::shared_ptr<JTunerUsbDevice> jusbDevice = std::shared_ptr<JTunerUsbDevice>(new JTunerUsbDevice(m_javaVm, env, usbDevice));
 
     jusbDevice->setJavaClassUsbTuner(env, m_usbTunerClass);
-    jusbDevice->setJavaClassDabService(env, m_dabServiceClass);
+    jusbDevice->setJavaClassDabService(env, m_radioServiceDabImplClass);
     jusbDevice->setJavaClassDabServiceComponent(env, m_dabServiceComponentClass);
     jusbDevice->setJavaClassDabServiceUserApplication(env, m_dabServiceUserApplicationClass);
     jusbDevice->setJavaClassTermId(env, m_termIdClass);
@@ -240,7 +259,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startSrv(JNIEnv* env, 
     auto devIter = m_dabInputs.cbegin();
     while(devIter != m_dabInputs.cend()) {
         if(devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
-            std::shared_ptr<JDabService> sharedPtr = std::make_shared<JDabService>(m_javaVm, env, m_dabServiceClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService);
+            std::shared_ptr<JDabService> sharedPtr = std::make_shared<JDabService>(m_javaVm, env, m_radioServiceDabImplClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService);
             (*devIter).get()->startService(sharedPtr);
             break;
         }
@@ -307,8 +326,47 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopServiceScan(JNIEnv
     }
 }
 
+JNIEXPORT jobject JNICALL Java_org_omri_radio_impl_UsbHelper_getLinkedServices(JNIEnv * env , jobject thiz, jstring deviceName , jobject dabService ) {
+
+    // TODO attach/detach JNI thread, not only here, everywhere in this file
+
+    const char *cDeviceName = env->GetStringUTFChars(deviceName, JNI_FALSE);
+
+    std::string devName(cDeviceName);
+    env->ReleaseStringUTFChars(deviceName, cDeviceName) ;
+
+    std::cout << LOG_TAG << " getting service linking for device: " << devName << std::endl;
+
+    auto devIter = m_dabInputs.cbegin();
+    while (devIter != m_dabInputs.cend()) {
+        if (devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
+
+            // convert Java input dabService
+            JDabService jDabService(m_javaVm, env, m_radioServiceDabImplClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService);
+
+            // retrieve data
+            auto retServices = devIter->get()->getLinkedServices(jDabService);
+
+            // build output return data
+            jobject retObj = env->NewObject(m_ArraySetClass, m_ArraySet_init_mId, static_cast<jint>(retServices.size()));
+            for (const auto & s : retServices) {
+
+                jobject jLinkedServiceDab = env->NewObject(m_radioServiceDabImplClass, m_radioServiceDabImpl_init_mId);
+                env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setEnsembleEcc_mId, static_cast<jbyte>(s->getEnsembleEcc()));
+                env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setEnsembleFrequency_mId, static_cast<jint>(s->getEnsembleFrequencyKHz()));
+                env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setEnsembleId_mId, static_cast<jint>(s->getEnsembleId()));
+                env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setServiceId_mId, static_cast<jint>(s->getServiceId()));
+
+                env->CallBooleanMethod(retObj, m_ArraySet_add_mId, jLinkedServiceDab);
+            }
+            return retObj;
+        }
+    }
+    return nullptr;
+}
+
 /* EdiStream -> highly experimental */
-std::vector<std::shared_ptr<EdiInput>> m_ediInputs;
+static std::vector<std::shared_ptr<EdiInput>> m_ediInputs;
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediTunerAttached(JNIEnv* env, jobject thiz, jobject ediTuner) {
     std::cout << LOG_TAG << " EdiTuner attached" << std::endl;
@@ -316,7 +374,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediTunerAttached(JNIEn
     std::shared_ptr<EdiInput> jediTuner = std::shared_ptr<EdiInput>(new EdiInput(m_javaVm, env, ediTuner));
     jediTuner->setJavaClassEdiTuner(env, m_ediTunerClass);
     jediTuner->setJavaClassDabTime(env, m_dabTimeClass);
-    jediTuner->setJavaClassDabService(env, m_dabServiceClass);
+    jediTuner->setJavaClassDabService(env, m_radioServiceDabImplClass);
     jediTuner->setJavaClassDabServiceComponent(env, m_dabServiceComponentClass);
     jediTuner->setJavaClassDabServiceUserApplication(env, m_dabServiceUserApplicationClass);
     jediTuner->setJavaClassTermId(env, m_termIdClass);
@@ -332,7 +390,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediTunerDetached(JNIEn
 }
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startEdiStream(JNIEnv* env, jobject thiz, jobject ediTuner, jobject dabService) {
-    m_ediInputs[0]->startService(std::make_shared<JDabService>(m_javaVm, env, m_dabServiceClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService));
+    m_ediInputs[0]->startService(std::make_shared<JDabService>(m_javaVm, env, m_radioServiceDabImplClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService));
 }
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediStreamData(JNIEnv* env, jobject thiz, jbyteArray dabEdiData, jint size) {
@@ -350,7 +408,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediFlushBuffer(JNIEnv*
 }
 
 /* Demo Tuner */
-std::shared_ptr<DemoUsbTunerInput> m_demoInput = nullptr;
+static std::shared_ptr<DemoUsbTunerInput> m_demoInput = nullptr;
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoTunerAttached(JNIEnv* env, jobject thiz, jobject demoTuner) {
     if (m_demoInput == nullptr) {
@@ -358,7 +416,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoTunerAttached(JNIE
         m_demoInput = std::shared_ptr<DemoUsbTunerInput>(new DemoUsbTunerInput(m_javaVm, env));
         m_demoInput->setJavaClassDemoTuner(env, m_demoTunerClass);
         m_demoInput->setJavaObjectDemoTuner(env, demoTuner);
-        m_demoInput->setJavaClassRadioService(env, m_radioServiceClass);
+        m_demoInput->setJavaClassRadioService(env, m_radioServiceImplClass);
     } else {
         std::cerr << LOG_TAG << "DemoTuner already attached" << std::endl;
     }
@@ -374,7 +432,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoTunerDetached(JNIE
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoServiceStart(JNIEnv* env, jobject thiz, jobject radioService) {
     if (m_demoInput != nullptr) {
-        std::shared_ptr<JDabService> service = std::make_shared<JDabService>(m_javaVm, env, m_dabServiceClass, m_dynamicLabelClass,
+        std::shared_ptr<JDabService> service = std::make_shared<JDabService>(m_javaVm, env, m_radioServiceDabImplClass, m_dynamicLabelClass,
             m_dynamicLabelPlusItemClass, m_slideshowClass, radioService);
         m_demoInput->startService(service);
     }
