@@ -19,9 +19,9 @@
  */
 
 #include <iostream>
-#include "jdabservice.h"
 
-//constexpr char const * JDabService::EBU_SET[16][16];
+#include "jdabservice.h"
+#include "jni-helper.h"
 
 static constexpr uint16_t MIME_LINK_TABLE[4] = {
         7,
@@ -31,6 +31,8 @@ static constexpr uint16_t MIME_LINK_TABLE[4] = {
 };
 
 JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jclass dynamicLabelClass, jclass dynamicLabelPlusItemClass, jclass slideshowClass, jobject dabserviceObject) {
+    // Note: don't JNI_ATTACH !
+    
     std::cout << m_logTag << "Constructing" << std::endl;
 
     m_javaVm = javaVm;
@@ -91,18 +93,13 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
 }
 
 JDabService::~JDabService() {
-    bool wasDetached = false;
-    JNIEnv* enve;
-
-    int envState = m_javaVm->GetEnv((void**)&enve, JNI_VERSION_1_6);
-    if(envState == JNI_EDETACHED) {
-        if(m_javaVm->AttachCurrentThread(&enve, NULL) == 0) {
-            wasDetached = true;
-        } else {
-            std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
-            return;
-        }
+    bool wasDetached;
+    if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+        return;
     }
+    JNIEnv* enve;
+    m_javaVm->GetEnv((void**)&enve, JNI_VERSION_1_6);
 
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::cout << m_logTag << "Destroying SId " << std::hex << m_serviceId << std::dec << std::endl;
@@ -113,12 +110,18 @@ JDabService::~JDabService() {
     enve->DeleteGlobalRef(m_linkedJavaDabServiceObject);
     m_linkedJavaDabServiceObject = nullptr;
 
-    if(wasDetached) {
-        m_javaVm->DetachCurrentThread();
+    if (!JNI_DETACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
     }
 }
 
 void JDabService::unlinkDabService() {
+    bool wasDetached;
+    if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+        return;
+    }
+
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::cout << m_logTag << "Un-Linking DABServices... for SId " << std::hex << m_serviceId << std::dec << std::endl;
     if (m_linkedDabService != nullptr) {
@@ -137,9 +140,19 @@ void JDabService::unlinkDabService() {
         m_slsCallback.reset();
         m_slsCallback = nullptr;
     }
+
+    if (!JNI_DETACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
+    }
 }
 
 void JDabService::setLinkDabService(std::shared_ptr<DabService> linkedDabSrv) {
+    bool wasDetached;
+    if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+        return;
+    }
+
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
 
     if (linkedDabSrv->isProgrammeService()) {
@@ -202,6 +215,10 @@ void JDabService::setLinkDabService(std::shared_ptr<DabService> linkedDabSrv) {
         std::clog << m_logTag << "failed attempt to link non Programme Service SId "
                   << std::hex << m_serviceId << std::dec << std::endl;
     }
+
+    if (!JNI_DETACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
+    }
 }
 
 std::shared_ptr<DabService> JDabService::getLinkDabService() const {
@@ -236,18 +253,14 @@ void JDabService::audioDataInput(const std::vector<uint8_t>& audioData, int asct
     if (!m_decodeAudio) {
         return;
     }
-    bool wasDetached = false;
-    JNIEnv *enve;
 
-    int envState = m_javaVm->GetEnv((void **) &enve, JNI_VERSION_1_6);
-    if (envState == JNI_EDETACHED) {
-        if (m_javaVm->AttachCurrentThread(&enve, nullptr) == 0) {
-            wasDetached = true;
-        } else {
-            std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
-            return;
-        }
+    bool wasDetached;
+    if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+        return;
     }
+    JNIEnv* enve;
+    m_javaVm->GetEnv((void**)&enve, JNI_VERSION_1_6);
 
     if (m_ascty != ascty || m_audioChannelCount != channels || m_audioSamplingRate != sampleRate ||
         m_audioSbrUsed != sbrUsed || m_audioPsUsed != psUsed) {
@@ -293,12 +306,18 @@ void JDabService::audioDataInput(const std::vector<uint8_t>& audioData, int asct
         }
     }
 
-    if(wasDetached) {
-        m_javaVm->DetachCurrentThread();
+    if (!JNI_DETACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
     }
 }
 
 void JDabService::decodeAudio(bool decode) {
+    bool wasDetached;
+    if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+        return;
+    }
+
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     m_decodeAudio = decode;
     if(!m_decodeAudio) {
@@ -312,6 +331,9 @@ void JDabService::decodeAudio(bool decode) {
             callJavaSlideshowCallback(m_lastSlideshow);
         }
     }
+    if (!JNI_DETACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
+    }
 }
 
 bool JDabService::isDecodingAudio() {
@@ -319,6 +341,12 @@ bool JDabService::isDecodingAudio() {
 }
 
 void JDabService::dynamicLabelInput(std::shared_ptr<void> label) {
+    bool wasDetached;
+    if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+        return;
+    }
+
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     m_lastDynamicLabel = std::static_pointer_cast<DabDynamicLabel>(label);
 
@@ -330,9 +358,18 @@ void JDabService::dynamicLabelInput(std::shared_ptr<void> label) {
     if(m_decodeAudio) {
         callJavaDynamiclabelCallback(m_lastDynamicLabel);
     }
+    if (!JNI_DETACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
+    }
 }
 
 void JDabService::slideshowInput(std::shared_ptr<void> slideShow) {
+    bool wasDetached;
+    if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+        return;
+    }
+
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     m_lastSlideshow = std::static_pointer_cast<DabSlideshow>(slideShow);
 
@@ -349,21 +386,19 @@ void JDabService::slideshowInput(std::shared_ptr<void> slideShow) {
     if(m_decodeAudio) {
         callJavaSlideshowCallback(m_lastSlideshow);
     }
+    if (!JNI_DETACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
+    }
 }
 
 void JDabService::callJavaSlideshowCallback(const std::shared_ptr<DabSlideshow>& slide) {
-    bool wasDetached = false;
-    JNIEnv* enve;
-
-    int envState = m_javaVm->GetEnv((void**)&enve, JNI_VERSION_1_6);
-    if(envState == JNI_EDETACHED) {
-        if(m_javaVm->AttachCurrentThread(&enve, nullptr) == 0) {
-            wasDetached = true;
-        } else {
-            std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
-            return;
-        }
+    bool wasDetached;
+    if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+        return;
     }
+    JNIEnv* enve;
+    m_javaVm->GetEnv((void**)&enve, JNI_VERSION_1_6);
 
     jobject slsObject = enve->NewObject(m_javaSlsClass, m_javaSlsConstructorMId);
 
@@ -410,24 +445,19 @@ void JDabService::callJavaSlideshowCallback(const std::shared_ptr<DabSlideshow>&
     enve->DeleteLocalRef(slsContentName);
     enve->DeleteLocalRef(slsObject);
 
-    if(wasDetached) {
-        m_javaVm->DetachCurrentThread();
+    if (!JNI_DETACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
     }
 }
 
 void JDabService::callJavaDynamiclabelCallback(const std::shared_ptr<DabDynamicLabel>& label) {
-    bool wasDetached = false;
-    JNIEnv* enve;
-
-    int envState = m_javaVm->GetEnv((void**)&enve, JNI_VERSION_1_6);
-    if(envState == JNI_EDETACHED) {
-        if(m_javaVm->AttachCurrentThread(&enve, nullptr) == 0) {
-            wasDetached = true;
-        } else {
-            std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
-            return;
-        }
+    bool wasDetached;
+    if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+        return;
     }
+    JNIEnv* enve;
+    m_javaVm->GetEnv((void**)&enve, JNI_VERSION_1_6);
 
     jobject dlsObject = enve->NewObject(m_javaDlsClass, m_javaDlsConstructorMId);
 
@@ -463,8 +493,9 @@ void JDabService::callJavaDynamiclabelCallback(const std::shared_ptr<DabDynamicL
     }
 
     enve->DeleteLocalRef(dlsObject);
-    if(wasDetached) {
-        m_javaVm->DetachCurrentThread();
+
+    if (!JNI_DETACH(m_javaVm, wasDetached)) {
+        std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
     }
 }
 

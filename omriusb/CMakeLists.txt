@@ -21,6 +21,7 @@ add_library( # Sets the name of the library.
 
              # Provides a relative path to your source file(s).
              src/main/cpp/platformspecific/android/native-lib.cpp
+             src/main/cpp/platformspecific/android/jni-helper.cpp
              src/main/cpp/fig_00_ext_05.cpp
              src/main/cpp/fig_00_ext_13.cpp
              src/main/cpp/fig_00_ext_21.cpp

@@ -1825,6 +1825,7 @@ std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(co
 
 
     // TODO lock databases
+    // std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
 
     std::cout << LOG_TAG << " Lookup EId 0x" << std::hex << +eid << std::dec
         << " frequencyInformationDb (size " << +m_frequencyInformationDb.size() << ")" << std::endl;
