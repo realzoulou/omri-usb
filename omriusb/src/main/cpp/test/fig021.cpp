@@ -136,17 +136,15 @@ void testDab() {
     assert(fi.isChangeEvent == false);
     assert(fi.id == 0x11F7);
     assert(fi.frequencyInformationType == Fig_00_Ext_21::DAB_ENSEMBLE);
-    assert(fi.frequencies.size() == 5);
+    assert(fi.frequencies.size() == 4);
     assert(fi.frequencies[0].additionalInfo.dabEnsembleAdjacent == Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE);
     assert(fi.frequencies[0].frequencyKHz == 180064);
     assert(fi.frequencies[1].additionalInfo.dabEnsembleAdjacent == Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE);
     assert(fi.frequencies[1].frequencyKHz == 199360);
     assert(fi.frequencies[2].additionalInfo.dabEnsembleAdjacent == Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE);
-    assert(fi.frequencies[2].frequencyKHz == 2060512);
+    assert(fi.frequencies[2].frequencyKHz == 204640);
     assert(fi.frequencies[3].additionalInfo.dabEnsembleAdjacent == Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE);
-    assert(fi.frequencies[3].frequencyKHz == 204640);
-    assert(fi.frequencies[4].additionalInfo.dabEnsembleAdjacent == Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE);
-    assert(fi.frequencies[4].frequencyKHz == 229072);
+    assert(fi.frequencies[3].frequencyKHz == 229072);
     uint32_t expFreqDbKey = 0x00011F70;
     if (expFreqDbKey != fi.freqDbKey){
         std::cerr << "freqDbKey was 0x" << std::hex << +fi.freqDbKey

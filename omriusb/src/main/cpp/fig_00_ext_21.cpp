@@ -23,6 +23,7 @@
 #include <iomanip>
 
 #include "fig_00_ext_21.h"
+#include "global_definitions.h"
 
 Fig_00_Ext_21::Fig_00_Ext_21(const std::vector<uint8_t>& figData) : Fig_00(figData) {
     parseFigData(figData);
@@ -65,22 +66,21 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                     | ((idField & 0b1111111111111111) << 4)  // 16 bit
                     | (rangeModulation & 0b1111)  // 4 bit
             );
-            bool isDbStart{false};
+
             if(frqListEntryLen > 0) {
-                if(!isNextConfiguration()) {
-                    //Start of Database
-                    isDbStart = true;
-                } else {
-                    freqInfo.isContinuation = true;
-                }
+                // The C/N flag is used in the database definition mode and the flag indicates
+                // the start of the database definition when set to 0
+                // or a continuation of the database definition when set to 1
+                freqInfo.isContinuation = isNextConfiguration();
             } else {
-                //Database Change Event Indication (CEI)
+                // The Change Event Indication (CEI) is signalled by the Length of Freq list field = 0.
                 freqInfo.isChangeEvent = true;
             }
 
             while (frqListEntryLen > 0 && figIter < figData.cend()) {
 
                 FrequencyListItem freqInfoItem;
+                bool freqIsValid{true};
 
                 //R&M = 0000: DAB Ensemble
                 if (rangeModulation == 0) {
@@ -133,6 +133,14 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                             ((*figIter++ & 0xFF)));
 
                     freqInfoItem.frequencyKHz = frequency * 16;
+
+                    // range check
+                    const std::vector<uint32_t> knownDabFrequencies(std::begin(DAB_FREQ_TABLE_MHZ), std::end(DAB_FREQ_TABLE_MHZ));
+                    if (std::find(knownDabFrequencies.cbegin(), knownDabFrequencies.cend(),
+                            freqInfoItem.frequencyKHz) == knownDabFrequencies.cend()) {
+                        std::clog << m_logTag << " DAB frequency ignored: " << freqInfoItem.frequencyKHz << " kHz" << std::endl;
+                        freqIsValid = false;
+                    }
                 } else
 
                     //R&M = 1000: FM with RDS
@@ -237,10 +245,12 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
                     // 1 1 0 0:    AM (MW in 5 kHz steps & SW);
 
                     // ignored
-                    break;
+                    freqIsValid = false;
                 }
 
-                freqInfo.frequencies.push_back(freqInfoItem);
+                if (freqIsValid) {
+                    freqInfo.frequencies.push_back(freqInfoItem);
+                }
             }
 
             m_frequencyInformations.push_back(freqInfo);
