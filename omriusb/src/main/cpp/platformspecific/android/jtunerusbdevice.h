@@ -43,7 +43,7 @@ public:
 
     virtual void callCallback(TUNER_CALLBACK_TYPE callbackType);
     virtual void scanProgress(int percentDone);
-    virtual void ensembleReady(const DabEnsemble& ensemble);
+    virtual void ensembleReady(DabEnsemble& ensemble);
     virtual void serviceStarted(jobject dabService);
     virtual void serviceStopped(jobject dabService);
     virtual void receptionStatistics(bool rfLock, int qual);

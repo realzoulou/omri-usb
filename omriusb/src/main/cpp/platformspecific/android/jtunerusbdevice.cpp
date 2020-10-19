@@ -171,7 +171,7 @@ void JTunerUsbDevice::scanProgress(int percentDone) {
     }
 }
 
-void JTunerUsbDevice::ensembleReady(const DabEnsemble& ensemble) {
+void JTunerUsbDevice::ensembleReady(DabEnsemble& ensemble) {
     std::cout << m_logTag << " Scan ensemble ready: " << +ensemble.getDabServices().size() << " : "
               << ensemble.getEnsembleId() << std::endl;
 

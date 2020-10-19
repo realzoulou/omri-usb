@@ -468,13 +468,12 @@ void RaonTunerInput::ensembleCollectFinished() {
 
     if(m_isScanning) {
         if (m_usbDevice != nullptr) {
-            m_usbDevice->ensembleReady(getEnsemble());
+            m_usbDevice->ensembleReady(const_cast<DabEnsemble &>(getEnsemble()));
         }
         m_scanCommandQueue.push(std::bind(&RaonTunerInput::scanNext, this));
     }
 
     setService();
-    return;
 }
 //
 
@@ -1803,8 +1802,8 @@ void RaonTunerInput::getAntennaLevel() {
     }
 }
 
-std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(const JDabService &service) const {
-
+std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(const JDabService &service) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::set<std::shared_ptr<LinkedServiceDab>> collectedServicesOrderedSet;
 
     const auto ecc = service.getEnsembleEcc();

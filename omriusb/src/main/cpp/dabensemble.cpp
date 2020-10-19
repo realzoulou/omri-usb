@@ -34,6 +34,7 @@ DabEnsemble::DabEnsemble() {
 }
 
 DabEnsemble::~DabEnsemble() {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::cout << m_logTag << " Destructing" << std::endl;
     if (m_ficPtr != nullptr) {
         m_ficPtr.reset();
@@ -42,6 +43,7 @@ DabEnsemble::~DabEnsemble() {
 }
 
 void DabEnsemble::reset() {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::cout << m_logTag << " Resetting Ensemble informations" << std::endl;
 
     m_reseting = true;
@@ -104,7 +106,8 @@ uint8_t DabEnsemble::getEnsembleEcc() const {
     return m_ensembleEcc;
 }
 
-std::vector<std::shared_ptr<DabService>> DabEnsemble::getDabServices() const {
+std::vector<std::shared_ptr<DabService>> DabEnsemble::getDabServices() {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::vector<std::shared_ptr<DabService>> services;
     for(const auto& srv : m_servicesMap) {
         services.push_back(std::make_shared<DabService>(srv.second));
@@ -113,6 +116,7 @@ std::vector<std::shared_ptr<DabService>> DabEnsemble::getDabServices() const {
 }
 
 void DabEnsemble::registerCbs() {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     m_fig001done = false;
     m_fig002done = false;
     m_fig003done = false;
@@ -147,6 +151,7 @@ void DabEnsemble::registerCbs() {
 }
 
 void DabEnsemble::dataInput(const std::vector<uint8_t>& data, uint8_t subChId, bool synchronized) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     if(!m_reseting) {
         if(subChId != 0x64) {
             auto compIter = m_streamComponentsMap.find(subChId);
@@ -169,6 +174,7 @@ void DabEnsemble::dataInput(const std::vector<uint8_t>& data, uint8_t subChId, b
 
 //added to flush component decoders
 void DabEnsemble::flushBufferedComponentData(uint8_t subChId) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     if(!m_reseting) {
         auto compIter = m_streamComponentsMap.find(subChId);
         if(compIter != m_streamComponentsMap.cend()) {
@@ -187,6 +193,7 @@ void DabEnsemble::flushBufferedComponentData(uint8_t subChId) {
 
 //added to flush component decoders
 void DabEnsemble::flushAllBufferedComponentData() {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     auto audioCompIter = m_streamComponentsMap.cbegin();
     while(audioCompIter != m_streamComponentsMap.cend()) {
         audioCompIter->second->flushBufferedData();
@@ -201,6 +208,7 @@ void DabEnsemble::flushAllBufferedComponentData() {
 }
 
 void DabEnsemble::fig00_00_input(const Fig_00_Ext_00& fig00) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     if(m_ensembleId != fig00.getEnsembleId()) {
         m_isInitializing = true;
     }
@@ -231,6 +239,7 @@ void DabEnsemble::fig00_00_input(const Fig_00_Ext_00& fig00) {
 }
 
 void DabEnsemble::fig00_01_input(const Fig_00_Ext_01& fig01) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     for(const auto& subOrga : fig01.getSubchannelOrganizations()) {
         std::shared_ptr<DabServiceComponent> component{nullptr};
         auto streamCompIter = m_streamComponentsMap.find(subOrga.subChannelId);
@@ -264,6 +273,7 @@ void DabEnsemble::fig00_01_input(const Fig_00_Ext_01& fig01) {
 }
 
 void DabEnsemble::fig00_02_input(const Fig_00_Ext_02 &fig02) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     for(const auto& srvDesc : fig02.getServiceDescriptions()) {
         auto srvIter = m_servicesMap.find(srvDesc.serviceId);
         if(srvIter == m_servicesMap.end()) {
@@ -339,6 +349,7 @@ void DabEnsemble::fig00_02_input(const Fig_00_Ext_02 &fig02) {
 }
 
 void DabEnsemble::fig00_03_input(const Fig_00_Ext_03& fig03) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     if(m_packetComponentsMap.empty()) {
         return;
     }
@@ -357,6 +368,7 @@ void DabEnsemble::fig00_03_input(const Fig_00_Ext_03& fig03) {
 }
 
 void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     //std::cout << m_logTag << " LinkDB Received SLI" << std::endl;
     bool dbHasChanged = false;
     for(const auto& linkInfo : fig06.getServiceLinkingInformations()) {
@@ -454,6 +466,7 @@ void DabEnsemble::dumpServiceLinkDb() const {
 }
 
 void DabEnsemble::fig00_21_input(const Fig_00_Ext_21& fig21) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     //std::cout << m_logTag << " FreqInfoDB received FrequencyInformation for OE: " << std::boolalpha << fig21.isOtherEnsemble() << std::noboolalpha << std::endl;
     bool hasChanged = false;
     for(const auto& freqInfo : fig21.getFrequencyInformations()) {
@@ -570,6 +583,7 @@ void DabEnsemble::dumpFrequencyDb() const {
 }
 
 void DabEnsemble::fig00_24_input(const Fig_00_Ext_24& fig24) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     //std::cout << m_logTag << " OtherEnsembleSrvDb received OeServiceInformation" << std::endl;
     bool hasChanged = false;
     for(const auto& oeInfo : fig24.getOtherEnsembleServiceInformations()) {
@@ -638,6 +652,7 @@ void DabEnsemble::dumpOeSrvInfoDb() const {
 }
 
 void DabEnsemble::fig00_08_input(const Fig_00_Ext_08& fig08) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     if(m_streamComponentsMap.empty()) {
         std::cout << m_logTag << " FIG 00 Ext 08 Maps still empty" << std::endl;
         return;
@@ -661,17 +676,20 @@ void DabEnsemble::fig00_08_input(const Fig_00_Ext_08& fig08) {
 }
 
 void DabEnsemble::fig00_09_input(const Fig_00_Ext_09& fig09) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::cout << m_logTag << " Ensemble ECC: " << std::hex << +fig09.getEnsembleEcc() << std::dec << std::endl;
     m_ensembleEcc = fig09.getEnsembleEcc();
 }
 
 void DabEnsemble::fig00_10_input(const Fig_00_Ext_10& fig10) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     //std::cout << m_logTag << " DateAndTime: " << +fig10.getDabTime().unixTimestampSeconds << std::endl;
 
     m_dateAndTimeDispatcher.invoke(fig10.getDabTime());
 }
 
 void DabEnsemble::fig00_13_input(const Fig_00_Ext_13& fig13) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     for(const auto& uAppInfo : fig13.getUserApplicationInformations()) {
         auto serviceIter = m_servicesMap.find(uAppInfo.serviceID);
         if(serviceIter != m_servicesMap.end()) {
@@ -700,6 +718,7 @@ void DabEnsemble::fig00_13_input(const Fig_00_Ext_13& fig13) {
 }
 
 void DabEnsemble::fig00_14_input(const Fig_00_Ext_14& fig14) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     if(m_packetComponentsMap.empty()) {
         return;
     }
@@ -719,6 +738,7 @@ void DabEnsemble::fig00_14_input(const Fig_00_Ext_14& fig14) {
 }
 
 void DabEnsemble::fig00_17_input(const Fig_00_Ext_17& fig17) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     for(auto ptyInfo : fig17.getProgrammeTypeInformations()) {
         auto serviceIter = m_servicesMap.find(ptyInfo.serviceId);
         if(serviceIter != m_servicesMap.cend()) {
@@ -730,6 +750,7 @@ void DabEnsemble::fig00_17_input(const Fig_00_Ext_17& fig17) {
 
 
 void DabEnsemble::fig00_18_input(const Fig_00_Ext_18& fig18) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     //TODO Announcement support indication
     /*
     for(const auto& aSup : fig18.getAnnouncementSupports()) {
@@ -744,6 +765,7 @@ void DabEnsemble::fig00_18_input(const Fig_00_Ext_18& fig18) {
 }
 
 void DabEnsemble::fig00_19_input(const Fig_00_Ext_19& fig19) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     for(const auto& aSwitched : fig19.getSwitchedAnnouncements()) {
         if(aSwitched.isNewlyIntroduced) {
             //std::cout << m_logTag << " Announcement for ClusterId: 0x" << std::hex << +aSwitched.clusterId << std::dec << " received. SwitchSize: " << +aSwitched.announcementsSwitched.size() << std::endl;
@@ -773,6 +795,7 @@ void DabEnsemble::fig00_19_input(const Fig_00_Ext_19& fig19) {
 }
 
 void DabEnsemble::fig01_00_input(const Fig_01_Ext_00& fig10) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     if(m_ensembleLabel.empty() && m_ensembleShortLabel.empty()) {
         if(fig10.getEnsembleId() == m_ensembleId) {
             m_ensembleLabel = fig10.getEnsembleLabel();
@@ -785,6 +808,7 @@ void DabEnsemble::fig01_00_input(const Fig_01_Ext_00& fig10) {
 }
 
 void DabEnsemble::fig01_01_input(const Fig_01_Ext_01& fig11) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::cout << m_logTag << " ServiceSanity FIC 01_01: " << std::hex << +fig11.getProgrammeServiceId() << std::dec << " : " << fig11.getProgrammeServiceLabel() << std::endl;
     auto serviceIter = m_servicesMap.find(fig11.getProgrammeServiceId());
     if(serviceIter != m_servicesMap.cend()) {
@@ -795,6 +819,7 @@ void DabEnsemble::fig01_01_input(const Fig_01_Ext_01& fig11) {
 }
 
 void DabEnsemble::fig01_04_input(const Fig_01_Ext_04& fig14) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::cout << m_logTag << " ServiceSanity FIC 01_04: " << std::hex << +fig14.getServiceId() << std::dec << ", SCIDs: " << +fig14.getServiceComponentIdWithinService() << " : " << fig14.getServiceComponentLabel() << std::endl;
     auto serviceIter = m_servicesMap.find(fig14.getServiceId());
     if(serviceIter != m_servicesMap.cend()) {
@@ -809,6 +834,7 @@ void DabEnsemble::fig01_04_input(const Fig_01_Ext_04& fig14) {
 }
 
 void DabEnsemble::fig01_05_input(const Fig_01_Ext_05& fig15) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::cout << m_logTag << " ServiceSanity FIC 01_05: " << std::hex << +fig15.getDataServiceId() << std::dec << " : " << fig15.getDataServiceLabel() << std::endl;
     auto serviceIter = m_servicesMap.find(fig15.getDataServiceId());
     if(serviceIter != m_servicesMap.cend()) {
@@ -819,11 +845,13 @@ void DabEnsemble::fig01_05_input(const Fig_01_Ext_05& fig15) {
 }
 
 void DabEnsemble::fig01_06_input(const Fig_01_Ext_06& fig16) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
 
 }
 
 
 void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::cout << m_logTag << " FIG 00 Extension: " << +type << " done ###########" << std::endl;
 
     switch (type) {
@@ -911,6 +939,7 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
 }
 
 void DabEnsemble::fig_01_done_cb(Fig::FIG_01_TYPE type) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::cout << m_logTag << " FIG 01 Extension: " << +type << " done ###########" << std::endl;
     switch (type) {
         case Fig::FIG_01_TYPE::ENSEMBLE_LABEL: {
@@ -944,8 +973,8 @@ void DabEnsemble::fig_01_done_cb(Fig::FIG_01_TYPE type) {
     }
 }
 
-//TODO this needs some more work
 void DabEnsemble::checkServiceSanity() {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     for(const auto& srvMap : m_servicesMap) {
         uint32_t numPrimAudioComponents = 0;
         auto srv = srvMap.second;
@@ -1020,10 +1049,12 @@ void DabEnsemble::checkServiceSanity() {
 }
 
 std::shared_ptr<std::function<void()>> DabEnsemble::registerEnsembleCollectDoneCallback(std::function<void()> cb) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     return m_ensembleCollectDoneDispatcher.add(cb);
 }
 
 std::shared_ptr<DabEnsemble::Date_Time_Callback> DabEnsemble::registerDateTimeCallback(DabEnsemble::Date_Time_Callback cb) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     return m_dateAndTimeDispatcher.add(cb);
 }
 

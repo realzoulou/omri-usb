@@ -41,6 +41,9 @@ public:
 
     virtual std::string getDeviceName() const = 0;
 
-    virtual std::set<std::shared_ptr<LinkedServiceDab>> getLinkedServices(const JDabService& service) const = 0;
+    virtual std::set<std::shared_ptr<LinkedServiceDab>> getLinkedServices(const JDabService& service) {
+        // dummy implementation for sub-classes that can't implement this
+        return std::set<std::shared_ptr<LinkedServiceDab>>();
+    };
 };
 #endif //DABUSBTUNERINPUT_H

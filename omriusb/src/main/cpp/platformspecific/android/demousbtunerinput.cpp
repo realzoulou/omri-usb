@@ -502,9 +502,3 @@ void DemoUsbTunerInput::inputStreamClose() {
         m_inFileStream.close();
     }
 }
-
-std::set<std::shared_ptr<LinkedServiceDab>> DemoUsbTunerInput::getLinkedServices(const JDabService& service) const {
-    // dummy implementation to make compiler happy
-    std::set<std::shared_ptr<LinkedServiceDab>> ret;
-    return ret;
-}

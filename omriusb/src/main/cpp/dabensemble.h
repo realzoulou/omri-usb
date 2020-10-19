@@ -25,6 +25,7 @@
 #include <string>
 #include <map>
 #include <memory>
+#include <mutex>
 
 #include "ficparser.h"
 
@@ -52,7 +53,7 @@ public:
 
     virtual uint8_t getEnsembleEcc() const;
 
-    virtual std::vector<std::shared_ptr<DabService>> getDabServices() const;
+    virtual std::vector<std::shared_ptr<DabService>> getDabServices();
 
     virtual std::shared_ptr<std::function<void()>> registerEnsembleCollectDoneCallback(std::function<void()> cb);
 
@@ -68,6 +69,12 @@ protected:
     std::unique_ptr<FicParser> m_ficPtr{nullptr};
     uint32_t m_ensembleFrequency{0};
     bool m_ensembleCollectFinished{false};
+
+    // mutex to guard read/write access to internal data
+    // use it by placing following code as (typ.) first instruction of a method:
+    //   std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+    // by leaving the method, the mutex is automatically released
+    std::recursive_mutex m_mutex;
 
 private:
     void registerCbs();
