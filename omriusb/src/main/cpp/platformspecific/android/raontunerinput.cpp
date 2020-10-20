@@ -1802,6 +1802,11 @@ void RaonTunerInput::getAntennaLevel() {
     }
 }
 
+// TODO replace std::set with std::vector again
+// and remove duplicates
+// https://stackoverflow.com/questions/1453333/how-to-make-elements-of-vector-unique-remove-non-adjacent-duplicates
+// reason: LinkedServiceDab cannot implement operator< and so the set contains duplicates
+FIXME !
 std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(const JDabService &service) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::set<std::shared_ptr<LinkedServiceDab>> collectedServicesOrderedSet;
@@ -1867,7 +1872,9 @@ std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(co
                                     otherFrequenciesSortedByAdjacency.cend(), servicePtr);
                         }
                     } else {
-                        std::cout << LOG_TAG << "   skip'd same frequency match: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
+                        std::cout << LOG_TAG << "   skip'd same frequency match EId 0x"
+                            << std::hex << +freqInfo.id << std::dec
+                            << " : " << +fli.frequencyKHz << " kHz" << std::endl;
                     }
                 }
             } else {

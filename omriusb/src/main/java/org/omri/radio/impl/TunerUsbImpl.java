@@ -249,6 +249,10 @@ public class TunerUsbImpl implements TunerUsb {
 					for (final RadioService radioService : radioServices) {
 						if (radioService instanceof RadioServiceDab) {
 							final RadioServiceDab radioServiceDab = (RadioServiceDab) radioService;
+							if (radioServiceDab.getEnsembleId() == 0x11f7 &&
+									radioServiceDab.getServiceId() == 0xd318) {
+								Log.d(TAG, "Antenne Bayern on 12D Antenne DE");
+							}
 							if (radioServiceDab.equals(linkedDabService)) { // strict check of ECC, SId, EId, Frequency
 								// add the already known RadioServiceDab
 								retLinkedRadioServices.add(radioServiceDab);
