@@ -240,7 +240,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startSrv(JNIEnv* env, 
     auto devIter = m_dabInputs.cbegin();
     while(devIter != m_dabInputs.cend()) {
         if(devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
-            (*devIter).get()->startService(std::move(std::shared_ptr<JDabService>(new JDabService(m_javaVm, env, m_dabServiceClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService))));
+            std::shared_ptr<JDabService> sharedPtr = std::make_shared<JDabService>(m_javaVm, env, m_dabServiceClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService);
+            (*devIter).get()->startService(sharedPtr);
             break;
         }
         devIter++;
@@ -331,7 +332,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediTunerDetached(JNIEn
 }
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startEdiStream(JNIEnv* env, jobject thiz, jobject ediTuner, jobject dabService) {
-    m_ediInputs[0]->startService(std::move(std::shared_ptr<JDabService>(new JDabService(m_javaVm, env, m_dabServiceClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService))));
+    m_ediInputs[0]->startService(std::make_shared<JDabService>(m_javaVm, env, m_dabServiceClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService));
 }
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediStreamData(JNIEnv* env, jobject thiz, jbyteArray dabEdiData, jint size) {
@@ -373,9 +374,9 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoTunerDetached(JNIE
 
 JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoServiceStart(JNIEnv* env, jobject thiz, jobject radioService) {
     if (m_demoInput != nullptr) {
-        m_demoInput->startService(std::move(std::shared_ptr<JDabService>(
-                new JDabService(m_javaVm, env, m_dabServiceClass, m_dynamicLabelClass,
-                        m_dynamicLabelPlusItemClass, m_slideshowClass, radioService))));
+        std::shared_ptr<JDabService> service = std::make_shared<JDabService>(m_javaVm, env, m_dabServiceClass, m_dynamicLabelClass,
+            m_dynamicLabelPlusItemClass, m_slideshowClass, radioService);
+        m_demoInput->startService(service);
     }
 }
 

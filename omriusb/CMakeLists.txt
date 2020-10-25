@@ -87,6 +87,19 @@ find_library( # Sets the name of the path variable.
               # you want CMake to locate.
               log)
 
+target_compile_options(irtdab PUBLIC
+        # start with super pedantic compiler settings ...
+        -Wall -Wextra -pedantic -Werror
+        # ... and relax them as needed
+        -Wno-comment
+        -Wno-four-char-constants
+        -Wno-sign-compare
+        -Wno-unused-function
+        -Wno-unused-parameter
+        -Wno-unused-private-field
+        -Wno-unused-variable
+        )
+
 # Specifies libraries CMake should link to your target library. You
 # can link multiple libraries, such as libraries you define in this
 # build script, prebuilt third-party libraries, or system libraries.

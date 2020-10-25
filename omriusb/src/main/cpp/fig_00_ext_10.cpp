@@ -55,9 +55,13 @@ void Fig_00_Ext_10::parseFigData(const std::vector<uint8_t>& figData) {
                 m_dabTime.hour,
                 m_dabTime.day,
                 m_dabTime.month-1,
-                m_dabTime.year-1900
+                m_dabTime.year-1900,
+                0,
+                0,
+                0,
+                0,
+                0
         };
-        tm.tm_isdst = 0;
 
         m_dabTime.unixTimestampSeconds = _mkgmtime(&tm);
         //std::cout << m_logTag << " Year: " << +m_dabTime.year << ", Month: " << +m_dabTime.month << ", Day: " << +m_dabTime.day << ", Hour: " << +m_dabTime.hour << ", Minutes: " << +m_dabTime.minute << ", Seconds: " << +m_dabTime.second << ", Millis: " << +m_dabTime.milliseconds << ", UnixTime: " << +m_dabTime.unixTimestampSeconds << std::endl;
