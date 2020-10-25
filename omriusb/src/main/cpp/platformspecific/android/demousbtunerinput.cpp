@@ -116,32 +116,39 @@ void DemoUsbTunerInput::ensembleCollectFinished() {
 }
 
 void DemoUsbTunerInput::setService() {
-    bool foundSId = false, foundSrvPrimary = false;
-    for (const auto &srv : getDabServices()) {
-        if (srv->getServiceId() == m_startServiceLink->getServiceId()) {
-            m_startServiceLink->setLinkDabService(srv);
+    if(m_startServiceLink != nullptr) {
+        std::cout << LOG_TAG << "Starting service " << std::hex
+            << +m_startServiceLink->getServiceId() << std::dec << std::endl;
 
-            for (const auto &srvComp : srv->getServiceComponents()) {
-                if (srvComp->isPrimary()) {
-                    std::cout << LOG_TAG << "Starting SubChanId: " << std::hex
-                              << +srvComp->getSubChannelId() << std::dec << std::endl;
-                    m_currentSubchanId = srvComp->getSubChannelId();
-                    foundSrvPrimary = true;
-                    break;
+        bool foundSId = false, foundSrvComp = false;
+
+        for(const auto& srv : getDabServices()) {
+            if(srv->getServiceId() == m_startServiceLink->getServiceId()) {
+                m_startServiceLink->setLinkDabService(srv);
+
+                for (const auto& srvComp : srv->getServiceComponents()) {
+                    if((srvComp->getServiceComponentType() == DabServiceComponent::MSC_STREAM_AUDIO) &&
+                       (srvComp->isPrimary() || srv->getNumberServiceComponents() == 1)) {
+                        std::cout << LOG_TAG << "Starting SubChanId: " << std::hex << +srvComp->getSubChannelId() << std::dec << std::endl;
+                        m_currentSubchanId = srvComp->getSubChannelId();
+
+                        m_startServiceLink->decodeAudio(true);
+                        foundSrvComp = true;
+                        break;
+                    }
                 }
+                foundSId = true;
+                break;
             }
-
-            m_startServiceLink->decodeAudio(true);
-            foundSId = true;
-            break;
         }
-    }
-    if (!foundSId) {
-        std::clog << LOG_TAG << "setService: not found SId " << std::hex
-            << +m_startServiceLink->getServiceId() << std::dec << std::endl;
-    } else if (!foundSrvPrimary) {
-        std::clog << LOG_TAG << "setService: not found primary srv " << std::hex
-            << +m_startServiceLink->getServiceId() << std::dec << std::endl;
+
+        if (!foundSId) {
+            std::clog << LOG_TAG << "setService: not found SId " << std::hex
+                      << +m_startServiceLink->getServiceId() << std::dec << std::endl;
+        } else if (!foundSrvComp) {
+            std::clog << LOG_TAG << "setService: not found primary srv " << std::hex
+                      << +m_startServiceLink->getServiceId() << std::dec << std::endl;
+        }
     }
 }
 

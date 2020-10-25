@@ -263,8 +263,8 @@ class DabAudioDecoder {
 
 		@Override
 		public void decodedAudioData(byte[] pcmData, int samplerate, int channels) throws RemoteException {
-			if(DEBUG)Log.d(TAG, "Decoderservice audiodata: " + pcmData.length
-					+ ", tid: " + Process.myTid()  + ", prio: " + Process.getThreadPriority(Process.myTid()));
+			//if(DEBUG)Log.d(TAG, "Decoderservice audiodata: " + pcmData.length
+			//		+ ", tid: " + Process.myTid()  + ", prio: " + Process.getThreadPriority(Process.myTid()));
 			if (mCallback != null)
 				mCallback.decodedAudioData(pcmData, samplerate, channels);
 		}

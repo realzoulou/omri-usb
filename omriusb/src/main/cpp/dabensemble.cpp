@@ -756,6 +756,7 @@ void DabEnsemble::fig_01_done_cb(Fig::FIG_01_TYPE type) {
 //TODO this needs some more work
 void DabEnsemble::checkServiceSanity() {
     for(const auto& srvMap : m_servicesMap) {
+        uint32_t numPrimAudioComponents = 0;
         auto srv = srvMap.second;
         for(const auto& srvComp : srv.getServiceComponents()) {
             //std::cout << m_logTag << " ServiceSanity Check for SId: " << std::hex << +srv.getServiceId() << std::dec << " Components: " << +srv.getServiceComponents().size() << " : " << +srv.getNumberServiceComponents() << std::endl;
@@ -780,17 +781,13 @@ void DabEnsemble::checkServiceSanity() {
                             std::clog << m_logTag << "  ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << std::dec << " EnsembleECC is 0xFF" << std::endl;
                             return;
                         }
+                        if (srv.isProgrammeService() && mscSaComp->isPrimary()) {
+                            numPrimAudioComponents++;
+                        }
                         break;
                     }
                     default: {
                         break;
-                    }
-                }
-                if (srv.getNumberServiceComponents() == 1) {
-                    if (!srvComp->isPrimary()) {
-                        std::clog << m_logTag << "  ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << std::dec << " only service component SubChanId:"
-                            << std::hex << +srvComp->getSubChannelId() << std::dec << " not primary" << std::endl;
-                        return;
                     }
                 }
                 continue;
@@ -798,6 +795,10 @@ void DabEnsemble::checkServiceSanity() {
                 std::cout << m_logTag << "  ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << ", SubchanId: "  << +srvComp->getSubChannelId() << std::dec << ", MSC: " << +srvComp->getMscStartAddress() << ", SubSize: " << +srvComp->getSubchannelSize() << " Components: " << +srv.getServiceComponents().size() << " : " << +srv.getNumberServiceComponents() << std::endl;
                 return;
             }
+        }
+        if (numPrimAudioComponents > 1) {
+            std::clog << m_logTag << "  ServiceSanity warning for SId: " << std::hex << +srv.getServiceId()
+                << ": num primary audio stream components: " << +numPrimAudioComponents << std::endl;
         }
     }
 

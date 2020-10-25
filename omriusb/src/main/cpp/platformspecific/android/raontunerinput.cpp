@@ -412,35 +412,49 @@ void RaonTunerInput::threadedDataRead() {
 
 void RaonTunerInput::setService() {
     if(m_startServiceLink != nullptr) {
-        std::cout << LOG_TAG << "Starting service" << std::endl;
+        std::cout << LOG_TAG << "Starting service " << std::hex
+                  << +m_startServiceLink->getServiceId() << std::dec << std::endl;
 
         if(m_startServiceLink->getEnsembleFrequency() != m_currentFrequency) {
             m_commandQueue.push(std::bind(&RaonTunerInput::tuneFrequencySync, this, m_startServiceLink->getEnsembleFrequency()));
             return;
         }
 
+        bool foundSId = false, foundSrvComp = false;
+
         for(const auto& srv : getDabServices()) {
             if(srv->getServiceId() == m_startServiceLink->getServiceId()) {
                 m_startServiceLink->setLinkDabService(srv);
 
                 for (const auto& srvComp : srv->getServiceComponents()) {
-                    if(srvComp->isPrimary()) {
+                    if((srvComp->getServiceComponentType() == DabServiceComponent::MSC_STREAM_AUDIO) &&
+                            (srvComp->isPrimary() || srv->getNumberServiceComponents() == 1)) {
                         std::cout << LOG_TAG << "Starting SubChanId: " << std::hex << +srvComp->getSubChannelId() << std::dec << std::endl;
                         m_currentSubchanId = srvComp->getSubChannelId();
 
                         clearAndSetupMscMemory();
                         openSubChannel(srvComp->getSubChannelId());
+
+                        m_startServiceLink->decodeAudio(true);
+                        if (m_usbDevice != nullptr &&
+                            m_startServiceLink->getJavaDabServiceObject() != nullptr) {
+                            m_usbDevice->serviceStarted(m_startServiceLink->getJavaDabServiceObject());
+                        }
+                        foundSrvComp = true;
                         break;
                     }
                 }
-
-                m_startServiceLink->decodeAudio(true);
-                if (m_usbDevice != nullptr &&
-                    m_startServiceLink->getJavaDabServiceObject() != nullptr) {
-                    m_usbDevice->serviceStarted(m_startServiceLink->getJavaDabServiceObject());
-                }
+                foundSId = true;
                 break;
             }
+        }
+
+        if (!foundSId) {
+            std::clog << LOG_TAG << "setService: not found SId " << std::hex
+                      << +m_startServiceLink->getServiceId() << std::dec << std::endl;
+        } else if (!foundSrvComp) {
+            std::clog << LOG_TAG << "setService: not found primary srv " << std::hex
+                      << +m_startServiceLink->getServiceId() << std::dec << std::endl;
         }
     }
 }

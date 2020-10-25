@@ -117,25 +117,20 @@ void DabServiceComponent::setIsPrimary(bool primary) {
 void DabServiceComponent::setServiceComponentIdWithinService(uint8_t scIdS) {
     m_scIdS = scIdS;
     /* EN 300 401 6.3.5 Service component global definition :
+     * v2.1.1
      * SCIdS (Service Component Identifier within the Service): this 4-bit field shall identify the
      * service component within the service.
      * The primary service component shall use the value 0.
      * Each secondary service component of the service shall use a different SCIdS value other than 0.
+     *
+     * v1.4.1 (note the slight difference)
+     * SCIdS (Service Component Identifier within the Service): this 4-bit field shall identify the
+     * service component within the service.
+     * The combination of the SId and the SCIdS provides a service component identifier which is valid globally.
      */
 
     /*std::cout << m_logTag << " Setting SCIdS: " << std::hex << +scIdS << " for subChanId: " << +m_subChanId << std::dec
             << "label: '" << m_serviceComponentLabel << "'" << std::endl; */
-
-    if (scIdS == 0 && !isPrimary()) {
-        std::cout << m_logTag << " Enforce isPrim with SCIdS=0, subChanId=" << std::hex << +m_subChanId
-            << std::dec << ", label=" << m_serviceComponentLabel << std::endl;
-        // was found to be necessary for certain stations, e.g. BBC Radio 2
-        setIsPrimary(true);
-    } else if (scIdS != 0 && isPrimary()) {
-        // spec violation: 'The primary service component shall use the value 0.'
-        std::clog << m_logTag << " isPrim but SCIdS=" << +scIdS << ", subChanId=" << std::hex << +m_subChanId
-            << std::dec << ", label=" << m_serviceComponentLabel << std::endl;
-    }
 }
 
 void DabServiceComponent::setMscStartAddress(uint16_t startAddress) {

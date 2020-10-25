@@ -129,7 +129,6 @@ private:
     std::shared_ptr<DabDynamicLabel> m_lastDynamicLabel{nullptr};
 
 private:
-    void linkServices();
     void audioDataInput(const std::vector<uint8_t>& audioData, int ascty, int channels, int sampleRate, bool sbrUsed, bool psUsed);
     void dynamicLabelInput(std::shared_ptr<void> label);
     void slideshowInput(std::shared_ptr<void> slideShow);

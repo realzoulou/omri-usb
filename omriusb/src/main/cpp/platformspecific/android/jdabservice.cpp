@@ -141,41 +141,66 @@ void JDabService::unlinkDabService() {
 
 void JDabService::setLinkDabService(std::shared_ptr<DabService> linkedDabSrv) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << "Linking DABServices... for SId " << std::hex << m_serviceId << std::dec << std::endl;
-    m_linkedDabService = linkedDabSrv;
 
-    if(linkedDabSrv->isProgrammeService()) {
-        for(const auto& srvComp : linkedDabSrv->getServiceComponents()) {
-            switch(srvComp->getServiceComponentType()) {
-                case DabServiceComponent::SERVICECOMPONENTTYPE::MSC_STREAM_AUDIO: {
-                    std::cout << m_logTag << "Registering audiocallback" << std::endl;
-                    std::shared_ptr<DabServiceComponentMscStreamAudio> audioComponent = std::static_pointer_cast<DabServiceComponentMscStreamAudio>(srvComp);
-                    m_audioDataCb = audioComponent->registerAudioDataCallback(std::bind(&JDabService::audioDataInput, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
+    if (linkedDabSrv->isProgrammeService()) {
+        std::cout << m_logTag << "Linking DABServices... for SId " << std::hex << m_serviceId
+                  << std::dec << std::endl;
+        m_linkedDabService = linkedDabSrv;
 
-                    for(const auto& uApp : srvComp->getUserApplications()) {
-                        std::cout << m_logTag << "Registering UserApplication Type: " << +uApp.getUserApplicationType() << ", DSCTy: " << +uApp.getDataServiceComponentType() << std::endl;
-                        switch(uApp.getUserApplicationType()) {
-                            case registeredtables::USERAPPLICATIONTYPE::DYNAMIC_LABEL: {
-                                m_dlsCallback = uApp.getUserApplicationDecoder()->registerUserapplicationDataCallback(std::bind(&JDabService::dynamicLabelInput, this, std::placeholders::_1));
-                                break;
-                            }
-                            case registeredtables::USERAPPLICATIONTYPE::MOT_SLIDESHOW: {
-                                m_slsCallback = uApp.getUserApplicationDecoder()->registerUserapplicationDataCallback(std::bind(&JDabService::slideshowInput, this, std::placeholders::_1));
-                                break;
-                            }
-                            //Other UserApp decoders not yet implemented
-                            default:
-                                break;
+        for (const auto &srvComp : linkedDabSrv->getServiceComponents()) {
+
+            if (srvComp->getServiceComponentType() == DabServiceComponent::SERVICECOMPONENTTYPE::MSC_STREAM_AUDIO
+                        && (srvComp->isPrimary() || linkedDabSrv->getNumberServiceComponents() == 1)) {
+
+                std::cout << m_logTag << "Registering audiocallback SubChanId " << +srvComp->getSubChannelId()
+                    << ", SCIds " << +srvComp->getServiceComponentIdWithinService() << std::endl;
+
+                std::shared_ptr<DabServiceComponentMscStreamAudio> audioComponent =
+                        std::static_pointer_cast<DabServiceComponentMscStreamAudio>(srvComp);
+                m_audioDataCb = audioComponent->registerAudioDataCallback(
+                        std::bind(&JDabService::audioDataInput, this, std::placeholders::_1,
+                                  std::placeholders::_2, std::placeholders::_3,
+                                  std::placeholders::_4, std::placeholders::_5,
+                                  std::placeholders::_6));
+
+                for (const auto &uApp : srvComp->getUserApplications()) {
+                    switch (uApp.getUserApplicationType()) {
+                        case registeredtables::USERAPPLICATIONTYPE::DYNAMIC_LABEL: {
+                            std::cout << m_logTag
+                                      << "Registering UserApplication Type DYNAMIC_LABEL "
+                                      << ", DSCTy: " << +uApp.getDataServiceComponentType()
+                                      << std::endl;
+                            m_dlsCallback = uApp.getUserApplicationDecoder()->registerUserapplicationDataCallback(
+                                    std::bind(&JDabService::dynamicLabelInput, this,
+                                              std::placeholders::_1));
+                            break;
                         }
-                    }
-                    break;
-                }
+                        case registeredtables::USERAPPLICATIONTYPE::MOT_SLIDESHOW: {
+                            std::cout << m_logTag
+                                      << "Registering UserApplication Type MOT_SLIDESHOW "
+                                      << ", DSCTy: " << +uApp.getDataServiceComponentType()
+                                      << std::endl;
+                            m_slsCallback = uApp.getUserApplicationDecoder()->registerUserapplicationDataCallback(
+                                    std::bind(&JDabService::slideshowInput, this,
+                                              std::placeholders::_1));
+                            break;
+                        }
 
-                default: {
-                    break;
+                        //Other UserApp decoders not yet implemented
+                        default:
+                            std::cout << m_logTag << "Unknown UserApplication Type 0x"
+                                      << uApp.getUserApplicationType() << ", DSCTy: "
+                                      << +uApp.getDataServiceComponentType() << std::endl;
+                            break;
+                    }
                 }
             }
+            // found the audio stream component
+            break;
         }
+    } else {
+        std::clog << m_logTag << "failed attempt to link non Programme Service SId "
+                  << std::hex << m_serviceId << std::dec << std::endl;
     }
 }
 
@@ -188,10 +213,6 @@ jobject JDabService::getJavaDabServiceObject() const {
         std::cout << m_logTag << "Returning linked Java DabService object nullptr" << std::endl;
     }
     return m_linkedJavaDabServiceObject;
-}
-
-void JDabService::linkServices() {
-    std::cout << m_logTag << "Linking Services" << std::endl;
 }
 
 uint32_t JDabService::getEnsembleFrequency() const {

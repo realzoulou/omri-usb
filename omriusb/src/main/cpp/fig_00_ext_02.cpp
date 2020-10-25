@@ -67,6 +67,7 @@ void Fig_00_Ext_02::parseFigData(const std::vector<uint8_t> &figData) {
                         "] serviceComponentType:" << +srvCompDesc.serviceComponentType
                         << " subChannelId:" << +srvCompDesc.subChannelId
                         << " isPrimary: " << +srvCompDesc.isPrimary << std::endl;   */
+                    srvDesc.serviceComponents.push_back(srvCompDesc);
                     break;
                 }
                 case Fig_00_Ext_02::TMID::MSC_PACKET_MODE_DATA: {
@@ -76,6 +77,7 @@ void Fig_00_Ext_02::parseFigData(const std::vector<uint8_t> &figData) {
                     /*std::cout << m_logTag << " [" << +i <<
                               "] serviceComponentId:" << +srvCompDesc.serviceComponentId
                               << " isPrimary: " << +srvCompDesc.isPrimary << std::endl; */
+                    srvDesc.serviceComponents.push_back(srvCompDesc);
                     break;
                 }
                 case Fig_00_Ext_02::TMID::RESERVED: {
@@ -84,8 +86,6 @@ void Fig_00_Ext_02::parseFigData(const std::vector<uint8_t> &figData) {
             default:
                 break;
             }
-
-            srvDesc.serviceComponents.push_back(srvCompDesc);
         }
 
         m_serviceDescriptions.push_back(srvDesc);
