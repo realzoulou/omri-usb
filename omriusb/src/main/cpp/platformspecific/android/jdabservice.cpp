@@ -410,24 +410,7 @@ void JDabService::callJavaDynamiclabelCallback(const std::shared_ptr<DabDynamicL
 
     jobject dlsObject = enve->NewObject(m_javaDlsClass, m_javaDlsConstructorMId);
 
-    jstring fullDlsString;
-    switch(label->charset) {
-        case 0: {
-            //std::cout << m_logTag << "EBU-CHAR String" << std::endl;
-            fullDlsString = enve->NewStringUTF(convertEbuToUtf(label->dynamicLabel).c_str());
-            break;
-        }
-        case 4: {
-            //std::cout << m_logTag << "ISO-8859-1 String" << std::endl;
-            fullDlsString = enve->NewStringUTF(label->dynamicLabel.c_str());
-            break;
-        }
-        default: {
-            //std::cout << m_logTag << "Charset String: " << +label->charset << " : " << label->dynamicLabel << std::endl;
-            fullDlsString = enve->NewStringUTF(label->dynamicLabel.c_str());
-            break;
-        }
-    }
+    jstring fullDlsString = enve->NewStringUTF(label->dynamicLabel.c_str());
     enve->CallVoidMethod(dlsObject, m_javaDlsSetFullTextMId, fullDlsString, label->charset);
     enve->DeleteLocalRef(fullDlsString);
 

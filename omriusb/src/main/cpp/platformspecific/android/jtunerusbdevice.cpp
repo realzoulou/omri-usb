@@ -190,13 +190,8 @@ void JTunerUsbDevice::ensembleReady(const DabEnsemble& ensemble) {
 
     jstring ensembleLabel;
     jstring ensembleShortLabel;
-    if (ensemble.getEnsembleLabelCharset() == 0) {
-        ensembleLabel = enve->NewStringUTF(convertEbuToUtf(ensemble.getEnsembleLabel()).c_str());
-        ensembleShortLabel = enve->NewStringUTF(convertEbuToUtf(ensemble.getEnsembleShortLabel()).c_str());
-    } else {
-        ensembleLabel = enve->NewStringUTF(ensemble.getEnsembleLabel().c_str());
-        ensembleShortLabel = enve->NewStringUTF(ensemble.getEnsembleShortLabel().c_str());
-    }
+    ensembleLabel = enve->NewStringUTF(ensemble.getEnsembleLabel().c_str());
+    ensembleShortLabel = enve->NewStringUTF(ensemble.getEnsembleShortLabel().c_str());
 
     for(const auto& srv : ensemble.getDabServices()) {
         std::cout << m_logTag << " Scan service: " << srv->getServiceLabel() << std::endl;
@@ -220,13 +215,8 @@ void JTunerUsbDevice::ensembleReady(const DabEnsemble& ensemble) {
         jstring dabServiceLabel;
         jstring dabServiceShortLabel;
 
-        if(srv->getLabelCharset() == 0) {
-            dabServiceLabel = enve->NewStringUTF(convertEbuToUtf(srv->getServiceLabel()).c_str());
-            dabServiceShortLabel = enve->NewStringUTF(convertEbuToUtf(srv->getServiceShortLabel()).c_str());
-        } else {
-            dabServiceLabel = enve->NewStringUTF(srv->getServiceLabel().c_str());
-            dabServiceShortLabel = enve->NewStringUTF(srv->getServiceShortLabel().c_str());
-        }
+        dabServiceLabel = enve->NewStringUTF(srv->getServiceLabel().c_str());
+        dabServiceShortLabel = enve->NewStringUTF(srv->getServiceShortLabel().c_str());
 
         enve->CallVoidMethod(dabServiceObject, m_dabServiceSetServiceLabelMId, dabServiceLabel);
         enve->CallVoidMethod(dabServiceObject, m_dabServiceSetServiceShortLabelMId, dabServiceShortLabel);
@@ -263,12 +253,7 @@ void JTunerUsbDevice::ensembleReady(const DabEnsemble& ensemble) {
             enve->CallVoidMethod(dabServiceComponentObject, m_dabServiceComponentSetSubchannelIdMId, srvComp->getSubChannelId());
 
             jstring dabServiceComponentLabel;
-            if(srvComp->getLabelCharset() == 0) {
-                dabServiceComponentLabel = enve->NewStringUTF(convertEbuToUtf(srvComp->getServiceComponentLabel()).c_str());
-            } else {
-                dabServiceComponentLabel = enve->NewStringUTF(srvComp->getServiceComponentLabel().c_str());
-            }
-
+            dabServiceComponentLabel = enve->NewStringUTF(srvComp->getServiceComponentLabel().c_str());
             enve->CallVoidMethod(dabServiceComponentObject, m_dabServiceComponentSetLabelMId, dabServiceComponentLabel);
 
             jint packetAddress;

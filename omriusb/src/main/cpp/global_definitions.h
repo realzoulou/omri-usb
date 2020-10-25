@@ -221,14 +221,4 @@ static constexpr char const * EBU_SET[16][16] {
         /* F- */ {"\u00E3", "\u00E5", "\u00E6", "\u0153", "\u0175", "\u00FD", "\u00F5", "\u00F8", "\u00FE", "\u014B", "\u0155", "\u0107", "\u015B", "\u017A", "\u0165", "\u0127"},
 };
 
-static inline std::string convertEbuToUtf(const std::string& ebuString) {
-    std::string utfString;
-    for(const auto& temp : ebuString) {
-        utfString.append(EBU_SET[(temp >> 4) & 0x0F][temp & 0x0F]);
-    }
-
-    return utfString;
-}
-
 #endif // GLOBAL_DEFINITIONS
-

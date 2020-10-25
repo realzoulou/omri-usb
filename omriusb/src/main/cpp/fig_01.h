@@ -24,7 +24,11 @@
 #include <vector>
 #include <string>
 
+#include "dynamiclabeldecoder.h"
 #include "fig.h"
+#include "global_definitions.h"
+#include "registered_tables.h"
+
 
 class Fig_01 : public Fig {
 
@@ -53,8 +57,11 @@ protected:
     Fig_01(const std::vector<uint8_t>& figData) : m_charSet((figData[0] & 0xF0) >> 4), m_isOtherEnsemble((figData[0] & 0x08) >> 3) {}
 
     inline void parseLabel(std::vector<uint8_t>::const_iterator& labelIter, std::string& label, std::string& shortLabel) {
+        std::vector<uint8_t> labelData(labelIter, labelIter+16);
+        label = DynamiclabelDecoder::convertToStdStringUsingCharset(labelData,
+                static_cast<const registeredtables::CHARACTER_SET>(m_charSet));
+        labelData.clear();
         label.resize(16);
-        label.insert(label.begin(), labelIter, labelIter+16);
 
         labelIter += 16;
 
@@ -75,13 +82,18 @@ protected:
             }
             labelIter++;
         }
+        DynamiclabelDecoder::rtrim(label);
+        DynamiclabelDecoder::rtrim(shortLabel);
     }
 
     inline void parseLabel(const std::vector<uint8_t>& labelData, std::string& label, std::string& shortLabel) {
         auto labelIter = labelData.begin();
         while(labelIter < labelData.end()) {
+            std::vector<uint8_t> labelData(labelIter, labelIter+16);
+            label = DynamiclabelDecoder::convertToStdStringUsingCharset(labelData,
+                    static_cast<const registeredtables::CHARACTER_SET>(m_charSet));
+            labelData.clear();
             label.resize(16);
-            label.insert(label.begin(), labelIter, labelIter+16);
 
             labelIter += 16;
 
@@ -103,6 +115,8 @@ protected:
                 labelIter++;
             }
         }
+        DynamiclabelDecoder::rtrim(label);
+        DynamiclabelDecoder::rtrim(shortLabel);
     }
 
 private:
