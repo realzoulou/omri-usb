@@ -62,12 +62,17 @@ private:
         4, 6, 8, 12, 16, 24, 32, 48
     };
 
-private:
+public:
+    static const uint32_t SHORT_XPAD_LEN = 4;
+    static const uint32_t FPAD_LEN = 2;
+    static const uint32_t VAR_XPAD_MAX_CI = 4;
+
     enum X_PAD_INDICATOR {
-        NO_XPAD,
-        SHORT_XPAD,
-        VARIABLE_XPAD,
-        RFU
+        NO_XPAD = 0,
+        SHORT_XPAD = 1,
+        VARIABLE_XPAD = 2,
+        RFU = 3,
+        INVALID = 255
     };
 
     struct MOT_HEADERMODE {

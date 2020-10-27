@@ -20,12 +20,13 @@
 
 #include "dabmpegservicecomponentdecoder.h"
 #include "global_definitions.h"
+#include "paddecoder.h"
 
 #include <iomanip>
 
 #include <pthread.h>
 #include <unistd.h>
-#include <errno.h>
+#include <cerrno>
 
 constexpr uint8_t DabMpegServiceComponentDecoder::XPAD_SIZE[8];
 constexpr uint16_t DabMpegServiceComponentDecoder::M1L2_BITRATE_IDX[];
@@ -118,174 +119,228 @@ void DabMpegServiceComponentDecoder::processData() {
         int lErrno = errno;
         std::clog << m_logTag << "nice failed: " << strerror(lErrno) << std::endl;
     }
+    
     while(m_processThreadRunning) {
         std::vector<uint8_t> frameData;
         if(m_conQueue.tryPop(frameData, std::chrono::milliseconds(50))) {
             auto frameIter = frameData.begin();
             while(frameIter < frameData.end()) {
                 if(*frameIter++ == 0xFF && (*frameIter & 0xF0) == 0xF0) {
-                    uint8_t mpegAudioVersionId = static_cast<uint8_t>((*frameIter & 0x08) >> 3);
-                    uint8_t mpegAudioLayer = static_cast<uint8_t>((*frameIter & 0x06) >> 1);
-                    bool crcProtection = (*frameIter++ & 0x01) != 0;
+                    // https://en.wikipedia.org/wiki/MPEG_elementary_stream#General_layout_of_MPEG-1_audio_elementary_stream
+                    const auto mpegAudioVersionId = static_cast<uint8_t>(((*frameIter & 0x08) >> 3) & 0x01);
+                    const auto mpegAudioLayer = static_cast<uint8_t>(((*frameIter & 0x06) >> 1) & 0x03);
+                    const bool crcProtection = (*frameIter++ & 0x01) != 0;
 
-                    uint8_t bitrateIdx = static_cast<uint8_t>((*frameIter & 0xF0) >> 4);
+                    const auto bitrateIdx = static_cast<uint8_t>(((*frameIter & 0xF0) >> 4) & 0x0F);
 
-                    //TODO depends on 48 or 24kHz sampling
                     uint16_t bitrate;
                     if(bitrateIdx <= M1L2_BITRATE_IDX_MAX) {
                         bitrate = M1L2_BITRATE_IDX[bitrateIdx];
                     } else {
-                        std::cout << m_logTag << "bitrateIdx not supported:" << +bitrateIdx << std::endl;
-                        break;
+                        std::clog << m_logTag << "bitrateIdx not supported:" << +bitrateIdx << std::endl;
+                        break; // skip this whole frame
                     }
 
-                    uint8_t samplingIdx = static_cast<uint8_t>((*frameIter & 0x0C) >> 2);
+                    const auto samplingIdx = static_cast<uint8_t>(((*frameIter & 0x0C) >> 2) & 0x03);
                     uint16_t samplingRate;
 
                     if(samplingIdx <= M1_SAMPLINGFREQUENCY_IDX_MAX) {
                         samplingRate = M1_SAMPLINGFREQUENCY_IDX[samplingIdx];
-                        if(mpegAudioVersionId == 0) {
+                        if(mpegAudioVersionId == 0) { // MPEG 2
                             samplingRate /= 2;
                         }
                     } else {
                         std::cout << m_logTag << "samplingIdx not supported:" << +samplingIdx << std::endl;
-                        break;
+                        break; // skip this whole frame
                     }
 
-                    bool paddingFlag = ((*frameIter & 0x02) >> 1) != 0;
-                    bool privateFlag = (*frameIter++ & 0x01) != 0;
+                    const bool paddingFlag = (((*frameIter & 0x02) >> 1) & 0x01) != 0;
+                    const bool privateFlag = (*frameIter++ & 0x01) != 0;
 
-                    uint8_t channelMode = static_cast<uint8_t>((*frameIter & 0xC0) >> 6);
-                    uint8_t channels;
+                    const auto channelMode = static_cast<uint8_t>(((*frameIter & 0xC0) >> 6) & 0x03);
+                    auto channels = CHANNELMODE_IDX[0];
                     if(channelMode <= CHANNELMODE_IDX_MAX) {
                         channels = CHANNELMODE_IDX[channelMode];
                     } else {
                         std::cout << m_logTag << "channelMode not supported:" << +channelMode << std::endl;
-                        break;
+                        break; // skip this whole frame
                     }
 
                     //std::cout << m_logTag << " ID: " << +mpegAudioVersionId << " SamplingIdx: " << +samplingIdx << " SampleRate: " << samplingRate << " Channels: " << +channels << std::endl;
 
-                    uint8_t modeExtension = static_cast<uint8_t>((*frameIter & 0x30) >> 4);
-                    bool copyRight = ((*frameIter & 0x08) >> 3) != 0;
-                    bool original = ((*frameIter & 0x04) >> 2) != 0;
-                    uint8_t emphasis = static_cast<uint8_t>(*frameIter++ & 0x03);
+                    const auto modeExtension = static_cast<uint8_t>(((*frameIter & 0x30) >> 4) & 0x03);
+                    const bool copyRight = (((*frameIter & 0x08) >> 3) & 0x01) != 0;
+                    const bool original = (((*frameIter & 0x04) >> 2) & 0x01) != 0;
+                    const auto emphasis = static_cast<uint8_t>(*frameIter++ & 0x03);
 
                     uint8_t scaleCrcLen;
-                    if (channelMode == 0x03) {
-                        if(bitrateIdx > 0x02 ) {
+                    if (channelMode == 0x03) { // single channel mode
+                        if(bitrateIdx > 0x02 ) { // >= 56 kbit/s
                             scaleCrcLen = 4;
                         } else {
                             scaleCrcLen = 2;
                         }
-                    } else {
-                        if (bitrateIdx > 0x06) {
+                    } else { // all other dual channel modes
+                        if (bitrateIdx > 0x06) { // >= 112 kbits/s
                             scaleCrcLen = 4;
                         } else {
                             scaleCrcLen = 2;
                         }
                     }
 
+                    PadDecoder::X_PAD_INDICATOR xPadIndicator = PadDecoder::INVALID; // becomes valid only if F-PAD type = 0
                     auto padRiter = frameData.rbegin();
                     while (padRiter < frameData.rend()) {
                         //F-PAD
-                        bool ciPresent = ((*padRiter & 0x02) >> 1) != 0;
-                        bool z = (*padRiter & 0x01) != 0;
-                        //if(z) {
-                        //    std::cout << m_logTag << " Z-Field: " << std::boolalpha << z << std::noboolalpha << std::endl;
-                        //}
+                        const bool ciPresent = (((*padRiter & 0x02) >> 1) & 0x01) != 0;
+                        const bool z = (*padRiter & 0x01) != 0;
+
                         ++padRiter; //Byte L data field
+                        const auto fPadType = static_cast<uint8_t>(((*padRiter & 0xC0) >> 6) & 0x03); //Byte L-1 data field
+                        xPadIndicator = static_cast<PadDecoder::X_PAD_INDICATOR>(((*padRiter++ & 0x30) >> 4) & 0x03);
 
-                        uint8_t fPadType = static_cast<uint8_t>((*padRiter & 0xC0) >> 6); //Byte L-1 data field
-                        uint8_t xPadIndicator = static_cast<uint8_t>((*padRiter++ & 0x30) >> 4);
-
-                        if(fPadType == 0) {
+                        if(fPadType == 0 || fPadType == 2) { // "10" = old DAB 1.4.1 only, "01" and "11" = RFU
                             padRiter += scaleCrcLen;
                             auto scaleRiterPos = padRiter;
 
                             switch (xPadIndicator) {
-                                case 0: {
-                                    std::cout << m_logTag << "xPadIndicator 0 not supported" << std::endl;
-                                    //m_audioDataDispatcher.invoke(frameData, 0, channels, samplingRate, false);
+                                case PadDecoder::NO_XPAD: {
+                                    // X-PAD indicator = No X-PAD
+                                    m_noCiLastLength = 0; // reset previously stored length of variable X-PAD
                                     break;
                                 }
-                                case 1: {
-                                    std::vector<uint8_t> padData;
-                                    //padData.insert(padData.end(), frameData.end()-1-2-scaleCrcLen-4, frameData.end()-1-2-scaleCrcLen);
-                                    padData.insert(padData.end(), frameData.end()-2-scaleCrcLen-4, frameData.end()-2-scaleCrcLen);
-                                    //padData.insert(padData.end(), frameData.end()-1-2, frameData.end());
-                                    padData.insert(padData.end(), frameData.end()-2, frameData.end());
+                                case PadDecoder::SHORT_XPAD: {
+                                    // X-PAD indicator = Short X-PAD
+                                    if (fPadType == 0) {
+                                        // 4 bytes X-PAD, skip Scale Factor CRC, 2 bytes F-PAD
+                                        std::vector<uint8_t> padData;
+                                        padData.insert(padData.end(),
+                                                       frameData.end() - PadDecoder::FPAD_LEN - scaleCrcLen - PadDecoder::SHORT_XPAD_LEN,
+                                                       frameData.end() - PadDecoder::FPAD_LEN - scaleCrcLen);
+                                        padData.insert(padData.end(), frameData.end() - PadDecoder::FPAD_LEN,
+                                                       frameData.end());
 
-                                    //std::string dl(padData.begin(), padData.end());
-                                    //std::cout << m_logTag << "Short PAD: " << dl << std::endl;
-                                    //m_audioDataDispatcher.invoke(frameData, 0, channels, samplingRate, false);
-                                    m_padDataDispatcher.invoke(padData);
-
-                                    break;
-                                }
-                                case 2: {
-                                    //std::vector<uint8_t> audioData;
-                                    std::vector<uint8_t> padData;
-
-                                    if(ciPresent) {
-                                        m_noCiLastLength = 0;
-                                        for(int i = 0; i < 4; i++) {
-                                            uint8_t xpadLengthIndex = static_cast<uint8_t>((*padRiter & 0xE0) >> 5);
-                                            uint8_t xpadAppType = static_cast<uint8_t>(*padRiter++ & 0x1f);
-
-                                            ++m_noCiLastLength;
-                                            if(xpadAppType == 0) {
-                                                std::cout << m_logTag << "xpadAppType 0 not supported" << std::endl;
-                                                break;
-                                            }
-
-                                            m_noCiLastLength += XPAD_SIZE[xpadLengthIndex];
-                                        }
-
-                                        padRiter += (m_noCiLastLength-1);
-
-                                        padData.insert(padData.end(), frameData.end()-1-2-scaleCrcLen-m_noCiLastLength, frameData.end()-2-scaleCrcLen);
-                                        padData.insert(padData.end(), frameData.end()-2, frameData.end());
-
-                                        //audioData.insert(audioData.end(), frameData.begin(), frameData.end()-1-2-scaleCrcLen-m_noCiLastLength);
-                                        //m_audioDataDispatcher.invoke(frameData, 0, channels, samplingRate, false);
                                         m_padDataDispatcher.invoke(padData);
                                     } else {
-                                        if(m_noCiLastLength > 0) {
-                                            padData.insert(padData.end(), frameData.end()-2-scaleCrcLen-m_noCiLastLength, frameData.end()-2-scaleCrcLen);
-                                            padData.insert(padData.end(), frameData.end()-2, frameData.end());
+                                        // old DAB 1.4.1 can be safely ignored
+                                    }
+                                    m_noCiLastLength = 0; // reset previously stored length of variable X-PAD
+                                      break;
+                                }
+                                case PadDecoder::VARIABLE_XPAD: {
+                                    // X-PAD indicator = variable size X-PAD
+                                    if (fPadType == 0) {
+                                        std::vector<uint8_t> padData;
+                                        if (ciPresent) {
+                                            m_noCiLastLength = 0; // reset previously stored length of variable X-PAD
 
-                                            //audioData.insert(audioData.end(), frameData.begin(), frameData.end()-1-2-scaleCrcLen-m_noCiLastLength);
-                                            //m_audioDataDispatcher.invoke(frameData, 0, channels, samplingRate, false);
+                                            /* The contents indicators are 1 byte long.
+                                             * The contents indicator list shall comprise up to 4 bytes,
+                                             * thereby allowing up to four X-PAD data sub-fields within one X-PAD field.
+                                             */
+                                            // list of up to 4 contents indicator
+                                            for (int i = 0; i < PadDecoder::VAR_XPAD_MAX_CI; i++) {
+                                                const auto xpadLengthIndex = static_cast<uint8_t>((*padRiter & 0xE0) >> 5);
+                                                const auto xpadAppType = static_cast<uint8_t>(*padRiter++ & 0x1f);
+
+                                                ++m_noCiLastLength;
+
+                                                /* If the contents indicator list is shorter than four bytes, an end marker,
+                                                 * consisting of a contents indicator of application type 0, shall be used
+                                                 * to terminate the list */
+                                                if(xpadAppType == 0) {
+                                                    break;
+                                                }
+
+                                                m_noCiLastLength += XPAD_SIZE[xpadLengthIndex];
+                                            }
+
+                                            padRiter += (m_noCiLastLength -1);
+
+                                            //  variable amount bytes X-PAD, skip Scale Factor CRC, 2 bytes F-PAD
+                                            padData.insert(padData.end(), frameData.end() - 1 - PadDecoder::FPAD_LEN - scaleCrcLen - m_noCiLastLength, frameData.end() - PadDecoder::FPAD_LEN - scaleCrcLen);
+                                            padData.insert(padData.end(), frameData.end()-PadDecoder::FPAD_LEN, frameData.end());
 
                                             m_padDataDispatcher.invoke(padData);
+                                        } else { // !ciPresent
+                                            /* 7.4.2.2 Variable size X-PAD
+                                             * The contents indicator flag, transported in the F-PAD field, shall signal for each DAB frame,
+                                             * whether the X-PAD field contains contents indicators or not.
+                                             *
+                                             * The contents indicator list may be omitted if both of the following conditions apply:
+                                             * - the length of the X-PAD field is the same as in the previous DAB audio frame;
+                                             * - the X-PAD field comprises a single data sub-field containing a continuation of the X-PAD data group or the
+                                             *   byte stream carried in the last (logical meaning) X-PAD data sub-field of the previous DAB audio frame
+                                             *   (i.e. data for the same user application)
+                                             */
+                                            if (m_noCiLastLength > 0) {
+                                                // m_noCiLastLength bytes X-PAD, skip Scale Factor CRC, 2 bytes F-PAD
+                                                padData.insert(padData.end(), frameData.end()-PadDecoder::FPAD_LEN-scaleCrcLen-m_noCiLastLength, frameData.end()-PadDecoder::FPAD_LEN-scaleCrcLen);
+                                                padData.insert(padData.end(), frameData.end()-PadDecoder::FPAD_LEN, frameData.end());
+
+                                                m_padDataDispatcher.invoke(padData);            
+                                            }
                                         }
+                                    } else {
+                                        // old DAB 1.4.1 can be safely ignored
                                     }
                                     break;
                                 }
-                            default:
-                                std::cout << m_logTag << "xPadIndicator unknown:" << +xPadIndicator << std::endl;
+                                case PadDecoder::RFU: {
+                                    if (fPadType == 0) {
+                                        // X-PAD indicator = reserved for future use
+                                        std::clog << m_logTag << "xPadIndicator RFU" << std::endl;
+                                    } else {
+                                        // F-PAD type extension = serial command channel (continuation)
+                                        // old DAB 1.4.1 ignored
+                                    }
+                                    break;
+                                }
+                                default: {
+                                    // if we come here, we decoded X-PAD indicator wrong
+                                    std::clog << m_logTag << "xPadIndicator decoding error:"
+                                              << +xPadIndicator << std::endl;
+                                }
                                 break;
                             }
 
-                            m_audioDataDispatcher.invoke(frameData, 0, channels, samplingRate, false, false);
                         } else {
-                            std::cout << m_logTag << "Wrong FPAD Type: " << +fPadType << std::endl;
+                            std::clog << m_logTag << "Wrong FPAD Type: " << +fPadType << std::endl;
                         }
 
-                        break;
+                        break; // while (padRiter...) because there is only 1 PAD per audio frame
                     }
 
-                    break;
+                    /*
+                    std::stringstream logmsg;
+                    logmsg << "MPEG " << (mpegAudioVersionId ? "1":"2")
+                           << " L" << ((mpegAudioLayer==1) ? "3" : (mpegAudioLayer==2) ? "2" : (mpegAudioLayer==3) ? "1" : "?")
+                           << ",crc=" << !crcProtection
+                           << ",bitrate=" << bitrate << "kbits/s"
+                           << ",samplerate=" << +samplingRate
+                           << ",mode=" << ((channelMode==0) ? "stereo" : (channelMode==1) ? "joint stereo" : (channelMode==2) ? "dual" : (channelMode==3) ? "single" : "?")
+                           << ",framelen=" << +frameData.size()
+                           << ",xPadInd=" << ((xPadIndicator==PadDecoder::NO_XPAD) ? "NO" :
+                            (xPadIndicator==PadDecoder::SHORT_XPAD) ? "SHORT" :
+                            (xPadIndicator==PadDecoder::VARIABLE_XPAD) ? "VAR" :
+                            (xPadIndicator==PadDecoder::RFU) ? "RFU" : "?")
+                           << ",noCiLastXpadLen=" << +m_noCiLastLength
+                           << ",scfcrclen=" << +scaleCrcLen;
+                    std::cout << m_logTag << logmsg.str() << std::endl;
+                    */
+
+                    // always dispatch audio, even if PAD was not decoded
+                    m_audioDataDispatcher.invoke(frameData, 0, channels, samplingRate, false, false);
+
                 } else {
                     if (frameData.size() >= 2) {
-                        std::cout << m_logTag << "Wrong MPEG Syncword " << std::hex << +frameData[0]
+                        std::clog << m_logTag << "Wrong MPEG Syncword " << std::hex << +frameData[0]
                                   << ":" << +frameData[1] << std::dec << std::endl;
                     } else {
-                        std::cout << m_logTag << "Wrong MPEG Syncword" << std::endl;
+                        std::clog << m_logTag << "Wrong MPEG Syncword" << std::endl;
                     }
-                    break;
                 }
+                break; // while (frameIter...) because there is only 1 audio frame
             }
         }
     }

@@ -38,26 +38,34 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
     auto padRiter = padData.rbegin();
     while (padRiter < padData.rend()) {
         //F-PAD
-        bool ciPresent = (*padRiter & 0x02) >> 1 != 0;
-        bool z = (*padRiter & 0x01) != 0;
-        if(z) {
-            std::cout << m_logTag << " Z-Field: " << std::boolalpha << z << std::noboolalpha << std::endl;
+        const bool ciPresent = (((*padRiter & 0x02) >> 1) & 0x01) != 0;
+        const bool z = (*padRiter & 0x01) != 0;
+        if (z) {
+            // Z: this bit shall be set to "0" for synchronization purposes in serial communication links
+            std::cout << m_logTag << " Z-Field: " << std::boolalpha << z << std::noboolalpha
+                      << std::endl;
         }
         padRiter++; //Byte L data field
 
-        uint8_t fPadType = static_cast<uint8_t>((*padRiter & 0xC0) >> 6); //Byte L-1 data field
+        const auto fPadType = static_cast<uint8_t>(((*padRiter & 0xC0) >> 6) & 0x03); //Byte L-1 data field
 
-        X_PAD_INDICATOR xPadIndicator = static_cast<X_PAD_INDICATOR>((*padRiter++ & 0x30) >> 4);
+        /* Note on ETSI EN 300 401 V1.4.1 (2006-06):
+         * Only F-PAD type "00" was carried over to V2.1.1.
+         * F-PAD type "01" containing DRC (Dynamic Range Control), Origin (UPC/EAN) or ISRC data is silently ignored
+         * F-PAD type "10" and "11" were already RFU in 1.4.1
+         */
+
+        const X_PAD_INDICATOR xPadIndicator = static_cast<X_PAD_INDICATOR>(((*padRiter++ & 0x30) >> 4) & 0x03);
         //std::cout << m_logTag << " FPadType: " << +fPadType << " XPadInd: " << +xPadIndicator << " CI: " << std::boolalpha << ciPresent << " Z: " << z << std::noboolalpha << std::endl;
 
-        if(fPadType == 0) {
-            std::vector<std::pair<uint8_t, PAD_APPLICATION_TYPE>> apps;
+        std::vector<std::pair<uint8_t, PAD_APPLICATION_TYPE>> apps;
 
-            if(xPadIndicator == X_PAD_INDICATOR::NO_XPAD) {
+        if (fPadType == 0) {
+            if (xPadIndicator == X_PAD_INDICATOR::NO_XPAD) {
                 //NO Xpad
             }
-            //short xpad
-            if(xPadIndicator == X_PAD_INDICATOR::SHORT_XPAD) {
+                //short xpad
+            else if (xPadIndicator == X_PAD_INDICATOR::SHORT_XPAD) {
                 std::vector<uint8_t> xpadData;
                 int xpadSize = 4;
                 uint8_t xpadAppType = 0;
@@ -66,13 +74,13 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
                     m_noCiLastShortXpAdAppType = xpadAppType = static_cast<uint8_t>(*padRiter++ & 0x1f);
                     xpadSize = 3;
                 } else {
-                    xpadAppType = static_cast<uint8_t>(m_noCiLastShortXpAdAppType+1);
+                    xpadAppType = static_cast<uint8_t>(m_noCiLastShortXpAdAppType + 1);
                 }
 
                 apps.push_back(std::make_pair(xpadSize, static_cast<PAD_APPLICATION_TYPE>(xpadAppType)));
-            }
-            //variable xpad
-            if(xPadIndicator == X_PAD_INDICATOR::VARIABLE_XPAD) {
+            } else if (xPadIndicator == X_PAD_INDICATOR::VARIABLE_XPAD) {
+                //variable xpad
+
                 //std::vector<std::pair<uint8_t, PAD_APPLICATION_TYPE>> apps;
                 if(ciPresent) {
                     //std::cout << m_logTag << " XPad CI present" << std::endl;
@@ -83,8 +91,14 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
                         if( (xpadAppType >= 4 && xpadAppType <= 11) || (xpadAppType >= 16 && xpadAppType <= 31) ) {
                             //std::cout << m_logTag << "[" << +i << "] XPadLength: " << +xpadLengthIndex << " : " << +XPAD_SIZE[xpadLengthIndex] << " AppType: " << +xpadAppType << std::endl;
                             auto uAppIter = m_userApps.find(xpadAppType);
-                            if(uAppIter != m_userApps.cend()) {
-                                std::cout << m_logTag << " Found Userapp for XPADApptype: " << +xpadAppType << " : " << +uAppIter->second->getXpadAppType() << " UAppType: " << +uAppIter->second->getUserApplicationType() << " DGUsed: " << std::boolalpha << uAppIter->second->dataGroupsUsed() << std::noboolalpha << " DSCTy: " << uAppIter->second->getDataServiceComponentType() << std::endl;
+                            if (uAppIter != m_userApps.cend()) {
+                                std::cout << m_logTag << " Found Userapp for XPADApptype: "
+                                          << +xpadAppType << " : " << +uAppIter->second->getXpadAppType()
+                                          << " UAppType: " << +uAppIter->second->getUserApplicationType()
+                                          << " DGUsed: " << std::boolalpha
+                                          << uAppIter->second->dataGroupsUsed() << std::noboolalpha
+                                          << " DSCTy: " << uAppIter->second->getDataServiceComponentType()
+                                          << std::endl;
                             }
                         }
                         if(xpadAppType == 0) {
@@ -132,8 +146,9 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
                     }
                 }
 
-                if(app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_START || app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_CONTINUATION) {
-                    if(app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_CONTINUATION) {
+                if (app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_START ||
+                    app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_CONTINUATION) {
+                    if (app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_CONTINUATION) {
                         //std::cout << m_logTag << " CurSize: " << +m_currentDataGroup.size() << ", GoalSize: " << +m_currentDataGroupLength << ", NextSize: " << +std::distance(xpadDataSubfield.begin(), xpadDataSubfield.end()) << std::endl;
                         long dataSize = std::distance(xpadDataSubfield.begin(), xpadDataSubfield.end());
                         long remainingData = m_currentDataGroupLength - m_currentDataGroup.size();
@@ -156,9 +171,10 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
                     }
                 }
             }
+        } else {
+            // F-PAD types from old ETSI EN 300 401 V1.4.1 (2006-06) are silently ignored
+            break;
         }
-
-        break;
     }
 }
 
