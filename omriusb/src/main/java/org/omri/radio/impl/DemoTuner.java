@@ -1,7 +1,6 @@
 package org.omri.radio.impl;
 
 import android.os.AsyncTask;
-import android.util.ArraySet;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -19,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 import static org.omri.BuildConfig.DEBUG;
 
@@ -140,9 +138,12 @@ public class DemoTuner implements Tuner {
 			return new ArrayList<>();
 		}
 	}
-    @Override
-	public @NonNull Set<RadioService> getLinkedRadioServices(@NonNull RadioService service) {
-		return new ArraySet<>();
+
+	@NonNull
+	@Override
+	public ArrayList<RadioService> getLinkedRadioServices(@NonNull RadioService service) {
+		// dummy implementation, not required to be implemented
+		return new ArrayList<>();
 	}
 
 	@Override

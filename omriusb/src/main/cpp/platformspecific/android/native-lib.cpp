@@ -62,9 +62,9 @@ static jclass m_dabTimeClass = nullptr;
 
 static jclass m_demoTunerClass = nullptr;
 
-static jclass m_ArraySetClass = nullptr;
-static jmethodID m_ArraySet_init_mId = nullptr;
-static jmethodID m_ArraySet_add_mId = nullptr;
+static jclass m_ArrayListClass = nullptr;
+static jmethodID m_ArrayList_init_mId = nullptr;
+static jmethodID m_ArrayList_add_mId = nullptr;
 
 static jboolean m_CoutRedirectedToALog = JNI_FALSE;
 static std::string m_rawRecordingPath;
@@ -79,10 +79,10 @@ static void cacheClassDefinitions(JavaVM *vm) {
     JNIEnv* env;
     vm->GetEnv ((void **) &env, JNI_VERSION_1_6);
 
-    // ArraySet
-    m_ArraySetClass = (jclass)env->NewGlobalRef(env->FindClass("android/util/ArraySet"));
-    m_ArraySet_init_mId = env->GetMethodID(m_ArraySetClass, "<init>", "(I)V");
-    m_ArraySet_add_mId = env->GetMethodID(m_ArraySetClass, "add", "(Ljava/lang/Object;)Z");
+    // ArrayList
+    m_ArrayListClass = (jclass)env->NewGlobalRef(env->FindClass("java/util/ArrayList"));
+    m_ArrayList_init_mId = env->GetMethodID(m_ArrayListClass, "<init>", "(I)V");
+    m_ArrayList_add_mId = env->GetMethodID(m_ArrayListClass, "add", "(Ljava/lang/Object;)Z");
 
     m_usbTunerClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/TunerUsb"));
     m_radioServiceImplClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceImpl"));
@@ -121,7 +121,7 @@ static void cleanClassDefinitions(JavaVM *vm) {
     JNIEnv* env;
     vm->GetEnv ((void **) &env, JNI_VERSION_1_6);
 
-    env->DeleteGlobalRef(m_ArraySetClass);
+    env->DeleteGlobalRef(m_ArrayListClass);
 
     env->DeleteGlobalRef(m_usbTunerClass);
     env->DeleteGlobalRef(m_radioServiceDabImplClass);
@@ -461,7 +461,7 @@ JNIEXPORT jobject JNICALL Java_org_omri_radio_impl_UsbHelper_getLinkedServices(J
             auto retServices = devIter->get()->getLinkedServices(jDabService);
 
             // build output return data
-            retObj = env->NewObject(m_ArraySetClass, m_ArraySet_init_mId, static_cast<jint>(retServices.size()));
+            retObj = env->NewObject(m_ArrayListClass, m_ArrayList_init_mId, static_cast<jint>(retServices.size()));
             for (const auto & s : retServices) {
 
                 jobject jLinkedServiceDab = env->NewObject(m_radioServiceDabImplClass, m_radioServiceDabImpl_init_mId);
@@ -470,7 +470,7 @@ JNIEXPORT jobject JNICALL Java_org_omri_radio_impl_UsbHelper_getLinkedServices(J
                 env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setEnsembleId_mId, static_cast<jint>(s->getEnsembleId()));
                 env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setServiceId_mId, static_cast<jint>(s->getServiceId()));
 
-                env->CallBooleanMethod(retObj, m_ArraySet_add_mId, jLinkedServiceDab);
+                env->CallBooleanMethod(retObj, m_ArrayList_add_mId, jLinkedServiceDab);
             }
             break;
         }

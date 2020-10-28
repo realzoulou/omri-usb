@@ -1802,22 +1802,17 @@ void RaonTunerInput::getAntennaLevel() {
     }
 }
 
-// TODO replace std::set with std::vector again
-// and remove duplicates
-// https://stackoverflow.com/questions/1453333/how-to-make-elements-of-vector-unique-remove-non-adjacent-duplicates
-// reason: LinkedServiceDab cannot implement operator< and so the set contains duplicates
-FIXME !
-std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(const JDabService &service) {
+std::vector<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(const JDabService &service) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::set<std::shared_ptr<LinkedServiceDab>> collectedServicesOrderedSet;
+    std::vector<std::shared_ptr<LinkedServiceDab>> collectedServices;
 
     const auto ecc = service.getEnsembleEcc();
     const auto eid = service.getEnsembleId();
     const auto freqKHz = service.getEnsembleFrequency() / 1000;
     const auto sid = service.getServiceId();
 
-    std::set<std::shared_ptr<LinkedServiceDab>> otherFrequenciesSortedByAdjacency;
-    std::set<std::shared_ptr<LinkedServiceDab>> sameSIdOtherEnsembles;
+    std::vector<std::shared_ptr<LinkedServiceDab>> otherFrequenciesSortedByAdjacency;
+    std::vector<std::shared_ptr<LinkedServiceDab>> sameSIdOtherEnsembles;
 
     /*
      * ETSI TS 103 176 V2.4.1, 5.6.3.2 Stage 1: Find same service
@@ -1826,10 +1821,6 @@ std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(co
      *
      * It may use FI (FIG 0/21) to find the same ensemble on another frequency
      */
-
-
-    // TODO lock databases
-    // std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
 
     std::cout << LOG_TAG << " Lookup EId 0x" << std::hex << +eid << std::dec
         << " frequencyInformationDb (size " << +m_frequencyInformationDb.size() << ")" << std::endl;
@@ -1857,19 +1848,27 @@ std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(co
                                   << "," << +servicePtr->getEnsembleFrequencyKHz() << std::dec
                                   << " kHz" << std::endl;
 
-                        if (fli.additionalInfo.dabEnsembleAdjacent ==
-                            Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_UNKNOWN ||
-                            fli.additionalInfo.dabEnsembleAdjacent ==
-                            Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED ||
-                            fli.additionalInfo.dabEnsembleAdjacent ==
-                            Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE) {
-                            // adjacent services first
-                            otherFrequenciesSortedByAdjacency.insert(
-                                    otherFrequenciesSortedByAdjacency.cbegin(), servicePtr);
-                        } else {
-                            // not adjacent services at the end
-                            otherFrequenciesSortedByAdjacency.insert(
-                                    otherFrequenciesSortedByAdjacency.cend(), servicePtr);
+                        // avoid duplicates (yeah it is not the most efficient way to do this)
+                        if (std::find(otherFrequenciesSortedByAdjacency.cbegin(),
+                                       otherFrequenciesSortedByAdjacency.cend(), servicePtr) ==
+                                       otherFrequenciesSortedByAdjacency.cend())
+                        {
+                            if (fli.additionalInfo.dabEnsembleAdjacent ==
+                                Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_UNKNOWN ||
+                                fli.additionalInfo.dabEnsembleAdjacent ==
+                                Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED ||
+                                fli.additionalInfo.dabEnsembleAdjacent ==
+                                Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE)
+                            {
+                                    // adjacent services first
+                                    otherFrequenciesSortedByAdjacency.insert(
+                                            otherFrequenciesSortedByAdjacency.cbegin(), servicePtr);
+                            } else
+                            {
+                                    // not adjacent services at the end
+                                    otherFrequenciesSortedByAdjacency.insert(
+                                            otherFrequenciesSortedByAdjacency.cend(), servicePtr);
+                            }
                         }
                     } else {
                         std::cout << LOG_TAG << "   skip'd same frequency match EId 0x"
@@ -1883,10 +1882,8 @@ std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(co
             }
         }
     }
-    if (!otherFrequenciesSortedByAdjacency.empty()) {
-        for (const auto & a : otherFrequenciesSortedByAdjacency) {
-            collectedServicesOrderedSet.insert(collectedServicesOrderedSet.end(), a);
-        }
+    for (const auto & a : otherFrequenciesSortedByAdjacency) {
+        collectedServices.insert(collectedServices.end(), a);
     }
 
     /*
@@ -1921,17 +1918,28 @@ std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(co
                                     servicePtr->setEnsembleFrequencyKHz(fli.frequencyKHz);
                                     servicePtr->setServiceId(sid);
 
-                                    if (fli.additionalInfo.dabEnsembleAdjacent ==
-                                        Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_UNKNOWN ||
-                                        fli.additionalInfo.dabEnsembleAdjacent ==
-                                        Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED ||
-                                        fli.additionalInfo.dabEnsembleAdjacent ==
-                                        Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE) {
-                                        // adjacent services first
-                                        sameSIdOtherEnsembles.insert(sameSIdOtherEnsembles.cbegin(), servicePtr);
-                                    } else {
-                                        // not adjacent services at the end
-                                        sameSIdOtherEnsembles.insert(sameSIdOtherEnsembles.cend(), servicePtr);
+                                    // avoid duplicates (yeah it is not the most efficient way to do this)
+                                    if (std::find(otherFrequenciesSortedByAdjacency.cbegin(),
+                                                  otherFrequenciesSortedByAdjacency.cend(), servicePtr) ==
+                                        otherFrequenciesSortedByAdjacency.cend())
+                                    {
+                                        if (fli.additionalInfo.dabEnsembleAdjacent ==
+                                            Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_UNKNOWN ||
+                                            fli.additionalInfo.dabEnsembleAdjacent ==
+                                            Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED ||
+                                            fli.additionalInfo.dabEnsembleAdjacent ==
+                                            Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE)
+                                        {
+                                            // adjacent services first
+                                            sameSIdOtherEnsembles.insert(
+                                                    sameSIdOtherEnsembles.cbegin(),
+                                                    servicePtr);
+                                        } else
+                                        {
+                                            // not adjacent services at the end
+                                            sameSIdOtherEnsembles.insert(
+                                                    sameSIdOtherEnsembles.cend(), servicePtr);
+                                        }
                                     }
                                 }
                             } else {
@@ -1946,10 +1954,8 @@ std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(co
             }
         }
     }
-    if (!sameSIdOtherEnsembles.empty()) {
-        for (const auto & a : sameSIdOtherEnsembles) {
-            collectedServicesOrderedSet.insert(collectedServicesOrderedSet.end(), a);
-        }
+    for (const auto & a : sameSIdOtherEnsembles) {
+        collectedServices.insert(collectedServices.end(), a);
     }
 
     /*
@@ -1978,7 +1984,7 @@ std::set<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices(co
         }
     }
     */
-    std::cout << LOG_TAG << "collected " << collectedServicesOrderedSet.size() << " linked services" << std::endl;
-    return collectedServicesOrderedSet;
+    std::cout << LOG_TAG << "collected " << collectedServices.size() << " linked services" << std::endl;
+    return collectedServices;
 }
 //TUNER METHODS END

@@ -60,7 +60,7 @@ public:
 
     std::string getDeviceName() const override;
 
-    std::set<std::shared_ptr<LinkedServiceDab>> getLinkedServices(const JDabService &service) override;
+    std::vector<std::shared_ptr<LinkedServiceDab>> getLinkedServices(const JDabService &service) override;
 
 private:
     const std::string LOG_TAG{"[RaonUsbTuner] "};

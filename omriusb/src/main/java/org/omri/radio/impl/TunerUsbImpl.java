@@ -3,7 +3,6 @@ package org.omri.radio.impl;
 import android.hardware.usb.UsbDevice;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.util.ArraySet;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -24,7 +23,6 @@ import org.omri.tuner.TunerType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 import static org.omri.BuildConfig.DEBUG;
 
@@ -231,12 +229,12 @@ public class TunerUsbImpl implements TunerUsb {
 	}
 
 	@Override
-	public @NonNull Set<RadioService> getLinkedRadioServices(@NonNull RadioService service) {
-		Set<RadioService> retLinkedRadioServices = new ArraySet<>();
+	public @NonNull ArrayList<RadioService> getLinkedRadioServices(@NonNull RadioService service) {
+		ArrayList<RadioService> retLinkedRadioServices = new ArrayList<>();
 		if (service instanceof RadioServiceDab) {
 
 			// retrieve DAB services that are linked to the given service
-			final Set<RadioServiceDab> linkedDabServices =
+			final ArrayList<RadioServiceDab> linkedDabServices =
 					UsbHelper.getInstance().getLinkedDabServices(mUsbDevice.getDeviceName(),
 							(RadioServiceDab) service);
 
@@ -249,10 +247,6 @@ public class TunerUsbImpl implements TunerUsb {
 					for (final RadioService radioService : radioServices) {
 						if (radioService instanceof RadioServiceDab) {
 							final RadioServiceDab radioServiceDab = (RadioServiceDab) radioService;
-							if (radioServiceDab.getEnsembleId() == 0x11f7 &&
-									radioServiceDab.getServiceId() == 0xd318) {
-								Log.d(TAG, "Antenne Bayern on 12D Antenne DE");
-							}
 							if (radioServiceDab.equals(linkedDabService)) { // strict check of ECC, SId, EId, Frequency
 								// add the already known RadioServiceDab
 								retLinkedRadioServices.add(radioServiceDab);

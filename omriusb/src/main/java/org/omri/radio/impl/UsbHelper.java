@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import static org.omri.BuildConfig.DEBUG;
 
@@ -76,7 +75,7 @@ public class UsbHelper {
 	private native void tuneFreq(String deviceName, long freq);
 	private native void startServiceScan(String deviceName);
 	private native void stopServiceScan(String deviceName);
-	private native Set<RadioServiceDab> getLinkedServices(String deviceName, RadioServiceDab dabService);
+	private native ArrayList<RadioServiceDab> getLinkedServices(String deviceName, RadioServiceDab dabService);
 
 	/* EdiStream */
 	private native void ediTunerAttached(TunerEdistream ediTuner);
@@ -200,7 +199,7 @@ public class UsbHelper {
 		deviceAttached(dev);
 	}
 
-	public @Nullable Set<RadioServiceDab> getLinkedDabServices(@NonNull String deviceName, @NonNull RadioServiceDab serviceDab) {
+	public @Nullable ArrayList<RadioServiceDab> getLinkedDabServices(@NonNull String deviceName, @NonNull RadioServiceDab serviceDab) {
 		return getLinkedServices(deviceName, serviceDab);
 	}
 

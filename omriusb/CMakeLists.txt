@@ -92,6 +92,7 @@ target_compile_options(irtdab PUBLIC
         # start with super pedantic compiler settings ...
         -Wall -Wextra -pedantic -Werror
         # ... and relax them as needed
+        -Wno-c++14-binary-literal
         -Wno-comment
         -Wno-four-char-constants
         -Wno-sign-compare
