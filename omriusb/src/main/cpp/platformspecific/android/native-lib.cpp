@@ -443,12 +443,12 @@ JNIEXPORT jobject JNICALL Java_org_omri_radio_impl_UsbHelper_getLinkedServices(J
     }
 
     jobject retObj = nullptr;
-    const char *cDeviceName = env->GetStringUTFChars(deviceName, JNI_FALSE);
 
+    const char *cDeviceName = env->GetStringUTFChars(deviceName, JNI_FALSE);
     std::string devName(cDeviceName);
     env->ReleaseStringUTFChars(deviceName, cDeviceName) ;
 
-    std::cout << LOG_TAG << " getting service linking for device: " << devName << std::endl;
+    std::cout << LOG_TAG << " getting service linking services for device: " << devName << std::endl;
 
     auto devIter = m_dabInputs.cbegin();
     while (devIter != m_dabInputs.cend()) {
@@ -461,14 +461,21 @@ JNIEXPORT jobject JNICALL Java_org_omri_radio_impl_UsbHelper_getLinkedServices(J
             auto retServices = devIter->get()->getLinkedServices(jDabService);
 
             // build output return data
-            retObj = env->NewObject(m_ArrayListClass, m_ArrayList_init_mId, static_cast<jint>(retServices.size()));
-            for (const auto & s : retServices) {
+            retObj = env->NewObject(m_ArrayListClass, m_ArrayList_init_mId,
+                                    static_cast<jint>(retServices.size()));
+            for (const auto &s : retServices) {
 
-                jobject jLinkedServiceDab = env->NewObject(m_radioServiceDabImplClass, m_radioServiceDabImpl_init_mId);
-                env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setEnsembleEcc_mId, static_cast<jbyte>(s->getEnsembleEcc()));
-                env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setEnsembleFrequency_mId, static_cast<jint>(s->getEnsembleFrequencyKHz()));
-                env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setEnsembleId_mId, static_cast<jint>(s->getEnsembleId()));
-                env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setServiceId_mId, static_cast<jint>(s->getServiceId()));
+                jobject jLinkedServiceDab = env->NewObject(m_radioServiceDabImplClass,
+                                                           m_radioServiceDabImpl_init_mId);
+                env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setEnsembleEcc_mId,
+                                    static_cast<jint>(s.get()->getEnsembleEcc()));
+                env->CallVoidMethod(jLinkedServiceDab,
+                                    m_radioServiceDabImpl_setEnsembleFrequency_mId,
+                                    static_cast<jint>(s.get()->getEnsembleFrequencyKHz() * 1000));
+                env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setEnsembleId_mId,
+                                    static_cast<jint>(s.get()->getEnsembleId()));
+                env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setServiceId_mId,
+                                    static_cast<jint>(s.get()->getServiceId()));
 
                 env->CallBooleanMethod(retObj, m_ArrayList_add_mId, jLinkedServiceDab);
             }
