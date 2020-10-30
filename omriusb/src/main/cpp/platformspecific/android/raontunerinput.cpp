@@ -1812,7 +1812,8 @@ std::vector<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices
 
     std::vector<std::shared_ptr<LinkedServiceDab>> collectedServices;
 
-    std::vector<std::shared_ptr<LinkedServiceDab>> otherFrequenciesSortedByAdjacency;
+    std::vector<std::shared_ptr<LinkedServiceDab>> otherFrequenciesAdjacent;
+    std::vector<std::shared_ptr<LinkedServiceDab>> otherFrequenciesNotAdjacent;
     std::vector<std::shared_ptr<LinkedServiceDab>> sameSIdOtherEnsembles;
 
     /*
@@ -1850,9 +1851,9 @@ std::vector<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices
                                   << " kHz" << std::endl;
 
                         // avoid duplicates (yeah it is not the most efficient way to do this)
-                        if (std::find(otherFrequenciesSortedByAdjacency.cbegin(),
-                                       otherFrequenciesSortedByAdjacency.cend(), servicePtr) ==
-                                       otherFrequenciesSortedByAdjacency.cend())
+                        if (std::find(otherFrequenciesAdjacent.cbegin(),
+                                      otherFrequenciesAdjacent.cend(), servicePtr) ==
+                            otherFrequenciesAdjacent.cend())
                         {
                             if (fli.additionalInfo.dabEnsembleAdjacent ==
                                 Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_UNKNOWN ||
@@ -1862,13 +1863,11 @@ std::vector<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices
                                 Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE)
                             {
                                     // adjacent services first
-                                    otherFrequenciesSortedByAdjacency.insert(
-                                            otherFrequenciesSortedByAdjacency.cbegin(), servicePtr);
+                                    otherFrequenciesAdjacent.push_back(servicePtr);
                             } else
                             {
                                     // not adjacent services at the end
-                                    otherFrequenciesSortedByAdjacency.insert(
-                                            otherFrequenciesSortedByAdjacency.cend(), servicePtr);
+                                otherFrequenciesNotAdjacent.push_back(servicePtr);
                             }
                         }
                     } else {
@@ -1883,7 +1882,10 @@ std::vector<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices
             }
         }
     }
-    for (const auto & a : otherFrequenciesSortedByAdjacency) {
+    for (const auto & a : otherFrequenciesAdjacent) {
+        collectedServices.push_back(a);
+    }
+    for (const auto & a : otherFrequenciesNotAdjacent) {
         collectedServices.push_back(a);
     }
 
@@ -1986,31 +1988,82 @@ std::vector<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices
     }
 
     /*
-    std::cout << LOG_TAG << " Lookup SId 0x" << std::hex << +sid << std::dec
-              << " serviceLinkDb (size " << +m_serviceLinkDb.size() << ")" << std::endl;
+     *  ETSI TS 103 176 V2.4.1, 5.6.3.3 Stage 2: Follow hard links
+     *
+     *  The receiver next attempts to find a service that is hard-linked to the Target Id and is
+     *  therefore carrying identical audio content to the Target Id.
+     *
+     *  2.1 Hard Links to DAB service
+     *
+     *  The receiver uses linkage information received for the selected service to assemble a list
+     *  of Candidate Ids from the activated linkage sets. From that list the receiver attempts to
+     *  identify ensembles and frequencies that carry a linked DAB service using its information base.
+     */
+    std::cout << LOG_TAG << " Lookup linkage info for sid 0x" << std::hex << +sid << std::dec
+              << " m_serviceLinkDb (size " << +m_serviceLinkDb.size() << ")" << std::endl;
 
     for (const auto & serviceLink : m_serviceLinkDb) {
-        for (const auto & sli : serviceLink.second.serviceLinks) {
-            if (sli.idListQualifier == Fig_00_Ext_06::DAB_SID) {
-                for (const auto & id : sli.idList) {
-                    if (id == sid) {
-                        auto servicePtr = std::make_shared<LinkedServiceDab>();
-                        servicePtr->setEnsembleEcc(ecc);
-                        servicePtr->setEnsembleId(eid);
-                        servicePtr->setEnsembleFrequencyKHz(0xAFFE); // T . O . D . O
-                        servicePtr->setServiceId(sid);
+        const auto & linkInfo = serviceLink.second;
+        if (linkInfo.linkageActive) {
+            if (!linkInfo.isSoftLink) {
+                int i = 0;
+                for (const auto & link : linkInfo.serviceLinks) {
+                    if (link.idListQualifier == Fig_00_Ext_06::DAB_SID) {
+                        if (link.containsId(sid)) {
+                            /* 5.6.4 Selection procedure
+                             * EXAMPLE: Stage 2: [...] As SId exists in the list, any of the other services
+                             * in the list are possible alternatives that will provide the same
+                             * audio if this linkage set is active at the moment of selection.
+                             */
 
+                            for (const auto & candidateSid : link.idList) {
+                                if (candidateSid != sid) {
+                                    std::cout << LOG_TAG << "   candidate DAB SId 0x"
+                                              << +candidateSid
+                                              << " in linkageSetNumber 0x" << std::hex
+                                              << +linkInfo.linkageSetNumber << ",keySId 0x"
+                                              << +linkInfo.keyServiceId
+                                              << std::dec << ", serviceLinks[" << +i << "]"
+                                              << std::endl;
+                                    // TODO  attempt to identify ensembles and frequencies that carry a linked DAB service using its information base
+                                }
+                            }
+                        } else {
+                            std::cout << LOG_TAG << "   not contains DAB SId 0x" << std::hex << +sid
+                                      << ": linkageSetNumber 0x" << +linkInfo.linkageSetNumber
+                                      << ",keySId 0x" << +linkInfo.keyServiceId
+                                      << std::dec << ", serviceLinks[" << +i << "]" << std::endl;
+                        }
                     } else {
-                        std::cout << LOG_TAG << "   no match: 0x" << std::hex << +id << std::dec << std::endl;
+                        std::cout << LOG_TAG << "   not DAB: linkageSetNumber 0x" << std::hex
+                                  << +linkInfo.linkageSetNumber << ",keySId 0x" << +linkInfo.keyServiceId
+                                  << std::dec << ", serviceLinks[" << +i << "]" << std::endl;
                     }
+                    i++;
                 }
             } else {
-                std::cout << LOG_TAG << "   no match: not DAB_SID" << std::endl;
+                std::cout << LOG_TAG << "   not hardlink: linkageSetNumber 0x" << std::hex
+                          << +linkInfo.linkageSetNumber << ",keySId 0x" << +linkInfo.keyServiceId
+                          << std::dec << std::endl;
             }
-
+        } else {
+            std::cout << LOG_TAG << "   not active: linkageSetNumber 0x" << std::hex
+                << +linkInfo.linkageSetNumber << ", keySId 0x" << +linkInfo.keyServiceId
+                << std::dec << std::endl;
         }
     }
-    */
+
+    /*
+     * 5.6.3.3 Stage 2 Follow hard links
+     * State 2.2 Hard links to FM or other bearers
+     *   ===> is not implemented and no plan to do so
+     */
+
+    /*
+     * 5.6.3.4 Stage 3: Follow soft links
+     *   ===> is not implemented and no plan to do so
+     */
+
     std::cout << LOG_TAG << "collected " << collectedServices.size() << " linked services" << std::endl;
     return collectedServices;
 }
