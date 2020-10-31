@@ -25,6 +25,7 @@
 #include "jtunerusbdevice.h"
 #include "jdabservice.h"
 #include "../../concurrent_queue.h"
+#include "../../linkedservicedab.h"
 
 #include <memory>
 #include <array>
@@ -145,6 +146,26 @@ private:
     void rawRecordMscWrite(const std::vector<uint8_t>& data);
     void rawRecordClose();
 
+    void lookupEIdOnOtherFrequency( // Inputs
+                                   const uint32_t targetEId, const uint32_t targetFreqKHz,
+                                   const uint8_t targetECC, const uint32_t targetSId,
+                                   // Outputs
+                                   std::vector<std::shared_ptr<LinkedServiceDab>> & retAdjacentFrequencies,
+                                   std::vector<std::shared_ptr<LinkedServiceDab>> & retNotAdjacentFrequencies) const;
+
+    void lookupOtherEnsembleSameService(
+            // Inputs
+            const uint32_t targetEId, const uint32_t targetFreqKHz,
+            const uint8_t targetECC, const uint32_t targetSId,
+            // Outputs
+            std::vector<std::shared_ptr<LinkedServiceDab>> & sameSIdOtherEnsembles) const;
+
+    void lookupHardLinksToService(
+            // Inputs
+            const uint32_t targetEId, const uint32_t targetFreqKHz,
+            const uint8_t targetECC, const uint32_t targetSId,
+            // Outputs
+            std::vector<std::shared_ptr<LinkedServiceDab>> & hardLinksToService ) const;
 private:
     enum REGISTER_PAGE {
         REGISTER_PAGE_OFDM = 0x02,  //For 1seg
