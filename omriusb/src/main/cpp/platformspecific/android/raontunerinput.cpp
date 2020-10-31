@@ -1974,9 +1974,18 @@ void RaonTunerInput::lookupHardLinksToService(
                                               << " in linkageSetNumber 0x" << std::hex
                                               << +linkInfo.linkageSetNumber << ",keySId 0x"
                                               << +linkInfo.keyServiceId
-                                              << std::dec << ", serviceLinks[" << +i << "]"
+                                              << std::dec << ", at serviceLinks[" << +i << "]"
                                               << std::endl;
-                                    // TODO  attempt to identify ensembles and frequencies that carry a linked DAB service using its information base
+                                    std::vector<std::shared_ptr<LinkedServiceDab>> otherEnsemblesOtherSId;
+                                    lookupOtherEnsembleSameService(targetEId, targetFreqKHz,
+                                            targetECC, candidateSid, otherEnsemblesOtherSId);
+                                    for (const auto & a : otherEnsemblesOtherSId) {
+                                        // avoid duplicates (yeah it is not the most efficient way to do this)
+                                        if (std::find(hardLinksToService.begin(),
+                                                      hardLinksToService.end(), a) == hardLinksToService.end()) {
+                                            hardLinksToService.push_back(a);
+                                        }
+                                    }
                                 }
                             }
                         } else {
@@ -2062,8 +2071,8 @@ std::vector<std::shared_ptr<LinkedServiceDab>> RaonTunerInput::getLinkedServices
 
         for (const auto &a : hardLinksToService) {
             // avoid duplicates (yeah it is not the most efficient way to do this)
-            if (std::find(collectedServices.cbegin(),
-                          collectedServices.cend(), a) == collectedServices.cend()) {
+            if (std::find(collectedServices.begin(),
+                          collectedServices.end(), a) == collectedServices.end()) {
                 collectedServices.push_back(a);
             }
         }
