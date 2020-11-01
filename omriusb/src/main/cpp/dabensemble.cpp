@@ -370,7 +370,7 @@ void DabEnsemble::fig00_03_input(const Fig_00_Ext_03& fig03) {
 void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     //std::cout << m_logTag << " LinkDB Received SLI" << std::endl;
-    bool dbHasChanged = false;
+    bool hasChanged = false;
     for(const auto& linkInfo : fig06.getServiceLinkingInformations()) {
         auto linkDbIter = m_serviceLinkDb.find(linkInfo.linkDbKey);
         if(linkDbIter != m_serviceLinkDb.cend()) {
@@ -380,7 +380,7 @@ void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
                     for(const auto& srvLink : linkInfo.serviceLinks) {
                         if(!(*linkDbIter).second.containsServiceLinkList(srvLink)) {
                             (*linkDbIter).second.serviceLinks.push_back(srvLink);
-                            dbHasChanged = true;
+                            hasChanged = true;
                             /*std::cout << m_logTag << " LinkDB update " << (linkInfo.isSoftLink ? "SoftLink " : "HardLink ") << "LinkageSetNumber: 0x" << std::hex << +linkInfo.linkageSetNumber << " with KeyServiceID: 0x" << +(*linkDbIter).second.keyServiceId << std::dec <<
                                 " links to " << "\n\t";
                                 for(const auto& sll : (*linkDbIter).second.serviceLinks) {
@@ -404,25 +404,27 @@ void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
                  *
                  * NOTE: Since network configurations change infrequently, the reception of CEI is likely to be unusual
                  */
-                std::clog << m_logTag << " LinkDB deleted LinkageSetNumber: 0x" << std::hex << +linkInfo.linkageSetNumber
+                // Note: Other than what the spec says, stations send this apparently regularily shortly after they added an entry.
+                // Thus, let's violate the spec and ignore CEI
+                /*std::clog << m_logTag << " LinkDB deleted LinkageSetNumber: 0x" << std::hex << +linkInfo.linkageSetNumber
                     << ", linkDbKey 0x" << +linkInfo.linkDbKey << std::dec << std::endl;
                 m_serviceLinkDb.erase(linkDbIter);
-                dbHasChanged = true;
+                hasChanged = true;*/
             }
         } else {
             //Linkageset not yet in Map
             if(!linkInfo.isContinuation && !linkInfo.isChangeEvent) {
                 //std::cout << m_logTag << " LinkDB adding new linkageSet with LinkDbKey: 0x" << std::hex << +linkInfo.linkDbKey << " and LinkageNumber: 0x" << +linkInfo.linkageSetNumber << " KeySeviceID: 0x" << +linkInfo.keyServiceId << std::dec << std::endl;
                 m_serviceLinkDb.insert(std::make_pair(linkInfo.linkDbKey, linkInfo));
-                dbHasChanged = true;
+                hasChanged = true;
                 std::cout << m_logTag << " LinkDB adding " << (linkInfo.isSoftLink ? "SoftLink" : "HardLink")
                     << " LinkageSetNumber: 0x" << std::hex << +linkInfo.linkageSetNumber << " KeyServiceID: 0x"
                     << +linkInfo.keyServiceId << " linkDbKey: 0x" << +linkInfo.linkDbKey << std::dec << std::endl;
             }
         }
     }
-    if (dbHasChanged) {
         dumpServiceLinkDb();
+    if (hasChanged) {
     }
 }
 
