@@ -26,9 +26,6 @@
 #include "../../dabservice.h"
 #include "../../dabservicecomponentmscstreamaudio.h"
 
-//#include <media/NdkMediaFormat.h>
-//#include <media/NdkMediaCodec.h>
-
 class JDabService {
 
 public:
@@ -63,19 +60,28 @@ private:
     JavaVM* m_javaVm;
     std::shared_ptr<DabService> m_linkedDabService{nullptr};
 
-    jobject m_linkedJavaDabServiceObject{nullptr};
-    jclass m_javaDabServiceClass;
+    jclass m_ArrayListClass{nullptr};
+    jmethodID m_ArrayList_init_mId;
+    jmethodID m_ArrayList_add_mId;
 
+    jobject m_linkedJavaDabServiceObject{nullptr};
+    jclass m_javaDabServiceClass{nullptr};
+
+    jmethodID m_javaDabSrvInitMId;
     jmethodID m_javaDabSrvGetEnsembleFrequencyMId;
     jmethodID m_javaDabSrvGetEnsembleEccMId;
     jmethodID m_javaDabSrvGetEnsembleIdMId;
     jmethodID m_javaDabSrvGetServiceIdMId;
+    jmethodID m_javaDabSrvSetEnsembleEccMId;
+    jmethodID m_javaDabSrvSetEnsembleFrequencyMId;
+    jmethodID m_javaDabSrvSetEnsembleIdMId;
+    jmethodID m_javaDabSrvSetServiceIdMId;
 
     jmethodID m_javaDabSrvAudioDataCallbackMId;
     jmethodID m_javaDabSrvAudioformatChangedCallbackMId;
 
     //DLS
-    jclass m_javaDlsClass;
+    jclass m_javaDlsClass{nullptr};
     jmethodID m_javaDlsConstructorMId;
     jmethodID m_javaDlsSetFullTextMId;
     jmethodID m_javaDlsSetFulltextBytesMId;
@@ -86,13 +92,13 @@ private:
     jmethodID m_javaDabSrvdynamicLabelReceivedCallbackMId;
 
     //DLPlusItem
-    jclass m_javaDlPlusItemClass;
+    jclass m_javaDlPlusItemClass{nullptr};
     jmethodID m_javaDlPlusItemConstructorMId;
     jmethodID m_javaDlPlusItemSetContentTypeMId;
     jmethodID m_javaDlPlusItemSetTextMId;
 
     //SLS
-    jclass m_javaSlsClass;
+    jclass m_javaSlsClass{nullptr};
     jmethodID m_javaSlsConstructorMId;
     jmethodID m_javaSlsSetContentNameMId;
     jmethodID m_javaSlsSetVisualDataMId;
@@ -107,6 +113,9 @@ private:
     //SLS Callback
     jmethodID m_javaDabSrvslideshowReceivedCallbackMId;
 
+    // Service Following Callback
+    jmethodID m_javaDabSrvServiceFollowingReceived;
+
     //local
     uint32_t m_serviceId{0xFFFFFFFF};
     uint32_t m_ensembleFrequency{0x00};
@@ -116,6 +125,8 @@ private:
     std::shared_ptr<DabServiceComponentMscStreamAudio::AUDIO_DATA_CALLBACK> m_audioDataCb{nullptr};
     std::shared_ptr<DabUserapplicationDecoder::UserapplicationDataCallback> m_dlsCallback{nullptr};
     std::shared_ptr<DabUserapplicationDecoder::UserapplicationDataCallback> m_slsCallback{nullptr};
+    std::shared_ptr<DabEnsemble::ServiceFollowingCallback> m_sfCallback{nullptr};
+    std::vector<std::shared_ptr<LinkedServiceDab>> m_lastSfServices;
 
     int m_ascty{-1};
     int m_audioSamplingRate{-1};
@@ -135,6 +146,7 @@ private:
 
     void callJavaSlideshowCallback(const std::shared_ptr<DabSlideshow>& slide);
     void callJavaDynamiclabelCallback(const std::shared_ptr<DabDynamicLabel>& label);
+    void callJavaServiceFollowingDabServicesChanged();
 
 };
 

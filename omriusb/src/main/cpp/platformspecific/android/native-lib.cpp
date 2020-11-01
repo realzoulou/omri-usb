@@ -454,13 +454,12 @@ JNIEXPORT jobject JNICALL Java_org_omri_radio_impl_UsbHelper_getLinkedServices(J
     while (devIter != m_dabInputs.cend()) {
         if (devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
 
-            // convert Java input dabService
+            // convert Java input dabService via JDabService to a LinkedServiceDab
             JDabService jDabService(m_javaVm, env, m_radioServiceDabImplClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService);
-            LinkedServiceDab inputService;
-            inputService.setServiceId(jDabService.getServiceId());
-            inputService.setEnsembleEcc(jDabService.getEnsembleEcc());
-            inputService.setEnsembleFrequencyKHz(jDabService.getEnsembleFrequency() / 1000);
-            inputService.setEnsembleId(jDabService.getEnsembleId());
+            LinkedServiceDab inputService (jDabService.getEnsembleEcc(),
+                                           jDabService.getServiceId(),
+                                           jDabService.getEnsembleId(),
+                                           jDabService.getEnsembleFrequency() / 1000);
             // retrieve data
             auto retServices = devIter->get()->getLinkedServices(inputService);
 

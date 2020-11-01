@@ -157,3 +157,10 @@ void DabService::setEnsembleFrequency(uint32_t ensembleFrequency) {
     m_ensembleFrequency = ensembleFrequency;
 }
 
+void DabService::setDabEnsemble(DabEnsemble *pEnsemble) {
+    m_ptr_dabEnsemble = pEnsemble;
+}
+
+DabEnsemble* DabService::getDabEnsemble() const {
+    return m_ptr_dabEnsemble;
+}

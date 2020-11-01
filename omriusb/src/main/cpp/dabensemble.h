@@ -62,7 +62,7 @@ public:
     using Date_Time_Callback = std::function<void(const Fig_00_Ext_10::DabTime&)>;
     virtual std::shared_ptr<DabEnsemble::Date_Time_Callback> registerDateTimeCallback(Date_Time_Callback cb);
 
-    using ServiceFollowingCallback = std::function<void(const std::vector<std::shared_ptr<LinkedServiceDab>> & sfServices)>;
+    using ServiceFollowingCallback = std::function<void()>;
     virtual std::shared_ptr<DabEnsemble::ServiceFollowingCallback> registerServiceFollowingCallback(DabEnsemble::ServiceFollowingCallback cb);
 
 protected:

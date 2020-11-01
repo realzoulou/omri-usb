@@ -27,6 +27,9 @@ class LinkedServiceDab {
 
 public:
     explicit LinkedServiceDab() = default;
+    explicit LinkedServiceDab(uint8_t ecc, uint32_t sid, uint32_t eid, uint32_t efreqKHz) :
+        m_ecc(ecc), m_sid(sid), m_eid(eid), m_efreq(efreqKHz) {}
+
     virtual ~LinkedServiceDab() = default;
 
     void setEnsembleEcc(uint8_t ecc) { m_ecc = ecc; }
@@ -46,12 +49,18 @@ public:
     }
     inline bool operator!=(const LinkedServiceDab & other) const { return !operator==(other); }
 
+    inline std::string to_string() const {
+        std::stringstream str;
+        str << "ecc 0x" << std::hex << +m_ecc << ",sid 0x" << +m_sid << ",eid 0x" << +m_eid
+            << std::dec << "," << +m_efreq << " kHz";
+        return str.str();
+    }
+
 private:
     uint8_t m_ecc{0};
+    uint32_t m_sid{0};
     uint16_t m_eid{0};
     uint32_t m_efreq{0}; // kHz
-    uint32_t m_sid{0};
-
 };
 
 #endif // LINKEDSERVICEDAB_H

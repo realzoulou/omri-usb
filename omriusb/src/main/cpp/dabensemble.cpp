@@ -24,13 +24,11 @@
 #include <iostream>
 #include <sstream>
 
-#include "callbackhandle.h"
 #include "timer.h"
 
 DabEnsemble::DabEnsemble() {
     std::cout << m_logTag << " Constructing" << std::endl;
     m_ficPtr = std::unique_ptr<FicParser>(new FicParser);
-    registerCbs();
 }
 
 DabEnsemble::~DabEnsemble() {
@@ -343,6 +341,7 @@ void DabEnsemble::fig00_02_input(const Fig_00_Ext_02 &fig02) {
             }
 
             service.setEnsembleFrequency(m_ensembleFrequency);
+            service.setDabEnsemble(this);
             m_servicesMap.emplace(srvDesc.serviceId, std::move(service));
         }
     }
@@ -423,8 +422,8 @@ void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
             }
         }
     }
-        dumpServiceLinkDb();
     if (hasChanged) {
+        m_serviceFollowingDispatcher.invoke();
     }
 }
 
@@ -518,10 +517,7 @@ void DabEnsemble::fig00_21_input(const Fig_00_Ext_21& fig21) {
         }
     }
     if (hasChanged) {
-        /*LinkedServiceDab linkedServiceDab;
-        linkedServiceDab.setServiceId()
-        m_serviceFollowingDispatcher.invoke(getLinkedDabServices(linkedServiceDab));*/
-        dumpFrequencyDb();
+        m_serviceFollowingDispatcher.invoke();
     }
 }
 
@@ -633,7 +629,7 @@ void DabEnsemble::fig00_24_input(const Fig_00_Ext_24& fig24) {
         }
     }
     if (hasChanged) {
-        dumpOeSrvInfoDb();
+        m_serviceFollowingDispatcher.invoke();
     }
 }
 
@@ -1286,6 +1282,11 @@ void DabEnsemble::lookupHardLinksToService(
 
 std::vector<std::shared_ptr<LinkedServiceDab>> DabEnsemble::getLinkedDabServices(const LinkedServiceDab & service) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+
+    // dump databases
+    dumpFrequencyDb();
+    dumpOeSrvInfoDb();
+    dumpServiceLinkDb();
 
     const auto targetECC = service.getEnsembleEcc();
     const auto targetEId = service.getEnsembleId();

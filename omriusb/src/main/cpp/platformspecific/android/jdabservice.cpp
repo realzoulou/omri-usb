@@ -18,8 +18,10 @@
  *
  */
 
+#include <algorithm>
 #include <iostream>
 
+#include "../../dabensemble.h"
 #include "jdabservice.h"
 #include "jni-helper.h"
 
@@ -45,10 +47,19 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
     m_javaDlPlusItemClass = dynamicLabelPlusItemClass;
     m_javaSlsClass = slideshowClass;
 
+    m_ArrayListClass = (jclass)env->NewGlobalRef(env->FindClass("java/util/ArrayList"));
+    m_ArrayList_init_mId = env->GetMethodID(m_ArrayListClass, "<init>", "(I)V");
+    m_ArrayList_add_mId = env->GetMethodID(m_ArrayListClass, "add", "(Ljava/lang/Object;)Z");
+
+    m_javaDabSrvInitMId = env->GetMethodID(m_javaDabServiceClass, "<init>", "()V");
     m_javaDabSrvGetEnsembleFrequencyMId = env->GetMethodID(m_javaDabServiceClass, "getEnsembleFrequency", "()I");
     m_javaDabSrvGetEnsembleEccMId = env->GetMethodID(m_javaDabServiceClass, "getEnsembleEcc", "()I");
     m_javaDabSrvGetEnsembleIdMId = env->GetMethodID(m_javaDabServiceClass, "getEnsembleId", "()I");
     m_javaDabSrvGetServiceIdMId = env->GetMethodID(m_javaDabServiceClass, "getServiceId", "()I");
+    m_javaDabSrvSetEnsembleEccMId = env->GetMethodID(m_javaDabServiceClass, "setEnsembleEcc", "(I)V");
+    m_javaDabSrvSetEnsembleFrequencyMId = env->GetMethodID(m_javaDabServiceClass, "setEnsembleFrequency", "(I)V");
+    m_javaDabSrvSetEnsembleIdMId = env->GetMethodID(m_javaDabServiceClass, "setEnsembleId", "(I)V");
+    m_javaDabSrvSetServiceIdMId = env->GetMethodID(m_javaDabServiceClass, "setServiceId", "(I)V");
 
     //Audio data callback
     m_javaDabSrvAudioDataCallbackMId = env->GetMethodID(m_javaDabServiceClass, "audioData", "([BII)V");
@@ -62,7 +73,7 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
     m_javaDlsSetItemToggledMId = env->GetMethodID(m_javaDlsClass, "setItemToggled", "(Z)V");
     m_javaDlsAddTagItemMId = env->GetMethodID(m_javaDlsClass, "addDlPlusItem", "(Lorg/omri/radioservice/metadata/TextualDabDynamicLabelPlusItem;)V");
     //DLS Callback
-    m_javaDabSrvdynamicLabelReceivedCallbackMId = env->GetMethodID(m_javaDabServiceClass, "labeReceived", "(Lorg/omri/radioservice/metadata/Textual;)V");
+    m_javaDabSrvdynamicLabelReceivedCallbackMId = env->GetMethodID(m_javaDabServiceClass, "labelReceived", "(Lorg/omri/radioservice/metadata/Textual;)V");
 
     //DLPlusItem
     m_javaDlPlusItemConstructorMId = env->GetMethodID(m_javaDlPlusItemClass, "<init>", "()V");
@@ -83,6 +94,8 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
     m_javaSlsSetClickThroughUrlMId = env->GetMethodID(m_javaSlsClass, "setCategoryClickThroughLink", "(Ljava/lang/String;)V");
     //SLS Callback
     m_javaDabSrvslideshowReceivedCallbackMId = env->GetMethodID(m_javaDabServiceClass, "slideshowReceived", "(Lorg/omri/radioservice/metadata/VisualDabSlideShow;)V");
+    // Service Following Callback
+    m_javaDabSrvServiceFollowingReceived = env->GetMethodID(m_javaDabServiceClass, "serviceFollowingReceived", "(Ljava/util/ArrayList;)V");
 
     m_ensembleFrequency = static_cast<uint32_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetEnsembleFrequencyMId));
     m_ensembleEcc = static_cast<uint8_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetEnsembleEccMId));
@@ -109,6 +122,9 @@ JDabService::~JDabService() {
 
     enve->DeleteGlobalRef(m_linkedJavaDabServiceObject);
     m_linkedJavaDabServiceObject = nullptr;
+
+    enve->DeleteGlobalRef(m_ArrayListClass);
+    m_ArrayListClass = nullptr;
 
     if (!JNI_DETACH(m_javaVm, wasDetached)) {
         std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
@@ -139,6 +155,10 @@ void JDabService::unlinkDabService() {
     if (m_slsCallback != nullptr) {
         m_slsCallback.reset();
         m_slsCallback = nullptr;
+    }
+    if (m_sfCallback != nullptr) {
+        m_sfCallback.reset();
+        m_sfCallback = nullptr;
     }
 
     if (!JNI_DETACH(m_javaVm, wasDetached)) {
@@ -210,6 +230,16 @@ void JDabService::setLinkDabService(std::shared_ptr<DabService> linkedDabSrv) {
             }
             // found the audio stream component
             break;
+        }
+
+        DabEnsemble* pDabEnsemble = m_linkedDabService->getDabEnsemble();
+        const std::string register_service_following = "register service following";
+        if (pDabEnsemble != nullptr) {
+            m_sfCallback = pDabEnsemble->registerServiceFollowingCallback(
+                    std::bind(&JDabService::callJavaServiceFollowingDabServicesChanged, this));
+            std::cout << m_logTag << register_service_following << std::endl;
+        } else {
+            std::clog << m_logTag << "failed to " << register_service_following << std::endl;
         }
     } else {
         std::clog << m_logTag << "failed attempt to link non Programme Service SId "
@@ -505,6 +535,65 @@ void JDabService::setSubchanHandle(uint8_t subChanHdl) {
 
 uint16_t JDabService::getSubchanHandle() {
     return m_subchanHandle;
+}
+
+void JDabService::callJavaServiceFollowingDabServicesChanged() {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+    const auto & dabService = getLinkDabService();
+    if (dabService.get() != nullptr && dabService.get()->getDabEnsemble() != nullptr) {
+        DabService* pService = dabService.get();
+        DabEnsemble* pEnsemble = pService->getDabEnsemble();
+        const auto eid = pEnsemble->getEnsembleId();
+        const auto ecc = pEnsemble->getEnsembleEcc();
+        const auto efreqKHz = pService->getEnsembleFrequency() / 1000;
+        const auto sid = pService->getServiceId();
+
+        LinkedServiceDab currentService(ecc, sid, eid, efreqKHz);
+        const auto sfServices = pEnsemble->getLinkedDabServices(currentService);
+
+        bool different = (sfServices.size() != m_lastSfServices.size());
+        if (!different) { // vectors have same size, test each element
+            for (auto i=0; i<sfServices.size(); i++) {
+                different = (sfServices[i] == m_lastSfServices[i]);
+                if (different) break;
+            }
+        }
+        if (different) {
+            m_lastSfServices = sfServices;
+            for (const auto & sfService : sfServices ) {
+                std::cout << m_logTag << sfService->to_string() << std::endl;
+            }
+
+            bool wasDetached;
+            if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+                std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+                return;
+            }
+            JNIEnv* enve;
+            m_javaVm->GetEnv((void**)&enve, JNI_VERSION_1_6);
+            if (enve != nullptr && m_linkedJavaDabServiceObject != nullptr) {
+                jobject arrayList = enve->NewObject(m_ArrayListClass, m_ArrayList_init_mId,
+                                                   static_cast<jint>(sfServices.size()));
+                for (const auto &s : sfServices) {
+                    jobject jLinkedServiceDab = enve->NewObject(m_javaDabServiceClass,
+                                                                m_javaDabSrvInitMId);
+                    enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetEnsembleEccMId,
+                                        static_cast<jint>(s.get()->getEnsembleEcc()));
+                    enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetEnsembleFrequencyMId,
+                                        static_cast<jint>(s.get()->getEnsembleFrequencyKHz() * 1000));
+                    enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetEnsembleIdMId,
+                                        static_cast<jint>(s.get()->getEnsembleId()));
+                    enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetServiceIdMId,
+                                        static_cast<jint>(s.get()->getServiceId()));
+
+                    enve->CallBooleanMethod(arrayList, m_ArrayList_add_mId, jLinkedServiceDab);
+                }
+                enve->CallVoidMethod(m_linkedJavaDabServiceObject,
+                                     m_javaDabSrvServiceFollowingReceived, arrayList);
+            }
+        }
+    }
+
 }
 
 

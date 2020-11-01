@@ -26,6 +26,8 @@ import org.omri.radioservice.metadata.VisualMetadataListener;
  * @see ProgrammeServiceMetadataListener
  * @see TextualMetadataListener
  * @see VisualMetadataListener
+ * @see RadioServiceRawAudiodataListener
+ * @see RadioServiceFollowingListener
  */
 public interface RadioServiceListener extends RadioListener {
 

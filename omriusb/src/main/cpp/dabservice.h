@@ -26,6 +26,9 @@
 
 #include "dabservicecomponent.h"
 
+// forward declaration
+class DabEnsemble;
+
 class DabService {
 
 public:
@@ -51,6 +54,7 @@ public:
     virtual std::string getProgrammeType8CharName() const;
 
     virtual uint32_t getEnsembleFrequency() const;
+    virtual DabEnsemble * getDabEnsemble() const;
 
     virtual void setServiceId(uint32_t serviceId);
     virtual void setIsProgrammeService(bool isProgramme);
@@ -66,6 +70,7 @@ public:
     virtual void setProgrammeTypeCode(uint8_t intPtyCode);
     virtual void setProgrammeTypeIsDynamic(bool dynamic);
     virtual void setEnsembleFrequency(uint32_t ensembleFrequency);
+    virtual void setDabEnsemble(DabEnsemble *pEnsemble);
 
 protected:
     const std::string m_logTag = "[DabService]";
@@ -89,6 +94,7 @@ protected:
     std::string m_ptyName8{"None"};
 
     uint32_t m_ensembleFrequency{0};
+    DabEnsemble* m_ptr_dabEnsemble{nullptr};
 };
 
 #endif // DABSERVICE_H

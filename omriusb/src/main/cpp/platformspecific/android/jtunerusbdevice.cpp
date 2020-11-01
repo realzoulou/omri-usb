@@ -18,9 +18,11 @@
  *
  */
 
-#include "jtunerusbdevice.h"
-
 #include <iostream>
+
+#include "jtunerusbdevice.h"
+#include "../../dabservice.h"
+
 
 JTunerUsbDevice::JTunerUsbDevice(JavaVM* javaVm, JNIEnv* env, jobject tunerUsbDevice) : JUsbDevice(javaVm, env, env->CallObjectMethod(tunerUsbDevice, env->GetMethodID(env->FindClass("org/omri/radio/impl/TunerUsb"), "getUsbDevice", "()Landroid/hardware/usb/UsbDevice;"))) {
     std::cout << m_logTag << "Creating JTuner" << std::endl;
