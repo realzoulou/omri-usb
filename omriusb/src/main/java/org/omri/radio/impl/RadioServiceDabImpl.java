@@ -34,8 +34,8 @@ public class RadioServiceDabImpl extends RadioServiceImpl implements RadioServic
 
 	private static final long serialVersionUID = 6561664196086864931L;
 	
-	private int mEnsembleEcc;
-	private int mEnsembleId;
+	private int mEnsembleEcc = 0;
+	private int mEnsembleId= 0;
 	private String mEnsembleLabel = "";
 	private String mEnsembleShortLabel = "";
 	private int mEnsembleFrequency = 0;
@@ -43,9 +43,9 @@ public class RadioServiceDabImpl extends RadioServiceImpl implements RadioServic
 	private int mCaId = -1;
 	private String mServiceLabel = "";
 	private String mShortServiceLabel = "";
-	private int mServiceId;
+	private int mServiceId = 0;
 	private boolean mIsProgrammeService = false;
-	private List<RadioServiceDabComponent> mServiceComponents = new ArrayList<RadioServiceDabComponent>();
+	final private List<RadioServiceDabComponent> mServiceComponents = new ArrayList<RadioServiceDabComponent>();
 
 	RadioServiceDabImpl() {	}
 

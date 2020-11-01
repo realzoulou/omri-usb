@@ -473,7 +473,7 @@ void DabEnsemble::fig00_21_input(const Fig_00_Ext_21& fig21) {
     //std::cout << m_logTag << " FreqInfoDB received FrequencyInformation for OE: " << std::boolalpha << fig21.isOtherEnsemble() << std::noboolalpha << std::endl;
     bool hasChanged = false;
     for(const auto& freqInfo : fig21.getFrequencyInformations()) {
-        auto freqInfoDbIter = m_frequencyInformationDb.find(freqInfo.freqDbKey); // TODO better use freqInfo.id as key ???
+        auto freqInfoDbIter = m_frequencyInformationDb.find(freqInfo.freqDbKey);
         if(freqInfoDbIter != m_frequencyInformationDb.cend()) {
             // already in db
             if (!freqInfo.isChangeEvent) {
@@ -516,6 +516,9 @@ void DabEnsemble::fig00_21_input(const Fig_00_Ext_21& fig21) {
         }
     }
     if (hasChanged) {
+        /*LinkedServiceDab linkedServiceDab;
+        linkedServiceDab.setServiceId()
+        m_serviceFollowingDispatcher.invoke(getLinkedDabServices(linkedServiceDab));*/
         dumpFrequencyDb();
     }
 }
@@ -1059,5 +1062,302 @@ std::shared_ptr<std::function<void()>> DabEnsemble::registerEnsembleCollectDoneC
 std::shared_ptr<DabEnsemble::Date_Time_Callback> DabEnsemble::registerDateTimeCallback(DabEnsemble::Date_Time_Callback cb) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     return m_dateAndTimeDispatcher.add(cb);
+}
+
+std::shared_ptr<DabEnsemble::ServiceFollowingCallback> DabEnsemble::registerServiceFollowingCallback(DabEnsemble::ServiceFollowingCallback cb) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+    return m_serviceFollowingDispatcher.add(cb);
+}
+
+void DabEnsemble::lookupEIdOnOtherFrequency(
+        // Inputs
+        const uint32_t targetEId, const uint32_t targetFreqKHz,
+        const uint8_t targetECC, const uint32_t targetSId,
+        // outputs
+        std::vector<std::shared_ptr<LinkedServiceDab>> & retAdjacentFrequencies,
+        std::vector<std::shared_ptr<LinkedServiceDab>> & retNotAdjacentFrequencies) const {
+
+    retAdjacentFrequencies.clear();
+    retNotAdjacentFrequencies.clear();
+
+    /*
+     * ETSI TS 103 176 V2.4.1, 5.6.3.2 Stage 1: Find same service
+     *
+     * In this stage, the receiver attempts to locate a DAB ensemble containing a service with ECC-SId equal to the Target Id.
+     *
+     * It may use FI (FIG 0/21) to find the same ensemble on another frequency
+     */
+
+    std::cout << m_logTag << " Lookup EId 0x" << std::hex << +targetEId << std::dec
+              << " on another frequency, frequencyInformationDb (size "
+              << +m_frequencyInformationDb.size() << ")" << std::endl;
+
+    for (const auto &freqInfoDbEntry : m_frequencyInformationDb) {
+        for (const auto &freqInfo : freqInfoDbEntry.second) {
+            if (freqInfo.frequencyInformationType == Fig_00_Ext_21::DAB_ENSEMBLE &&
+                freqInfo.id == targetEId) {
+                for (const auto &fli : freqInfo.frequencies) {
+
+                    // searching for a different frequency than the frequency of the current service
+                    if (targetFreqKHz != fli.frequencyKHz) {
+                        auto servicePtr = std::make_shared<LinkedServiceDab>();
+                        servicePtr->setEnsembleEcc(targetECC);
+                        servicePtr->setEnsembleId(targetEId);
+                        servicePtr->setEnsembleFrequencyKHz(fli.frequencyKHz);
+                        servicePtr->setServiceId(targetSId);
+
+                        std::cout << m_logTag << "   match: 0x" << std::hex << +freqInfo.id
+                                  << std::dec
+                                  << " type " << +freqInfo.frequencyInformationType
+                                  << " : ecc 0x" << std::hex << +servicePtr->getEnsembleEcc()
+                                  << ",sid 0x" << +servicePtr->getServiceId()
+                                  << ",eid 0x" << +servicePtr->getEnsembleId()
+                                  << std::dec
+                                  << "," << +servicePtr->getEnsembleFrequencyKHz() << std::dec
+                                  << " kHz" << std::endl;
+
+                        if (fli.additionalInfo.dabEnsembleAdjacent ==
+                            Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_UNKNOWN ||
+                            fli.additionalInfo.dabEnsembleAdjacent ==
+                            Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_NOT_SIGNALLED ||
+                            fli.additionalInfo.dabEnsembleAdjacent ==
+                            Fig_00_Ext_21::GEOGRAPHICALLY_ADJACENT_TRANSMISSION_MODE_ONE) {
+                            // adjacent services
+                            retAdjacentFrequencies.push_back(servicePtr);
+                        } else {
+                            // not adjacent services
+                            retNotAdjacentFrequencies.push_back(servicePtr);
+                        }
+                    } else {
+                        std::cout << m_logTag << "   skip'd same frequency match EId 0x"
+                                  << std::hex << +freqInfo.id << std::dec
+                                  << " : " << +fli.frequencyKHz << " kHz" << std::endl;
+                    }
+                }
+            } else {
+                std::cout << m_logTag << "   no match: 0x" << std::hex << +freqInfo.id << std::dec
+                          << " type " << +freqInfo.frequencyInformationType << std::endl;
+            }
+        }
+    }
+}
+
+void DabEnsemble::lookupOtherEnsembleSameService(
+        // Inputs
+        const uint32_t targetEId, const uint32_t targetFreqKHz,
+        const uint8_t targetECC, const uint32_t targetSId,
+        // Outputs
+        std::vector<std::shared_ptr<LinkedServiceDab>> & sameSIdOtherEnsembles ) const {
+
+    sameSIdOtherEnsembles.clear();
+
+    /*
+     *  ETSI TS 103 176 V2.4.1, 5.6.3.2 Stage 1: Find same service
+     *
+     * It may use [...] OE Services information (FIG 0/24) and FI to find another ensemble carrying the same service
+     */
+    std::cout << m_logTag << "Lookup other ensembles carrying sid 0x" << std::hex << +targetSId << std::dec
+              << " oeSrvInfoDb (size " << +m_oeSrvInfoDb.size() << ")" << std::endl;
+
+    for (const auto & oeSrvInfo : m_oeSrvInfoDb) {
+        for (const auto & oe : oeSrvInfo.second) {
+            if (oe.serviceId == targetSId) {
+                // found same service in other ensemble
+                for (const auto & otherEId : oe.ensembleIds) {
+                    if (otherEId != targetEId) {
+                        // lookup frequencies of other ensemble
+                        std::cout << m_logTag << "   match: sid 0x" << std::hex << +targetSId
+                                  << ",eid 0x" << +otherEId << std::dec << std::endl;
+
+                        std::vector<std::shared_ptr<LinkedServiceDab>> adjacentFrequencies;
+                        std::vector<std::shared_ptr<LinkedServiceDab>> notAdjacentFrequencies;
+                        lookupEIdOnOtherFrequency(otherEId, targetFreqKHz, targetECC, targetSId,
+                                                  adjacentFrequencies, notAdjacentFrequencies);
+
+                        for (const auto & a : adjacentFrequencies) {
+                            // avoid duplicates (yeah it is not the most efficient way to do this)
+                            if (std::find(sameSIdOtherEnsembles.begin(),
+                                          sameSIdOtherEnsembles.end(), a) == sameSIdOtherEnsembles.end()) {
+                                sameSIdOtherEnsembles.push_back(a);
+                            }
+                        }
+                        for (const auto & a : notAdjacentFrequencies) {
+                            // avoid duplicates (yeah it is not the most efficient way to do this)
+                            if (std::find(sameSIdOtherEnsembles.begin(),
+                                          sameSIdOtherEnsembles.end(), a) == sameSIdOtherEnsembles.end()) {
+                                sameSIdOtherEnsembles.push_back(a);
+                            }
+                        }
+                    }
+                }
+            } else {
+                std::cout << m_logTag << "   no match: SId 0x" << std::hex << +oe.serviceId << std::dec << std::endl;
+            }
+        }
+    }
+}
+
+void DabEnsemble::lookupHardLinksToService(
+        // Inputs
+        const uint32_t targetEId, const uint32_t targetFreqKHz,
+        const uint8_t targetECC, const uint32_t targetSId,
+        // Outputs
+        std::vector<std::shared_ptr<LinkedServiceDab>> & hardLinksToService ) const {
+
+    hardLinksToService.clear();
+
+    /*
+     *  ETSI TS 103 176 V2.4.1, 5.6.3.3 Stage 2: Follow hard links
+     *
+     *  The receiver next attempts to find a service that is hard-linked to the Target Id and is
+     *  therefore carrying identical audio content to the Target Id.
+     *
+     *  2.1 Hard Links to DAB service
+     *
+     *  The receiver uses linkage information received for the selected service to assemble a list
+     *  of Candidate Ids from the activated linkage sets. From that list the receiver attempts to
+     *  identify ensembles and frequencies that carry a linked DAB service using its information base.
+     */
+    std::cout << m_logTag << " Lookup linkage info for sid 0x" << std::hex << +targetSId << std::dec
+              << " m_serviceLinkDb (size " << +m_serviceLinkDb.size() << ")" << std::endl;
+
+    for (const auto & serviceLink : m_serviceLinkDb) {
+        const auto & linkInfo = serviceLink.second;
+        if (linkInfo.linkageActive) {
+            if (!linkInfo.isSoftLink) {
+                int i = 0;
+                for (const auto & link : linkInfo.serviceLinks) {
+                    if (link.idListQualifier == Fig_00_Ext_06::DAB_SID) {
+                        if (link.containsId(targetSId)) {
+                            /* 5.6.4 Selection procedure
+                             * EXAMPLE: Stage 2: [...] As SId exists in the list, any of the other services
+                             * in the list are possible alternatives that will provide the same
+                             * audio if this linkage set is active at the moment of selection.
+                             */
+
+                            for (const auto & candidateSid : link.idList) {
+                                if (candidateSid != targetSId) {
+                                    std::cout << m_logTag << "   candidate DAB SId 0x"
+                                              << +candidateSid
+                                              << " in linkageSetNumber 0x" << std::hex
+                                              << +linkInfo.linkageSetNumber << ",keySId 0x"
+                                              << +linkInfo.keyServiceId
+                                              << std::dec << ", at serviceLinks[" << +i << "]"
+                                              << std::endl;
+                                    std::vector<std::shared_ptr<LinkedServiceDab>> otherEnsemblesOtherSId;
+                                    lookupOtherEnsembleSameService(targetEId, targetFreqKHz,
+                                                                   targetECC, candidateSid, otherEnsemblesOtherSId);
+                                    for (const auto & a : otherEnsemblesOtherSId) {
+                                        // avoid duplicates (yeah it is not the most efficient way to do this)
+                                        if (std::find(hardLinksToService.begin(),
+                                                      hardLinksToService.end(), a) == hardLinksToService.end()) {
+                                            hardLinksToService.push_back(a);
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            std::cout << m_logTag << "   not contains DAB SId 0x" << std::hex << +targetSId
+                                      << ": linkageSetNumber 0x" << +linkInfo.linkageSetNumber
+                                      << ",keySId 0x" << +linkInfo.keyServiceId
+                                      << std::dec << ", serviceLinks[" << +i << "]" << std::endl;
+                        }
+                    } else {
+                        std::cout << m_logTag << "   not DAB: linkageSetNumber 0x" << std::hex
+                                  << +linkInfo.linkageSetNumber << ",keySId 0x" << +linkInfo.keyServiceId
+                                  << std::dec << ", serviceLinks[" << +i << "]" << std::endl;
+                    }
+                    i++;
+                }
+            } else {
+                std::cout << m_logTag << "   not hardlink: linkageSetNumber 0x" << std::hex
+                          << +linkInfo.linkageSetNumber << ",keySId 0x" << +linkInfo.keyServiceId
+                          << std::dec << std::endl;
+            }
+        } else {
+            std::cout << m_logTag << "   not active: linkageSetNumber 0x" << std::hex
+                      << +linkInfo.linkageSetNumber << ", keySId 0x" << +linkInfo.keyServiceId
+                      << std::dec << std::endl;
+        }
+    }
+}
+
+std::vector<std::shared_ptr<LinkedServiceDab>> DabEnsemble::getLinkedDabServices(const LinkedServiceDab & service) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+
+    const auto targetECC = service.getEnsembleEcc();
+    const auto targetEId = service.getEnsembleId();
+    const auto targetFreqKHz = service.getEnsembleFrequencyKHz();
+    const auto targetSId = service.getServiceId();
+
+    std::vector<std::shared_ptr<LinkedServiceDab>> collectedServices;
+
+    // Stage 1: Find same service: find the same ensemble on another frequency
+    {
+        std::vector<std::shared_ptr<LinkedServiceDab>> otherFrequenciesAdjacent;
+        std::vector<std::shared_ptr<LinkedServiceDab>> otherFrequenciesNotAdjacent;
+
+        lookupEIdOnOtherFrequency(targetEId, targetFreqKHz, targetECC, targetSId,
+                                  otherFrequenciesAdjacent, otherFrequenciesNotAdjacent);
+
+        for (const auto &a : otherFrequenciesAdjacent) {
+            // avoid duplicates (yeah it is not the most efficient way to do this)
+            if (std::find(collectedServices.begin(),
+                          collectedServices.end(), a) == collectedServices.end()) {
+                collectedServices.push_back(a);
+            }
+        }
+        for (const auto &a : otherFrequenciesNotAdjacent) {
+            // avoid duplicates (yeah it is not the most efficient way to do this)
+            if (std::find(collectedServices.begin(),
+                          collectedServices.end(), a) == collectedServices.end()) {
+                collectedServices.push_back(a);
+            }
+        }
+    }
+
+    // Stage 1: Find same service: find another ensemble carrying the same service
+    {
+        std::vector<std::shared_ptr<LinkedServiceDab>> sameSIdOtherEnsembles;
+        lookupOtherEnsembleSameService(targetEId, targetFreqKHz, targetECC, targetSId,
+                                       sameSIdOtherEnsembles);
+
+        for (const auto &a : sameSIdOtherEnsembles) {
+            // avoid duplicates (yeah it is not the most efficient way to do this)
+            if (std::find(collectedServices.begin(),
+                          collectedServices.end(), a) == collectedServices.end()) {
+                collectedServices.push_back(a);
+            }
+        }
+    }
+
+    // Stage 2: Follow hard links
+    {
+        std::vector<std::shared_ptr<LinkedServiceDab>> hardLinksToService;
+        lookupHardLinksToService(targetEId, targetFreqKHz, targetECC, targetSId,
+                                 hardLinksToService);
+
+        for (const auto &a : hardLinksToService) {
+            // avoid duplicates (yeah it is not the most efficient way to do this)
+            if (std::find(collectedServices.begin(),
+                          collectedServices.end(), a) == collectedServices.end()) {
+                collectedServices.push_back(a);
+            }
+        }
+    }
+
+    /*
+     * 5.6.3.3 Stage 2 Follow hard links
+     * State 2.2 Hard links to FM or other bearers
+     *   ===> is not implemented and no plan to do so
+     */
+
+    /*
+     * 5.6.3.4 Stage 3: Follow soft links
+     *   ===> is not implemented and no plan to do so
+     */
+
+    std::cout << m_logTag << "collected " << collectedServices.size() << " linked services" << std::endl;
+    return collectedServices;
 }
 

@@ -33,6 +33,7 @@
 #include "dabservicecomponentmscstreamaudio.h"
 #include "dabservicecomponentmscstreamdata.h"
 #include "dabservice.h"
+#include "linkedservicedab.h"
 
 class DabEnsemble {
 
@@ -54,12 +55,15 @@ public:
     virtual uint8_t getEnsembleEcc() const;
 
     virtual std::vector<std::shared_ptr<DabService>> getDabServices();
+    virtual std::vector<std::shared_ptr<LinkedServiceDab>> getLinkedDabServices(const LinkedServiceDab & service);
 
     virtual std::shared_ptr<std::function<void()>> registerEnsembleCollectDoneCallback(std::function<void()> cb);
 
     using Date_Time_Callback = std::function<void(const Fig_00_Ext_10::DabTime&)>;
     virtual std::shared_ptr<DabEnsemble::Date_Time_Callback> registerDateTimeCallback(Date_Time_Callback cb);
 
+    using ServiceFollowingCallback = std::function<void(const std::vector<std::shared_ptr<LinkedServiceDab>> & sfServices)>;
+    virtual std::shared_ptr<DabEnsemble::ServiceFollowingCallback> registerServiceFollowingCallback(DabEnsemble::ServiceFollowingCallback cb);
 
 protected:
     virtual void dataInput(const std::vector<uint8_t>& data, uint8_t subChId, bool synchronized);
@@ -166,6 +170,8 @@ private:
     std::map<uint8_t, std::shared_ptr<DabServiceComponent>> m_streamComponentsMap;
     std::map<uint16_t, std::shared_ptr<DabServiceComponentMscPacketData>> m_packetComponentsMap;
 
+    CallbackDispatcher<ServiceFollowingCallback> m_serviceFollowingDispatcher;
+
     CallbackDispatcher<std::function<void()>> m_ensembleCollectDoneDispatcher;
 
     CallbackDispatcher<Date_Time_Callback> m_dateAndTimeDispatcher;
@@ -198,6 +204,28 @@ private:
     void dumpServiceLinkDb() const;
     void dumpFrequencyDb() const;
     void dumpOeSrvInfoDb() const;
+
+    void lookupEIdOnOtherFrequency( // Inputs
+            const uint32_t targetEId, const uint32_t targetFreqKHz,
+            const uint8_t targetECC, const uint32_t targetSId,
+            // Outputs
+            std::vector<std::shared_ptr<LinkedServiceDab>> & retAdjacentFrequencies,
+            std::vector<std::shared_ptr<LinkedServiceDab>> & retNotAdjacentFrequencies) const;
+
+    void lookupOtherEnsembleSameService(
+            // Inputs
+            const uint32_t targetEId, const uint32_t targetFreqKHz,
+            const uint8_t targetECC, const uint32_t targetSId,
+            // Outputs
+            std::vector<std::shared_ptr<LinkedServiceDab>> & sameSIdOtherEnsembles) const;
+
+    void lookupHardLinksToService(
+            // Inputs
+            const uint32_t targetEId, const uint32_t targetFreqKHz,
+            const uint8_t targetECC, const uint32_t targetSId,
+            // Outputs
+            std::vector<std::shared_ptr<LinkedServiceDab>> & hardLinksToService ) const;
+
 
 private:
     //Announcements

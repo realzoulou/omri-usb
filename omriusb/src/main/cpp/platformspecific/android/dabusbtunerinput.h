@@ -41,7 +41,7 @@ public:
 
     virtual std::string getDeviceName() const = 0;
 
-    virtual std::vector<std::shared_ptr<LinkedServiceDab>> getLinkedServices(const JDabService& service) {
+    virtual std::vector<std::shared_ptr<LinkedServiceDab>> getLinkedServices(const LinkedServiceDab & service) {
         // dummy implementation for sub-classes that can't implement this
         return std::vector<std::shared_ptr<LinkedServiceDab>>();
     };
