@@ -31,7 +31,11 @@ public enum TunerStatus {
 	/** Tuner started scan for services **/
 	//TUNER_STATUS_SCAN_STARTED(4, "Tuner is scanning for services"),
 	/** Tuner is in scanning progress **/
-	TUNER_STATUS_SCANNING(5, "Tuner is scanning for services");
+	TUNER_STATUS_SCANNING(5, "Tuner is scanning for services"),
+	/** List of Services is ready. Guaranteed to be sent only if previously TUNER_STATUS_INITIALIZED was sent */
+	SERVICES_LIST_READY(6, "Services list ready"),
+	/** List of Visuals is ready. Guaranteed to be sent only if previously TUNER_STATUS_INITIALIZED was sent */
+	VISUALS_LIST_READY(7, "Visuals list ready");
 	
 	private final int statusCode;
 	private final String statusDescription;

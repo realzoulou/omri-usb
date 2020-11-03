@@ -522,7 +522,7 @@ public class TunerIpShoutcast implements Tuner, IcyStreamDataSource.IcyMetadataL
 		if(DEBUG)Log.d(TAG, "onNewIcyStreamTitle: " + icyTag);
 
 		Textual textual = new TextualIpIcyImpl(icyTag);
-		((RadioServiceIpImpl)mCurrentRadioService).labeReceived(textual);
+		((RadioServiceIpImpl)mCurrentRadioService).labelReceived(textual);
 	}
 
 	@Override

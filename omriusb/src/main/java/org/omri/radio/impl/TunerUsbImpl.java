@@ -3,6 +3,7 @@ package org.omri.radio.impl;
 import android.hardware.usb.UsbDevice;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -63,8 +64,10 @@ public class TunerUsbImpl implements TunerUsb {
 	}
 
 	private boolean mRestoreServicesDone = false;
-	private boolean mRestoreInProgress = false;
+	private boolean mRestoreServicesInProgress = false;
 	private boolean mTunerInitDone = false;
+	private boolean mRestoreVisualsDone = false;
+	private boolean mRestoreVisualsInProgress = false;
 
 	private boolean mHybridScanEnabled = false;
 
@@ -74,9 +77,9 @@ public class TunerUsbImpl implements TunerUsb {
 			if (DEBUG) Log.d(TAG, "Initializing Tuner");
 
 			UsbHelper.getInstance().attachDevice(this);
-			if(!mRestoreInProgress) {
+			if(!mRestoreServicesInProgress) {
 				new RestoreServicesTask().execute();
-				mRestoreInProgress = true;
+				mRestoreServicesInProgress = true;
 			}
 		}
 	}
@@ -285,61 +288,65 @@ public class TunerUsbImpl implements TunerUsb {
 
 	@Override
 	public void callBack(int callbackType) {
-
-		if(callbackType == 5) {
-			if(mTunerStatus != TunerStatus.TUNER_STATUS_INITIALIZED) {
-				mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
-				synchronized (mTunerlisteners) {
-					for (TunerListener listener : mTunerlisteners) {
-						listener.tunerStatusChanged(this, mTunerStatus);
-					}
-				}
-			}
-		} else {
-			TunerUsbCallbackTypes type = TunerUsbCallbackTypes.getTypeByValue(callbackType);
-			if(DEBUG)Log.d(TAG, "Native callback for device: " + mUsbDevice.getDeviceName() + " with CallbackType: " + type.toString());
-			switch(type) {
-				case TUNER_READY: {
-					if (!mIsScanning) {
-						mTunerInitDone = true;
-						if(mRestoreServicesDone) {
-							mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
-							synchronized (mTunerlisteners) {
-								for (TunerListener listener : mTunerlisteners) {
-									listener.tunerStatusChanged(this, mTunerStatus);
-								}
+		TunerUsbCallbackTypes type = TunerUsbCallbackTypes.getTypeByValue(callbackType);
+		if(DEBUG)Log.d(TAG, "Native callback for device: " + mUsbDevice.getDeviceName() + " with CallbackType: " + type.toString());
+		switch(type) {
+			case TUNER_READY: {
+				if (!mIsScanning) {
+					mTunerInitDone = true;
+					if (mRestoreServicesDone) {
+						mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
+						synchronized (mTunerlisteners) {
+							for (TunerListener listener : mTunerlisteners) {
+								listener.tunerStatusChanged(this, mTunerStatus);
 							}
 						}
-					} else {
-						mIsScanning = false;
-						mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
-
-						new EnrichServicesData().execute();
 					}
-					break;
+				} else {
+					mIsScanning = false;
+					mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
+
+					new EnrichServicesData().execute();
 				}
-				case TUNER_FAILED: {
-					break;
+				break;
+			}
+			case TUNER_FAILED:
+			case TUNER_FREQUENCY_LOCKED:
+			case TUNER_FREQUENCY_NOT_LOCKED:
+				break;
+
+			case TUNER_SCAN_IN_PROGRESS: {
+				mIsScanning = true;
+				mTunerStatus = TunerStatus.TUNER_STATUS_SCANNING;
+				synchronized (mTunerlisteners) {
+					for (TunerListener listener : mTunerlisteners) {
+						listener.tunerScanStarted(this);
+					}
 				}
-				case TUNER_FREQUENCY_LOCKED: {
-					break;
-				}
-				case TUNER_FREQUENCY_NOT_LOCKED: {
-					break;
-				}
-				case TUNER_SCAN_IN_PROGRESS: {
-					mIsScanning = true;
-					mTunerStatus = TunerStatus.TUNER_STATUS_SCANNING;
-					synchronized (mTunerlisteners) {
+				break;
+			}
+			case SERVICELIST_READY: {
+				synchronized (mTunerlisteners) {
+					if (mTunerStatus !=  TunerStatus.TUNER_STATUS_INITIALIZED) {
+						mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
 						for (TunerListener listener : mTunerlisteners) {
-							listener.tunerScanStarted(this);
+							listener.tunerStatusChanged(this, TunerStatus.TUNER_STATUS_INITIALIZED);
+							listener.tunerStatusChanged(this, TunerStatus.SERVICES_LIST_READY);
 						}
 					}
-					break;
 				}
-				default: {
-					break;
+				break;
+			}
+			case VISUALLIST_READY: {
+				synchronized (mTunerlisteners) {
+					for (TunerListener listener : mTunerlisteners) {
+						listener.tunerStatusChanged(this, TunerStatus.VISUALS_LIST_READY);
+					}
 				}
+				break;
+			}
+			default: {
+				break;
 			}
 		}
 	}
@@ -482,13 +489,9 @@ public class TunerUsbImpl implements TunerUsb {
 		@Override
 		protected Void doInBackground(Void... params) {
 			if(DEBUG)Log.d(TAG, "Restoring services....");
-			while (!RadioServiceManager.getInstance().isServiceListReady(RadioServiceType.RADIOSERVICE_TYPE_DAB) || !VisualLogoManager.getInstance().isReady()) {
-				try {
-					Thread.sleep(10);
-					if(DEBUG)Log.d(TAG, "Waiting for servicelist or VisualLogoManager to be ready");
-				} catch(InterruptedException interExc) {
-					if(DEBUG)interExc.printStackTrace();
-				}
+			while (!RadioServiceManager.getInstance().isServiceListReady(RadioServiceType.RADIOSERVICE_TYPE_DAB)) {
+				SystemClock.sleep(100);
+				if(DEBUG)Log.d(TAG, "Waiting for servicelist to be ready");
 			}
 
 			synchronized (mServices) {
@@ -504,15 +507,44 @@ public class TunerUsbImpl implements TunerUsb {
 			if(DEBUG)Log.d(TAG, "Restore services finished");
 
 			mRestoreServicesDone = true;
-			mRestoreInProgress = false;
-			if(mTunerInitDone) {
-				callBack(5);
+			mRestoreServicesInProgress = false;
+			callBack(TunerUsbCallbackTypes.TUNER_READY.getIntValue());
+
+			if (!mRestoreVisualsDone && !mRestoreVisualsInProgress) {
+				new RestoreVisualsTask().execute();
+				mRestoreVisualsInProgress = true;
 			}
 		}
 	}
 
-	void servicesUpdated() {
-		new SerializeServicesTask(this).execute();
+	private class RestoreVisualsTask extends AsyncTask<Void, Void, Void> {
+
+		@Override
+		protected void onPreExecute() {
+			super.onPreExecute();
+		}
+
+		@Override
+		protected Void doInBackground(Void... params) {
+			if(DEBUG)Log.d(TAG, "Restoring visuals....");
+			while (!VisualLogoManager.getInstance().isReady() ||  !mTunerInitDone) {
+				SystemClock.sleep(100);
+				if(DEBUG)Log.d(TAG, "Waiting for VisualLogoManager or tuner to be ready");
+			}
+			return null;
+		}
+
+		@Override
+		protected void onPostExecute(Void aVoid) {
+			super.onPostExecute(aVoid);
+			if(DEBUG)Log.d(TAG, "Restore visuals finished");
+
+			mRestoreVisualsDone = true;
+			mRestoreVisualsInProgress = false;
+			if(mTunerInitDone) {
+				callBack(TunerUsbCallbackTypes.VISUALLIST_READY.getIntValue());
+			}
+		}
 	}
 
 	private class EnrichServicesData extends AsyncTask<Void, Void, Void> {

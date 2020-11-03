@@ -443,16 +443,7 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 	/* TunerListener impl */
 	@Override
 	public void tunerStatusChanged(Tuner tuner, TunerStatus newState) {
-		//We listen here on all tuners for state changes		
-		switch (newState) {
-			case TUNER_STATUS_INITIALIZED: {
-				if(DEBUG)Log.d(TAG, "Collecting after tuner init");
-				//collectRadioServices();
-				break;
-			}
-		default:
-			break;
-		}
+		//We can listen here on all tuners for state changes
 	}
 
 	private boolean mCollectingRadioServices = false;
