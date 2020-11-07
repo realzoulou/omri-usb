@@ -1070,8 +1070,13 @@ void RaonTunerInput::setFrequency(uint32_t frequencyKhz) {
     } else if(freqMhz >= 210096) {
         nIdx += 1;
     }
-
-    uint8_t adcClkFrqType = g_aeAdcClkTypeTbl_DAB_B3[nIdx];
+    uint8_t adcClkFrqType;
+    if (nIdx >= 0 && nIdx < (sizeof(g_aeAdcClkTypeTbl_DAB_B3) / sizeof(uint8_t))) {
+        adcClkFrqType = g_aeAdcClkTypeTbl_DAB_B3[nIdx];
+    } else {
+        std::clog << LOG_TAG << " freq " << +freqMhz << " MHz caused nIdx " << +nIdx << " out of bounds" << std::endl;
+        return;
+    }
 
     if(changedAdcClock(adcClkFrqType)) {
         switchPage(REGISTER_PAGE_RF);

@@ -201,7 +201,7 @@ private:
             RTV_ADC_CLK_FREQ_8_MHz,		//10C: 213360,
             RTV_ADC_CLK_FREQ_8_192_MHz,	//10D: 215072,
             RTV_ADC_CLK_FREQ_9_6_MHz,	//11A: 216928,
-            RTV_ADC_CLK_FREQ_8_192_MHz,	//11N: 217008,
+            RTV_ADC_CLK_FREQ_8_192_MHz,	//11N: 217088,
             RTV_ADC_CLK_FREQ_8_192_MHz,	//11B: 218640,
             RTV_ADC_CLK_FREQ_8_192_MHz,	//11C: 220352,
             RTV_ADC_CLK_FREQ_8_MHz,		//11D: 222064,
