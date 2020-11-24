@@ -4,7 +4,6 @@ import org.omri.radioservice.metadata.TextualDabDynamicLabelPlusContentType;
 import org.omri.radioservice.metadata.TextualDabDynamicLabelPlusItem;
 
 import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
 
 /**
  * Copyright (C) 2018 IRT GmbH
@@ -59,28 +58,5 @@ public class TextualDabDynamicLabelPlusItemImpl implements TextualDabDynamicLabe
 
 	void setDlPlusContentText(String tagText) {
 		mDlpItemText = tagText;
-	}
-
-	void setDlPlusContentText(byte[] dlpTextBytes, int charset) {
-		try {
-			switch(charset) {
-				case 0: {
-					for(byte temp : dlpTextBytes) {
-						mDlpItemText += TextualImpl.EBUChar.EBU_SET[TextualImpl.EBUChar.getRow(temp)][TextualImpl.EBUChar.getCel(temp)];
-					}
-					break;
-				}
-				case 4: {
-					mDlpItemText = new String(dlpTextBytes, 0, dlpTextBytes.length, "ISO-8859-1");
-					break;
-				}
-				default: {
-					mDlpItemText = new String(dlpTextBytes);
-					break;
-				}
-			}
-		} catch(UnsupportedEncodingException unsupEnc) {
-			//
-		}
 	}
 }

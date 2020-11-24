@@ -18,13 +18,13 @@
  *
  */
 
-#include "dynamiclabeldecoder.h"
-
-#include <iostream>
 #include <iomanip>
 
+#include "dynamiclabeldecoder.h"
 #include "global_definitions.h"
-#include "registered_tables.h"
+
+// un-comment to see more traces
+//#define VERBOSE
 
 DynamiclabelDecoder::DynamiclabelDecoder() {
     //std::cout << m_logTag << " Constructing" << std::endl;
@@ -82,12 +82,14 @@ void DynamiclabelDecoder::parseDlsData() {
             m_dlsFullData.clear();
             m_dlsFullSegNum = 0;
 
-            m_dlsFullData.insert(m_dlsFullData.end(), dlIter, dlIter+length);
-
-            /*std::string label = convertToStdStringUsingCharset(
+            m_dlsFullData.insert(m_dlsFullData.cend(), dlIter, dlIter+length);
+#ifdef VERBOSE
+            std::string loglabel = convertToStdStringUsingCharset(
                     std::vector<uint8_t>(m_dlsFullData.cbegin(), m_dlsFullData.cend()),
                     static_cast<const registeredtables::CHARACTER_SET>(m_currentDlsCharset));
-            std::cout << m_logTag  << " SEGMENT_TYPE::FIRST: charset=" << +m_currentDlsCharset << label << std::string() << std::endl; */
+            std::cout << m_logTag  << " SEGMENT_TYPE::FIRST: charset=" << +m_currentDlsCharset << " '"
+                << loglabel << std::string() << "'" << std::endl;
+#endif // VERBOSE
         }
 
         if(segType == SEGMENT_TYPE::INTERMEDIATE) {
@@ -104,12 +106,13 @@ void DynamiclabelDecoder::parseDlsData() {
 
                 m_dlsFullSegNum = segNum;
 
-                m_dlsFullData.insert(m_dlsFullData.end(), dlIter, dlIter+length);
-
-                /*std::string label = convertToStdStringUsingCharset(
+                m_dlsFullData.insert(m_dlsFullData.cend(), dlIter, dlIter+length);
+#ifdef VERBOSE
+                std::string loglabel = convertToStdStringUsingCharset(
                         std::vector<uint8_t>(m_dlsFullData.cbegin(), m_dlsFullData.cend()),
                         static_cast<const registeredtables::CHARACTER_SET>(m_currentDlsCharset));
-                std::cout << m_logTag  << " SEGMENT_TYPE::INTER: " << label << std::endl;*/
+                std::cout << m_logTag  << " SEGMENT_TYPE::INTER: " << loglabel << std::endl;
+#endif // VERBOSE
             }
         }
 
@@ -125,20 +128,22 @@ void DynamiclabelDecoder::parseDlsData() {
                     return;
                 }
 
-                m_dlsFullData.insert(m_dlsFullData.end(), dlIter, dlIter+length);
-
-                /*std::string label = convertToStdStringUsingCharset(
+                m_dlsFullData.insert(m_dlsFullData.cend(), dlIter, dlIter+length);
+#ifdef VERBOSE
+                std::string loglabel = convertToStdStringUsingCharset(
                         std::vector<uint8_t>(m_dlsFullData.cbegin(), m_dlsFullData.cend()),
                         static_cast<const registeredtables::CHARACTER_SET>(m_currentDlsCharset));
-                std::cout << m_logTag  << " SEGMENT_TYPE::LAST: length=" << +length << " " << label << std::endl;*/
-
+                std::cout << m_logTag  << " SEGMENT_TYPE::LAST: length=" << +length << " " << loglabel << std::endl;
+#endif // VERBOSE
                 if(!m_isDynamicPlus || m_isFirstDL) {
                     DabDynamicLabel label;
                     label.dynamicLabel = convertToStdStringUsingCharset(
                             std::vector<uint8_t>(m_dlsFullData.cbegin(), m_dlsFullData.cend()),
                             static_cast<const registeredtables::CHARACTER_SET>(m_currentDlsCharset));
                     label.charset = m_currentDlsCharset;
-                    //std::cout << m_logTag  << " SEGMENT_TYPE::LAST: invoke" <<  std::endl;
+#ifdef VERBOSE
+                    std::cout << m_logTag  << " SEGMENT_TYPE::LAST: invoke" <<  std::endl;
+#endif // VERBOSE
                     invokeDispatcher(label);
                 }
 
@@ -147,21 +152,23 @@ void DynamiclabelDecoder::parseDlsData() {
         }
 
         if(segType == SEGMENT_TYPE::ONE_AND_ONLY) {
-            //std::cout << m_logTag  << " SEGMENT_TYPE::ONE_AND_ONLY" << std::endl;
+            std::cout << m_logTag  << " SEGMENT_TYPE::ONE_AND_ONLY" << std::endl;
 
             DabDynamicLabel label;
             m_currentDlsCharset = label.charset = static_cast<uint8_t>((*dlIter & 0xF0) >> 4);
             uint8_t rfa = static_cast<uint8_t>((*dlIter++ & 0x0F));
 
             m_dlsFullData.clear();
-            m_dlsFullData.insert(m_dlsFullData.end(), dlIter, dlIter+length);
+            m_dlsFullData.insert(m_dlsFullData.cend(), dlIter, dlIter+length);
 
             label.dynamicLabel = convertToStdStringUsingCharset(
                     std::vector<uint8_t>(dlIter, dlIter + length),
                     static_cast<const registeredtables::CHARACTER_SET>(m_currentDlsCharset));
 
             if(!m_isDynamicPlus || m_isFirstDL) {
-                //std::cout << m_logTag  << " SEGMENT_TYPE::ONE_AND_ONLY: invoke" <<  std::endl;
+#ifdef VERBOSE
+                std::cout << m_logTag  << " SEGMENT_TYPE::ONE_AND_ONLY: invoke" <<  std::endl;
+#endif // VERBOSE
                 invokeDispatcher(label);
             }
 
@@ -169,11 +176,12 @@ void DynamiclabelDecoder::parseDlsData() {
             m_dlsData.clear();
         }
     } else {
-        //std::cout << m_logTag << " CommandFlag: " << +(*dlIter & 0x0F) << ", Size: " << +m_dlsData.size() << std::endl;
-
+#ifdef VERBOSE
+        std::cout << m_logTag << " CommandFlag: " << +(*dlIter & 0x0F) << ", Size: " << +m_dlsData.size() << std::endl;
+#endif // VERBOSE
         REMOVE_PADDING(m_dlsData);
         if(!CRC_CCITT_CHECK(m_dlsData.data(), static_cast<uint16_t>(m_dlsData.size()))) {
-            //std::cout << m_logTag << " DLS CommandData CRC failed: " << m_dlsData.size() << std::endl;
+            std::cout << m_logTag << " DLS CommandData CRC failed: " << m_dlsData.size() << std::endl;
             m_dlsData.clear();
             return;
         }
@@ -181,7 +189,9 @@ void DynamiclabelDecoder::parseDlsData() {
         DLS_COMMAND command = static_cast<DLS_COMMAND>(*dlIter++ & 0x0F);
         switch (command) {
             case DLS_COMMAND::CLEAR_DISPLAY: {
-                //std::cout << m_logTag << " DLS_DATAGROUP COMMAND Clear Display" << std::endl;
+#ifdef VERBOSE
+                std::cout << m_logTag << " DLS_DATAGROUP COMMAND Clear Display" << std::endl;
+#endif // VERBOSE
                 DabDynamicLabel label;
                 label.charset = registeredtables::UTF_8;
                 label.dynamicLabel = "";
@@ -190,7 +200,9 @@ void DynamiclabelDecoder::parseDlsData() {
                 break;
             }
             case DLS_COMMAND::DL_PLUS_COMMAND: {
-                //std::cout << m_logTag << " DLS_DATAGROUP COMMAND DL_PLUS" << std::endl;
+#ifdef VERBOSE
+                std::cout << m_logTag << " DLS_DATAGROUP COMMAND DL_PLUS" << std::endl;
+#endif // VERBOSE
                 m_isDynamicPlus = true;
 
                 //Field 2
@@ -245,8 +257,10 @@ void DynamiclabelDecoder::parseDlsData() {
                                             std::vector<uint8_t>(m_dlsFullData.begin() + startMarker,
                                                                  m_dlsFullData.begin() + startMarker + lengthMarker + 1),
                                             static_cast<const registeredtables::CHARACTER_SET>(m_currentDlsCharset));
-                                    //std::cout << m_logTag << " DLPLUS ContentType: " << +dlItem.contentType << " Start: " << +startMarker << " Length: " << +lengthMarker << std::endl;
-                                    //std::cout << m_logTag << " DLPLUS: " << DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE_STRING[dlItem.contentType] << " : " << dlItem.dlPlusTagText << std::endl;
+#ifdef VERBOSE
+                                    std::cout << m_logTag << " DLPLUS ContentType: " << +dlItem.contentType << " Start: " << +startMarker << " Length: " << +lengthMarker << std::endl;
+                                    std::cout << m_logTag << " DLPLUS: " << DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE_STRING[dlItem.contentType] << " : " << dlItem.dlPlusTagText << std::endl;
+#endif // VERBOSE
                                 } else {
                                     std::clog << m_logTag << " DLPLUS ContentType: Start " << startMarker << " Length " << lengthMarker
                                               << " exceeds dlsFullData size " << m_dlsFullData.size() << std::endl;
@@ -254,10 +268,13 @@ void DynamiclabelDecoder::parseDlsData() {
                             }
 
                             label.dlPlusTags.push_back(dlItem);
-                            //std::cout << m_logTag << " DLPLUS Items: " << +label.dlPlusTags.size() << std::endl;
+#ifdef VERBOSE
+                            std::cout << m_logTag << " DLPLUS Items: " << +label.dlPlusTags.size() << std::endl;
+#endif // VERBOSE
                         }
-
-                        //std::cout << m_logTag  << " DL_PLUS_COMMAND: invoke" <<  std::endl;
+#ifdef VERBOSE
+                        std::cout << m_logTag  << " DL_PLUS_COMMAND: invoke" <<  std::endl;
+#endif // VERBOSE
                         invokeDispatcher(label);
                     }
                 }
@@ -273,7 +290,7 @@ void DynamiclabelDecoder::applicationDataInput(const std::vector<uint8_t>& appDa
     if(dataType == DLS_DATAGROUP_CONTINUATION) {
         //std::cout << m_logTag << " DLS_DATAGROUP_CONTINUATION Empty: " << std::boolalpha << m_dlsData.empty() << std::noboolalpha << std::endl;
         if(!m_dlsData.empty()) {
-            m_dlsData.insert(m_dlsData.end(), appData.begin(), appData.end());
+            m_dlsData.insert(m_dlsData.cend(), appData.begin(), appData.end());
         }
     } else
     if(dataType == DLS_DATAGROUP_START) {
@@ -284,7 +301,7 @@ void DynamiclabelDecoder::applicationDataInput(const std::vector<uint8_t>& appDa
         }
         //First received DLS data. Clear previous
         m_dlsData.clear();
-        m_dlsData.insert(m_dlsData.end(), appData.begin(), appData.end());
+        m_dlsData.insert(m_dlsData.cend(), appData.begin(), appData.end());
     } else {
         std::clog << m_logTag << " DLS unknown dataType=" << +dataType << std::endl;
     }
@@ -331,8 +348,7 @@ std::string DynamiclabelDecoder::convertToStdStringUsingCharset(const std::vecto
     return ret;
 }
 
-/* yet unused
-const std::string DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE_STRING[] {
+const char* DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE_STRING[] {
     "DUMMY",
     "ITEM_TITLE",
     "ITEM_ALBUM",
@@ -400,4 +416,4 @@ const std::string DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE_STRING[] {
     "DESCRIPTOR_IDENTIFIER",
     "DESCRIPTOR_PURCHASE",
     "DESCRIPTOR_GET_DATA"
-}; */
+};

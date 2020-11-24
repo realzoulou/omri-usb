@@ -78,7 +78,7 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
     //DLPlusItem
     m_javaDlPlusItemConstructorMId = env->GetMethodID(m_javaDlPlusItemClass, "<init>", "()V");
     m_javaDlPlusItemSetContentTypeMId = env->GetMethodID(m_javaDlPlusItemClass, "setDlPlusContentType", "(I)V");
-    m_javaDlPlusItemSetTextMId = env->GetMethodID(m_javaDlPlusItemClass, "setDlPlusContentText", "([BI)V");
+    m_javaDlPlusItemSetTextMId = env->GetMethodID(m_javaDlPlusItemClass, "setDlPlusContentText", "(Ljava/lang/String;)V");
 
     //SLS
     m_javaSlsConstructorMId = env->GetMethodID(m_javaSlsClass, "<init>", "()V");
@@ -502,14 +502,9 @@ void JDabService::callJavaDynamiclabelCallback(const std::shared_ptr<DabDynamicL
         jobject dlPlusItemObject = enve->NewObject(m_javaDlPlusItemClass, m_javaDlPlusItemConstructorMId);
         enve->CallVoidMethod(dlPlusItemObject, m_javaDlPlusItemSetContentTypeMId, (jint)tag.contentType);
 
-        jbyteArray tagTextBytes = enve->NewByteArray(static_cast<jsize>(tag.dlPlusTagText.size()));
-        if(tagTextBytes == nullptr) {
-            std::cerr << m_logTag << " tagTextBytes null" << std::endl;
-            return;
-        }
-        enve->SetByteArrayRegion(tagTextBytes, 0, static_cast<jsize>(tag.dlPlusTagText.size()), (jbyte*)tag.dlPlusTagText.data());
-        enve->CallVoidMethod(dlPlusItemObject, m_javaDlPlusItemSetTextMId, tagTextBytes, label->charset);
-        enve->DeleteLocalRef(tagTextBytes);
+        jstring tagText = enve->NewStringUTF(tag.dlPlusTagText.c_str());
+        enve->CallVoidMethod(dlPlusItemObject, m_javaDlPlusItemSetTextMId, tagText);
+        enve->DeleteLocalRef(tagText);
 
         //add item to dls
         enve->CallVoidMethod(dlsObject, m_javaDlsAddTagItemMId, dlPlusItemObject);

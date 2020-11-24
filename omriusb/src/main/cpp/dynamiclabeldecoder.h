@@ -159,7 +159,7 @@ public:
         DESCRIPTOR_GET_DATA
     };
 
-    const static std::string DL_PLUS_CONTENT_TYPE_STRING[];
+    static const char* DL_PLUS_CONTENT_TYPE_STRING[];
 
 private:
     void parseDlsData();
