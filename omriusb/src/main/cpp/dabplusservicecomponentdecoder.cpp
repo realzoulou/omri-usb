@@ -29,16 +29,16 @@ extern "C" {
 
 #include <pthread.h>
 #include <unistd.h>
-#include <errno.h>
+#include <cerrno>
 
 DabPlusServiceComponentDecoder::DabPlusServiceComponentDecoder() {
-    std::cout << m_logTag << " Constructing" << std::endl;
+    //std::cout << m_logTag << " Constructing" << std::endl;
     m_processThreadRunning = true;
     m_processThread = std::thread(&DabPlusServiceComponentDecoder::processData, this);
 }
 
 DabPlusServiceComponentDecoder::~DabPlusServiceComponentDecoder() {
-    std::cout << m_logTag << " Deconstructing" << std::endl;
+    //std::cout << m_logTag << " Deconstructing" << std::endl;
 
     m_processThreadRunning = false;
     if(m_processThread.joinable()) {
@@ -274,7 +274,7 @@ void DabPlusServiceComponentDecoder::processData() {
             }
 
             if(m_dabSuperFrameCount > 5) {
-                std::cout << m_logTag << " SuperFrame damaged #########################" << std::endl;
+                std::cout << m_logTag << " SuperFrame damaged" << std::endl;
                 m_isSync = false;
                 m_dabSuperFrameCount = 0;
             }
@@ -356,12 +356,11 @@ void DabPlusServiceComponentDecoder::processData() {
         }
     }
 
-    std::cout << m_logTag << " ProcessData thread stopped" << std::endl;
+    //std::cout << m_logTag << " ProcessData thread stopped" << std::endl;
     return;
 
     stop_thread:
     std::cout << m_logTag << " ProcessData thread stopped quickly" << std::endl;
-    return;
 }
 
 void DabPlusServiceComponentDecoder::clearCallbacks() {
@@ -407,7 +406,7 @@ const uint16_t DabPlusServiceComponentDecoder::FIRECODE_TABLE[256] = {
 };
 
 // --- RSDecoder -----------------------------------------------------------------
-DabPlusServiceComponentDecoder::RSDecoder::RSDecoder() {
+DabPlusServiceComponentDecoder::RSDecoder::RSDecoder() : rs_packet{0}, corr_pos{0} {
     rs_handle = init_rs_char(8, 0x11D, 0, 1, 10, 135);
     if(!rs_handle)
         throw std::runtime_error("RSDecoder: error while init_rs_char");
@@ -423,13 +422,13 @@ void DabPlusServiceComponentDecoder::RSDecoder::DecodeSuperframe(uint8_t* sf, si
 	//sf[10] ^= 0xFF;
 	//sf[20] ^= 0xFF;
 
-    int subch_index = sf_len / 120;
+    unsigned subch_index = sf_len / 120;
     int total_corr_count = 0;
     bool uncorr_errors = false;
 
     // process all RS packets
-    for(int i = 0; i < subch_index; i++) {
-        for(int pos = 0; pos < 120; pos++)
+    for(unsigned i = 0; i < subch_index; i++) {
+        for(unsigned pos = 0; pos < 120; pos++)
             rs_packet[pos] = sf[pos * subch_index + i];
 
         // detect errors

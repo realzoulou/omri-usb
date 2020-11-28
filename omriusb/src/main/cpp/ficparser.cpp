@@ -137,10 +137,9 @@ void FicParser::processFib() {
 
 void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
     //ficData[0] ensured by the calling thread - figLEngth > 0
-    switch (ficData[0] & 0x1F) {
+    switch (ficData[0] & 0x1Fu) {
         case Fig::FIG_00_TYPE::ENSEMBLE_INFORMATION: {
             Fig_00_Ext_00 extZero(ficData);
-
             m_fig00_00dispatcher.invoke(extZero);
             m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::ENSEMBLE_INFORMATION);
             break;
@@ -339,14 +338,14 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
             break;
         }
         default:
-            std::clog << M_LOG_TAG << "Unknown FIG 0/" << +(ficData[0] & 0x1F) << std::endl;
+            std::clog << M_LOG_TAG << "Unknown FIG 0/" << +(ficData[0] & 0x1Fu) << std::endl;
             break;
     }
 }
 
 void FicParser::parseFig_01(const std::vector<uint8_t>& ficData) {
     //ficData[0] ensured by the calling thread - figLEngth > 0
-    switch(ficData[0] & 0x07) {
+    switch(ficData[0] & 0x07u) {
         case Fig::FIG_01_TYPE::ENSEMBLE_LABEL: {
             Fig_01_Ext_00 extZero(ficData);
 
@@ -429,7 +428,7 @@ void FicParser::parseFig_01(const std::vector<uint8_t>& ficData) {
             break;
         }
         default:
-            std::cout << M_LOG_TAG << "Unknown Extension1: " << +(ficData[0] & 0x07) << " ##############################################################" << std::endl;
+            std::clog << M_LOG_TAG << "Unknown Extension1: " << +(ficData[0] & 0x07u) << std::endl;
             break;
     }
 

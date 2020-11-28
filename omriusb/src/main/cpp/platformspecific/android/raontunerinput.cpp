@@ -129,7 +129,7 @@ void RaonTunerInput::tuneFrequencySync(int frequencyKHz) {
         return;
     }
 
-    std::cout << LOG_TAG << "Tuning Frequency: " << +frequencyKHz << std::endl;
+    std::cout << LOG_TAG << "Tuning Frequency: " << +frequencyKHz << " kHz" << std::endl;
 
     if(!m_isScanning) {
         //stopReadDataThread();
@@ -274,7 +274,7 @@ void RaonTunerInput::commandProcessing() {
         }
     }
 
-    std::cout << LOG_TAG << (m_usbDevice != nullptr ? (m_usbDevice.get()->getDeviceName()) : "NULL") << " CommandQ Process Thread stopped" << std::endl;
+    std::cout << LOG_TAG << (m_usbDevice != nullptr ? getDeviceName() : "NULL") << " CommandQ Process Thread stopped" << std::endl;
 
 }
 
@@ -287,12 +287,12 @@ void RaonTunerInput::processScanCommands() {
         }
     }
 
-    std::cout << LOG_TAG << (m_usbDevice != nullptr ? (m_usbDevice.get()->getDeviceName()) : "NULL") << " ScanCommandQ Process Thread stopped" << std::endl;
+    std::cout << LOG_TAG << (m_usbDevice != nullptr ? getDeviceName() : "NULL") << " ScanCommandQ Process Thread stopped" << std::endl;
 
 }
 
 void RaonTunerInput::startScanCommand() {
-    std::cout << LOG_TAG << (m_usbDevice != nullptr ? (m_usbDevice.get()->getDeviceName()) : "NULL") << " Starting service scan!" << std::endl;
+    std::cout << LOG_TAG << (m_usbDevice != nullptr ? getDeviceName() : "NULL") << " Starting service scan!" << std::endl;
     m_isScanning = true;
     m_currentScanningEnsembleNum = 0;
     m_maxCollectionWaitLoops = MAX_COLLECTION_LOOPS;
@@ -306,7 +306,7 @@ void RaonTunerInput::startScanCommand() {
 }
 
 void RaonTunerInput::stopScanCommand() {
-    std::cout << LOG_TAG << (m_usbDevice != nullptr ? (m_usbDevice.get()->getDeviceName()) : "NULL") << " Stopping service scan!" << std::endl;
+    std::cout << LOG_TAG << (m_usbDevice != nullptr ? getDeviceName() : "NULL") << " Stopping service scan!" << std::endl;
 
     stopReadFicThread();
     m_isScanning = false;
@@ -340,17 +340,17 @@ void RaonTunerInput::stopServiceScan() {
 }
 
 void RaonTunerInput::scanNext() {
-    std::cout << LOG_TAG << (m_usbDevice != nullptr ? (m_usbDevice.get()->getDeviceName()) : "NULL") << " Scanning next Ensemble!" << std::endl;
-
     m_maxCollectionWaitLoops = MAX_COLLECTION_LOOPS;
     m_ficCollectionWaitLoops = 300;
 
     if (m_currentScanningEnsembleNum + 1 < NUM_DAB_ENSEMBLES) {
-        std::cout << LOG_TAG << (m_usbDevice != nullptr ? (m_usbDevice.get()->getDeviceName()) : "NULL") << " Scan next Ensemble: " << +DAB_FREQ_TABLE_MHZ[m_currentScanningEnsembleNum + 1] << std::endl;
+        std::stringstream logStr;
+        logStr << LOG_TAG << (m_usbDevice != nullptr ? getDeviceName() : "NULL") << " Scan next Ensemble: " << +DAB_FREQ_TABLE_MHZ[m_currentScanningEnsembleNum + 1];
+        std::cout << logStr.str() << std::endl;
         if(m_ensembleCollectFinished) {
-            for (int i = 0; i < NUM_DAB_N_FREQUENCIES; i++) {
-                if((m_currentScanningEnsembleNum + 1) == DAB_N_FREQUENCIES_IDX[i]) {
-                    std::cout << LOG_TAG << "Skiping NFrequency: " << +DAB_N_FREQUENCIES_IDX[i] << std::endl;
+            for (int i : DAB_N_FREQUENCIES_IDX) {
+                if((m_currentScanningEnsembleNum + 1) == i) {
+                    std::cout << LOG_TAG << "Skiping NFrequency: " << +i << std::endl;
                     ++m_currentScanningEnsembleNum;
                     break;
                 }
@@ -367,8 +367,10 @@ void RaonTunerInput::scanNext() {
             m_usbDevice->scanProgress(m_currentScanningEnsembleNum * 100 / NUM_DAB_ENSEMBLES);
         }
     } else {
-        std::cout << LOG_TAG << (m_usbDevice != nullptr ? (m_usbDevice.get()->getDeviceName()) : "NULL") << " Scan finished: " << +m_currentScanningEnsembleNum << std::endl;
-        if (m_usbDevice != nullptr) {
+        std::stringstream logStr;
+        logStr << LOG_TAG << (m_usbDevice != nullptr ? getDeviceName() : "NULL") << " Scan finished: " << +m_currentScanningEnsembleNum;
+        std::cout << logStr.str() << std::endl;
+         if (m_usbDevice != nullptr) {
             m_usbDevice->scanProgress(100);
             m_usbDevice->callCallback(JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_CALLBACK_READY);
         }
@@ -1057,7 +1059,6 @@ void RaonTunerInput::rtvRfSpecial() {
 }
 
 void RaonTunerInput::setFrequency(uint32_t frequencyKhz) {
-
     int nNumTblEntry = 0;
 
     int freqMhz = frequencyKhz/1000;
@@ -1213,10 +1214,12 @@ void RaonTunerInput::readFic() {
             m_scanCommandQueue.push(std::bind(&RaonTunerInput::scanNext, this));
         }
 
-        std::cout << LOG_TAG << "ScanRetries: " << +m_maxCollectionWaitLoops
-            << " Freq: " << +m_currentFrequency
-            << " LockStat: " << +lockStatus << std::endl;
+        std::stringstream logMsg;
 
+        logMsg << LOG_TAG << "ScanRetries: " << +m_maxCollectionWaitLoops
+            << " Freq: " << +(m_currentFrequency/1000) << " kHz"
+            << " LockStat: " << +lockStatus;
+        std::cout << logMsg.str() << std::endl;
         return;
     }
 
