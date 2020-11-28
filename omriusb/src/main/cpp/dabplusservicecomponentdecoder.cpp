@@ -143,7 +143,7 @@ void DabPlusServiceComponentDecoder::processData() {
         int lErrno = errno;
         std::clog << m_logTag << "nice failed: " << strerror(lErrno) << std::endl;
     } else {
-        std::cout << m_logTag << "nice: " << +newprio << std::endl;
+        //std::cout << m_logTag << "nice: " << +newprio << std::endl;
     }
     while(m_processThreadRunning) {
         std::vector<uint8_t> frameData;

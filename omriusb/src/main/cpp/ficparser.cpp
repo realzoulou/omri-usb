@@ -142,6 +142,7 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
             Fig_00_Ext_00 extZero(ficData);
 
             m_fig00_00dispatcher.invoke(extZero);
+            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::ENSEMBLE_INFORMATION);
             break;
         }
         case Fig::FIG_00_TYPE::BASIC_SUBCHANNEL_ORGANIZATION: {
@@ -447,24 +448,14 @@ std::shared_ptr<FicParser::Fig_00_00_Callback> FicParser::registerFig_00_00_Call
 }
 
 std::shared_ptr<FicParser::Fig_00_01_Callback> FicParser::registerFig_00_01_Callback(Fig_00_01_Callback cb) {
-    //newly registered callback will get all already parsed FIGs
-    for(const auto& fig : m_parsedFig0001) {
-        cb(fig);
-    }
     return m_fig00_01dispatcher.add(cb);
 }
 
 std::shared_ptr<FicParser::Fig_00_02_Callback> FicParser::registerFig_00_02_Callback(Fig_00_02_Callback cb) {
-    for(const auto& fig : m_parsedFig0002) {
-        cb(fig);
-    }
     return m_fig00_02dispatcher.add(cb);
 }
 
 std::shared_ptr<FicParser::Fig_00_03_Callback> FicParser::registerFig_00_03_Callback(Fig_00_03_Callback cb) {
-    for(const auto& fig : m_parsedFig0003) {
-        cb(fig);
-    }
     return m_fig00_03dispatcher.add(cb);
 }
 
@@ -485,9 +476,6 @@ std::shared_ptr<FicParser::Fig_00_07_Callback> FicParser::registerFig_00_07_Call
 }
 
 std::shared_ptr<FicParser::Fig_00_08_Callback> FicParser::registerFig_00_08_Callback(Fig_00_08_Callback cb) {
-    for(const auto& fig : m_parsedFig0008) {
-        cb(fig);
-    }
     return m_fig00_08dispatcher.add(cb);
 }
 
@@ -500,23 +488,14 @@ std::shared_ptr<FicParser::Fig_00_10_Callback> FicParser::registerFig_00_10_Call
 }
 
 std::shared_ptr<FicParser::Fig_00_13_Callback> FicParser::registerFig_00_13_Callback(Fig_00_13_Callback cb) {
-    for(const auto& fig : m_parsedFig0013) {
-        cb(fig);
-    }
     return m_fig00_13dispatcher.add(cb);
 }
 
 std::shared_ptr<FicParser::Fig_00_14_Callback> FicParser::registerFig_00_14_Callback(Fig_00_14_Callback cb) {
-    for(const auto& fig : m_parsedFig0014) {
-        cb(fig);
-    }
     return m_fig00_14dispatcher.add(cb);
 }
 
 std::shared_ptr<FicParser::Fig_00_17_Callback> FicParser::registerFig_00_17_Callback(Fig_00_17_Callback cb) {
-    for(const auto& fig : m_parsedFig0017) {
-        cb(fig);
-    }
     return m_fig00_17dispatcher.add(cb);
 }
 
@@ -549,37 +528,22 @@ std::shared_ptr<FicParser::Fig_00_26_Callback> FicParser::registerFig_00_26_Call
 }
 
 std::shared_ptr<FicParser::Fig_01_00_Callback> FicParser::registerFig_01_00_Callback(Fig_01_00_Callback cb) {
-    for(const auto& fig : m_parsedFig0100) {
-        cb(fig);
-    }
     return m_fig01_00dispatcher.add(cb);
 }
 
 std::shared_ptr<FicParser::Fig_01_01_Callback> FicParser::registerFig_01_01_Callback(Fig_01_01_Callback cb) {
-    for(const auto& fig : m_parsedFig0101) {
-        cb(fig);
-    }
     return m_fig01_01dispatcher.add(cb);
 }
 
 std::shared_ptr<FicParser::Fig_01_04_Callback> FicParser::registerFig_01_04_Callback(Fig_01_04_Callback cb) {
-    for(const auto& fig : m_parsedFig0104) {
-        cb(fig);
-    }
     return m_fig01_04dispatcher.add(cb);
 }
 
 std::shared_ptr<FicParser::Fig_01_05_Callback> FicParser::registerFig_01_05_Callback(Fig_01_05_Callback cb) {
-    for(const auto& fig : m_parsedFig0105) {
-        cb(fig);
-    }
     return m_fig01_05dispatcher.add(cb);
 }
 
 std::shared_ptr<FicParser::Fig_01_06_Callback> FicParser::registerFig_01_06_Callback(Fig_01_06_Callback cb) {
-    for(const auto& fig : m_parsedFig0106) {
-        cb(fig);
-    }
     return m_fig01_06dispatcher.add(cb);
 }
 

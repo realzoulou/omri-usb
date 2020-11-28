@@ -115,6 +115,7 @@ std::vector<std::shared_ptr<DabService>> DabEnsemble::getDabServices() {
 
 void DabEnsemble::registerCbs() {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+    m_fig000done = false;
     m_fig001done = false;
     m_fig002done = false;
     m_fig003done = false;
@@ -132,22 +133,57 @@ void DabEnsemble::registerCbs() {
     m_fig1done = false;
 
     m_00DonePtr = m_ficPtr.get()->registerFig_00_Done_Callback(std::bind(&DabEnsemble::fig_00_done_cb, this, std::placeholders::_1));
-    m_02Ptr = m_ficPtr.get()->registerFig_00_02_Callback(std::bind(&DabEnsemble::fig00_02_input, this, std::placeholders::_1));
+    m_01DonePtr = m_ficPtr.get()->registerFig_01_Done_Callback(std::bind(&DabEnsemble::fig_01_done_cb, this, std::placeholders::_1));
 
     m_00Ptr = m_ficPtr.get()->registerFig_00_00_Callback(std::bind(&DabEnsemble::fig00_00_input, this, std::placeholders::_1));
+    m_01Ptr = m_ficPtr.get()->registerFig_00_01_Callback(std::bind(&DabEnsemble::fig00_01_input, this, std::placeholders::_1));
+    m_02Ptr = m_ficPtr.get()->registerFig_00_02_Callback(std::bind(&DabEnsemble::fig00_02_input, this, std::placeholders::_1));
+    m_03Ptr = m_ficPtr.get()->registerFig_00_03_Callback(std::bind(&DabEnsemble::fig00_03_input, this, std::placeholders::_1));
+    m_08Ptr = m_ficPtr.get()->registerFig_00_08_Callback(std::bind(&DabEnsemble::fig00_08_input, this, std::placeholders::_1));
+    m_09Ptr = m_ficPtr.get()->registerFig_00_09_Callback(std::bind(&DabEnsemble::fig00_09_input, this, std::placeholders::_1));
+    m_010Ptr = m_ficPtr.get()->registerFig_00_10_Callback(std::bind(&DabEnsemble::fig00_10_input, this, std::placeholders::_1));
 
-    m_010Ptr = m_ficPtr->registerFig_00_10_Callback(std::bind(&DabEnsemble::fig00_10_input, this, std::placeholders::_1));
+    m_013Ptr = m_ficPtr.get()->registerFig_00_13_Callback(std::bind(&DabEnsemble::fig00_13_input, this, std::placeholders::_1));
+    m_014Ptr = m_ficPtr.get()->registerFig_00_14_Callback(std::bind(&DabEnsemble::fig00_14_input, this, std::placeholders::_1));
+    m_017Ptr = m_ficPtr.get()->registerFig_00_17_Callback(std::bind(&DabEnsemble::fig00_17_input, this, std::placeholders::_1));
 
     //ServiceFollowing
     m_06Ptr = m_ficPtr.get()->registerFig_00_06_Callback(std::bind(&DabEnsemble::fig00_06_input, this, std::placeholders::_1));
     m_21Ptr = m_ficPtr.get()->registerFig_00_21_Callback(std::bind(&DabEnsemble::fig00_21_input, this, std::placeholders::_1));
     m_24Ptr = m_ficPtr.get()->registerFig_00_24_Callback(std::bind(&DabEnsemble::fig00_24_input, this, std::placeholders::_1));
 
+    m_10Ptr = m_ficPtr.get()->registerFig_01_00_Callback(std::bind(&DabEnsemble::fig01_00_input, this, std::placeholders::_1));
+    m_11Ptr = m_ficPtr.get()->registerFig_01_01_Callback(std::bind(&DabEnsemble::fig01_01_input, this, std::placeholders::_1));
+    m_14Ptr = m_ficPtr.get()->registerFig_01_04_Callback(std::bind(&DabEnsemble::fig01_04_input, this, std::placeholders::_1));
+    m_15Ptr = m_ficPtr.get()->registerFig_01_05_Callback(std::bind(&DabEnsemble::fig01_05_input, this, std::placeholders::_1));
+    m_16Ptr = m_ficPtr.get()->registerFig_01_06_Callback(std::bind(&DabEnsemble::fig01_06_input, this, std::placeholders::_1));
+
     //Announcements
     m_18Ptr = m_ficPtr.get()->registerFig_00_18_Callback(std::bind(&DabEnsemble::fig00_18_input, this, std::placeholders::_1));
     m_19Ptr = m_ficPtr.get()->registerFig_00_19_Callback(std::bind(&DabEnsemble::fig00_19_input, this, std::placeholders::_1));
 }
 
+void DabEnsemble::unregisterCbsAfterEnsembleCollect() {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+
+    m_00DonePtr.reset(); m_00DonePtr = nullptr;
+    m_00Ptr.reset(); m_00Ptr = nullptr;
+    m_01Ptr.reset(); m_01Ptr = nullptr;
+    m_02Ptr.reset(); m_02Ptr = nullptr;
+    m_03Ptr.reset(); m_03Ptr = nullptr;
+    m_09Ptr.reset(); m_09Ptr = nullptr;
+    m_08Ptr.reset(); m_08Ptr = nullptr;
+    m_013Ptr.reset(); m_013Ptr = nullptr;
+    m_014Ptr.reset(); m_014Ptr = nullptr;
+    m_017Ptr.reset();  m_017Ptr = nullptr;
+
+    m_01DonePtr.reset(); m_01DonePtr = nullptr;
+    m_10Ptr.reset(); m_10Ptr = nullptr;
+    m_11Ptr.reset(); m_11Ptr = nullptr;
+    m_14Ptr.reset(); m_14Ptr = nullptr;
+    m_15Ptr.reset(); m_15Ptr = nullptr;
+    m_16Ptr.reset(); m_16Ptr = nullptr;
+}
 void DabEnsemble::dataInput(const std::vector<uint8_t>& data, uint8_t subChId, bool synchronized) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     if(!m_reseting) {
@@ -804,9 +840,7 @@ void DabEnsemble::fig01_00_input(const Fig_01_Ext_00& fig10) {
         if(fig10.getEnsembleId() == m_ensembleId) {
             m_ensembleLabel = fig10.getEnsembleLabel();
             m_ensembleShortLabel = fig10.getEnsembleShortLabel();
-
             m_labelCharset = fig10.getCharset();
-            m_10Ptr = nullptr;
         }
     }
 }
@@ -856,13 +890,19 @@ void DabEnsemble::fig01_06_input(const Fig_01_Ext_06& fig16) {
 
 void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << " FIG 00 Extension: " << +type << " done ###########" << std::endl;
+    //std::cout << m_logTag << " FIG 00 Extension: " << +type << " done" << std::endl;
 
     switch (type) {
+        case Fig::FIG_00_TYPE::ENSEMBLE_INFORMATION: {
+            if (!m_fig000done) {
+                std::cout << m_logTag << " ServiceSanity FIC 00_00 Done!" << std::endl;
+                m_fig000done = true;
+            }
+            break;
+        }
         case Fig::FIG_00_TYPE::BASIC_SUBCHANNEL_ORGANIZATION: {
             if(m_fig003done && !m_fig001done) {
                 std::cout << m_logTag << " ServiceSanity FIC 00_01 Done!" << std::endl;
-                m_08Ptr = m_ficPtr->registerFig_00_08_Callback(std::bind(&DabEnsemble::fig00_08_input, this, std::placeholders::_1));
                 m_fig001done = true;
             }
             break;
@@ -870,15 +910,12 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
         case Fig::FIG_00_TYPE::BASIC_SERVICE_COMPONENT_DEFINITION: {
             if(!m_fig002done) {
                 std::cout << m_logTag << " ServiceSanity FIC 00_02 Done!" << std::endl;
-                //There are Packet streams
-                if(!m_packetComponentsMap.empty()) {
-                    m_03Ptr = m_ficPtr->registerFig_00_03_Callback(std::bind(&DabEnsemble::fig00_03_input, this, std::placeholders::_1));
-                } else {
+                //There are no Packet streams
+                if(m_packetComponentsMap.empty()) {
                     m_fig003done = true;
                     m_fig014done = true;
                     m_fig105done = true;
                     m_fig013done = true;
-                    m_01Ptr = m_ficPtr->registerFig_00_01_Callback(std::bind(&DabEnsemble::fig00_01_input, this, std::placeholders::_1));
                 }
                 m_fig002done = true;
             }
@@ -887,7 +924,6 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_PACKET_MODE: {
             if(!m_fig003done && !m_fig008done) {
                 std::cout << m_logTag << " ServiceSanity FIC 00_03 Done!" << std::endl;
-                m_01Ptr = m_ficPtr->registerFig_00_01_Callback(std::bind(&DabEnsemble::fig00_01_input, this, std::placeholders::_1));
                 m_fig003done = true;
             }
             break;
@@ -895,18 +931,6 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_GLOBAL_DEFINITION: {
             if(!m_fig008done && m_fig001done && m_fig003done) {
                 std::cout << m_logTag << " ServiceSanity FIC 00_08 Done!" << std::endl;
-                m_013Ptr = m_ficPtr->registerFig_00_13_Callback(std::bind(&DabEnsemble::fig00_13_input, this, std::placeholders::_1));
-                m_014Ptr = m_ficPtr->registerFig_00_14_Callback(std::bind(&DabEnsemble::fig00_14_input, this, std::placeholders::_1));
-                m_017Ptr = m_ficPtr->registerFig_00_17_Callback(std::bind(&DabEnsemble::fig00_17_input, this, std::placeholders::_1));
-                m_09Ptr = m_ficPtr->registerFig_00_09_Callback(std::bind(&DabEnsemble::fig00_09_input, this, std::placeholders::_1));
-
-                m_10Ptr = m_ficPtr->registerFig_01_00_Callback(std::bind(&DabEnsemble::fig01_00_input, this, std::placeholders::_1));
-                m_11Ptr = m_ficPtr->registerFig_01_01_Callback(std::bind(&DabEnsemble::fig01_01_input, this, std::placeholders::_1));
-                m_14Ptr = m_ficPtr->registerFig_01_04_Callback(std::bind(&DabEnsemble::fig01_04_input, this, std::placeholders::_1));
-                m_15Ptr = m_ficPtr->registerFig_01_05_Callback(std::bind(&DabEnsemble::fig01_05_input, this, std::placeholders::_1));
-                m_16Ptr = m_ficPtr->registerFig_01_06_Callback(std::bind(&DabEnsemble::fig01_06_input, this, std::placeholders::_1));
-                m_01DonePtr = m_ficPtr->registerFig_01_Done_Callback(std::bind(&DabEnsemble::fig_01_done_cb, this, std::placeholders::_1));
-
                 m_fig008done = true;
             }
             break;
@@ -926,15 +950,26 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
         default:
             break;
     }
-    std::cout << m_logTag << " figdone: ";
-    std::cout << "001:" << m_fig001done << ", ";
-    std::cout << "002:" << m_fig002done << ", ";
-    std::cout << "003:" << m_fig003done << ", ";
-    std::cout << "008:" << m_fig008done << ", ";
-    std::cout << "013:" << m_fig013done << ", ";
-    std::cout << "014:" << m_fig014done << ", ";
-    std::cout << "1:" << m_fig1done << std::endl;
-    if(m_fig001done && m_fig002done && m_fig003done && m_fig008done && m_fig013done) {
+    std::stringstream logmsg;
+    logmsg << m_logTag << " FIGs ";
+    logmsg << "0/0:" << m_fig000done << ", ";
+    logmsg << "0/1:" << m_fig001done << ", ";
+    logmsg << "0/2:" << m_fig002done << ", ";
+    logmsg << "0/3:" << m_fig003done << ", ";
+    logmsg << "0/8:" << m_fig008done << ", ";
+    logmsg << "0/13:" << m_fig013done << ", ";
+    logmsg << "0/14:" << m_fig014done << ", ";
+    logmsg << "1/0:" << m_fig100done << ", ";
+    logmsg << "1/1:" << m_fig101done;
+    std::cout << logmsg.str() << std::endl;
+
+    /** ETSI EN 300 401 V2.1.1, 6.3 Service organization, 6.3.0 Service organization
+     * The service organization defines the services and service components carried in the ensemble.
+     * It is coded in the Extensions 2, 3, 4, 8 and 13 of FIG type 0
+     *
+     * Implementation note: FIG 0/4 is not considered because no support for CA
+     */
+    if(m_fig000done && m_fig001done && m_fig002done && m_fig003done && m_fig008done && m_fig013done) {
         m_fig0done = true;
         if(m_fig1done) {
             checkServiceSanity();
@@ -944,7 +979,7 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
 
 void DabEnsemble::fig_01_done_cb(Fig::FIG_01_TYPE type) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << " FIG 01 Extension: " << +type << " done ###########" << std::endl;
+    std::cout << m_logTag << " FIG 01 Extension: " << +type << " done" << std::endl;
     switch (type) {
         case Fig::FIG_01_TYPE::ENSEMBLE_LABEL: {
             m_fig100done = true;
@@ -1026,25 +1061,10 @@ void DabEnsemble::checkServiceSanity() {
         }
     }
 
-    m_00DonePtr = nullptr;
-    m_01Ptr = nullptr;
-    m_02Ptr = nullptr;
-    m_03Ptr = nullptr;
-    m_09Ptr = nullptr;
-    m_08Ptr = nullptr;
-    m_013Ptr = nullptr;
-    m_014Ptr = nullptr;
-    m_017Ptr = nullptr;
-
-    m_01DonePtr = nullptr;
-    m_10Ptr = nullptr;
-    m_11Ptr = nullptr;
-    m_14Ptr = nullptr;
-    m_15Ptr = nullptr;
-    m_16Ptr = nullptr;
-
     std::cout << m_logTag << " ServiceSanity passed!" << std::endl;
     m_ensembleCollectFinished = true;
+
+    unregisterCbsAfterEnsembleCollect();
 
     if (!m_ensembleCollectDoneDispatcher.hasCallbacks()) {
         std::clog << m_logTag << " EnsembleCollectDone has no callbacks" << std::endl;

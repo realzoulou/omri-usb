@@ -82,6 +82,9 @@ protected:
 
 private:
     void registerCbs();
+    void unregisterCbsAfterEnsembleCollect();
+    void checkServiceSanity();
+
     void fig00_00_input(const Fig_00_Ext_00& fig00);
     void fig00_01_input(const Fig_00_Ext_01& fig01);
     void fig00_02_input(const Fig_00_Ext_02& fig02);
@@ -91,7 +94,6 @@ private:
     void fig00_06_input(const Fig_00_Ext_06& fig06);
     void fig00_21_input(const Fig_00_Ext_21& fig21);
     void fig00_24_input(const Fig_00_Ext_24& fig24);
-    //
 
     void fig00_08_input(const Fig_00_Ext_08& fig08);
     void fig00_09_input(const Fig_00_Ext_09& fig09);
@@ -150,7 +152,7 @@ private:
     bool m_isInitializing{false};
     std::atomic<bool> m_reseting{false};
 
-    //FIG 00-01 information
+    //FIG 0/1 information
     uint16_t m_ensembleId{0xFFFF};
     uint8_t m_cifCntHigh{0x00};
     uint8_t m_cifCntLow{0x00};
@@ -160,7 +162,7 @@ private:
 
     uint8_t m_ensembleEcc{0xFF};
 
-    //FIG 01-00
+    //FIG 1/0
     uint8_t m_labelCharset{0x00};
     std::string m_ensembleLabel{""};
     std::string m_ensembleShortLabel{""};
@@ -176,6 +178,7 @@ private:
 
     CallbackDispatcher<Date_Time_Callback> m_dateAndTimeDispatcher;
 
+    bool m_fig000done{false};
     bool m_fig001done{false};
     bool m_fig002done{false};
     bool m_fig003done{false};
@@ -191,8 +194,6 @@ private:
     bool m_fig105done{false};
     bool m_fig106done{false};
     bool m_fig1done{false};
-
-    void checkServiceSanity();
 
 protected:
     //Service Following DB
