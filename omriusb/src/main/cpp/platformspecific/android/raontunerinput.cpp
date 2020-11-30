@@ -27,6 +27,7 @@
 #include <set>
 #include <sstream>
 
+#include <pthread.h>
 #include <unistd.h>
 #include <sys/endian.h>
 #include <sys/stat.h>
@@ -40,7 +41,7 @@ constexpr uint8_t RaonTunerInput::g_aeAdcClkTypeTbl_DAB_B3[];
 constexpr int RaonTunerInput::g_atPllNF_DAB_BAND3[];
 constexpr uint_t RaonTunerInput::AntLvlTbl[DAB_MAX_NUM_ANTENNA_LEVEL];
 
-RaonTunerInput::RaonTunerInput(std::shared_ptr<JTunerUsbDevice> usbDevice) : m_usbDevice{usbDevice} {
+RaonTunerInput::RaonTunerInput(std::shared_ptr<JTunerUsbDevice>& usbDevice) : m_usbDevice{usbDevice} {
     std::cout << LOG_TAG << "Constructing...." << std::endl;
 
     m_usbDevice->requestPermission([&](bool granted) {
@@ -54,7 +55,7 @@ RaonTunerInput::RaonTunerInput(std::shared_ptr<JTunerUsbDevice> usbDevice) : m_u
     m_ensembleFinishedCb = DabEnsemble::registerEnsembleCollectDoneCallback(std::bind(&RaonTunerInput::ensembleCollectFinished, this));
 }
 
-RaonTunerInput::RaonTunerInput(std::shared_ptr<JTunerUsbDevice> usbDevice, const std::string recordPath)
+RaonTunerInput::RaonTunerInput(std::shared_ptr<JTunerUsbDevice>& usbDevice, const std::string recordPath)
     : RaonTunerInput(usbDevice)  {
     if (recordPath.length() > 0) {
         m_recordPath = recordPath;
@@ -126,30 +127,30 @@ void RaonTunerInput::tuneFrequency(int frequencyKHz) {
     }
 }
 
-void RaonTunerInput::tuneFrequencySync(int frequencyKHz) {
+void RaonTunerInput::tuneFrequencySync(int frequencyHz) {
     if(!m_isInitialized) {
         std::clog << LOG_TAG << "Device not initialized" << std::endl;
         return;
     }
 
-    std::cout << LOG_TAG << "Tuning Frequency: " << +frequencyKHz << " kHz" << std::endl;
+    std::cout << LOG_TAG << "Tuning Frequency: " << +(frequencyHz/1000) << " kHz" << std::endl;
 
     if(!m_isScanning) {
-        //stopReadDataThread();
+        stopReadDataThread();
     } else {
         stopReadFicThread();
     }
 
     reset();
 
-    m_ensembleFrequency = static_cast<uint32_t>(frequencyKHz);
-    m_currentFrequency = static_cast<uint32_t>(frequencyKHz);
+    m_ensembleFrequency = static_cast<uint32_t>(frequencyHz);
+    m_currentFrequency = static_cast<uint32_t>(frequencyHz);
 
     setFrequency(m_ensembleFrequency);
 
     softReset();
     if(!m_isScanning) {
-        //startReadDataThread();
+        startReadDataThread();
     } else {
         startReadFicThread();
     }
@@ -259,6 +260,7 @@ void RaonTunerInput::commandProcessing() {
             }
         }
     }
+    m_commandThreadRunning = false;
 
     std::cout << LOG_TAG << (m_usbDevice != nullptr ? getDeviceName() : "NULL") << " CommandQ Process Thread stopped" << std::endl;
 }
@@ -1555,24 +1557,35 @@ void RaonTunerInput::stopReadFicThread() {
 }
 
 void RaonTunerInput::startReadDataThread() {
-    std::cout << LOG_TAG << "Starting Data thread..." << std::endl;
-
     if(!m_commandThreadRunning) {
+        std::cout << LOG_TAG << "Starting Data thread..." << std::endl;
         m_commandThreadRunning = true;
-        m_commandThread = std::thread(&RaonTunerInput::commandProcessing, this);
+        if (std::this_thread::get_id() != m_commandThread.get_id()) {
+            m_commandThread = std::thread(&RaonTunerInput::commandProcessing, this);
+        }
+    } else {
+        std::clog << LOG_TAG << "Start Read Data thread: already running!" << std::endl;
     }
 }
 
 void RaonTunerInput::stopReadDataThread() {
     std::lock_guard<std::recursive_mutex> lockGuard(m_classmutex);
+
     if(m_commandThreadRunning) {
         std::cout << LOG_TAG << "Stopping Data thread..." << std::endl;
         m_commandThreadRunning = false;
         if(m_commandThread.joinable()) {
-            std::cout << LOG_TAG << "Joining Data thread..." << std::endl;
-            m_commandThread.join();
-            std::cout << LOG_TAG << "Joining Data thread done" << std::endl;
+            if (std::this_thread::get_id() != m_commandThread.get_id()) {
+                std::cout << LOG_TAG << "Join Data thread..." << std::endl;
+                m_commandThread.join();
+                std::cout << LOG_TAG << "Join Data thread done" << std::endl;
+            } else {
+                // cannot join myself, trigger myself with a NOP
+                m_commandQueue.push(std::bind(&RaonTunerInput::nop, this));
+            }
         }
+    } else {
+        std::clog << LOG_TAG << "Stop Read Data thread: not running!" << std::endl;
     }
 }
 

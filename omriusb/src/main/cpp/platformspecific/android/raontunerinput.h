@@ -35,8 +35,8 @@
 class RaonTunerInput final : public DabUsbTunerInput, DabEnsemble {
 
 public:
-    explicit RaonTunerInput(std::shared_ptr<JTunerUsbDevice> usbDevice);
-    explicit RaonTunerInput(std::shared_ptr<JTunerUsbDevice> usbDevice, const std::string recordPath);
+    explicit RaonTunerInput(std::shared_ptr<JTunerUsbDevice>& usbDevice);
+    explicit RaonTunerInput(std::shared_ptr<JTunerUsbDevice>& usbDevice, const std::string recordPath);
     virtual ~RaonTunerInput();
 
     //delete copy and assignment constructors
@@ -132,8 +132,9 @@ private:
     void commandProcessing();
 
     void initializeSync();
-    void tuneFrequencySync(int frequencyKHz);
+    void tuneFrequencySync(int frequencyHz);
     void startServiceSync(const std::shared_ptr<JDabService>& serviceLink);
+    inline void nop() const {}; // no operation
 
 private:
     void ensembleCollectFinished();
