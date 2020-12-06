@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 import static org.omri.BuildConfig.DEBUG;
 
@@ -218,7 +219,7 @@ public class UsbHelper {
 	}
 
 	private boolean mPermissionPending = false;
-	private UsbDevice mPendingPermissionDevice = null;
+	@Nullable private UsbDevice mPendingPermissionDevice = null;
 
 	private void requestPermission(UsbDevice device) {
 		if(mPermissionPending) {
@@ -284,44 +285,17 @@ public class UsbHelper {
 	}
 
 	private final BroadcastReceiver mUsbBroadcastReceiver = new BroadcastReceiver() {
+		@Override
 		public void onReceive(Context context, Intent intent) {
-			UsbDevice device = (UsbDevice)intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-			String action = intent.getAction();
+			// Note: This comes in on the application's main thread
+			final UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+			final String action = intent.getAction();
+			final Intent i = intent;
 			synchronized (this) {
-				if (ACTION_USB_PERMISSION.equals(action)) {
-					if(DEBUG)Log.d(TAG, "Received Permission request: " + action);
-
-					mPermissionPending = false;
-
-					if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-						if(DEBUG)Log.d(TAG, "permission granted for device " + device.getDeviceName());
-						devicePermission(device.getDeviceName(), true);
-					} else {
-						if(DEBUG)Log.d(TAG, "permission denied for device " + device.getDeviceName());
-						devicePermission(device.getDeviceName(), false);
-					}
-
-					if(device.equals(mPendingPermissionDevice)) {
-						mPendingPermissionDevice = null;
-					}
-
-					if(mPendingPermissionDevice != null) {
-						requestPermission(mPendingPermissionDevice);
-					}
-				}
-				if (action.equals(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
-					if(DEBUG)Log.d(TAG, "USB Device detached: " + device.getDeviceName());
-					deviceDetached(device.getDeviceName());
-					if (mUsbCb != null) {
-						mUsbCb.UsbTunerDeviceDetached(device);
-					}
-				}
-				if (action.equals(UsbManager.ACTION_USB_DEVICE_ATTACHED)) {
-					if(DEBUG)Log.d(TAG, "USB Device attached: " + device.getDeviceName());
-					if (mUsbCb != null) {
-						mUsbCb.UsbTunerDeviceAttached(device);
-					}
-				}
+				// change to a worker thread
+				Executors.newCachedThreadPool().execute(
+						new UsbBroadcastReceiverRunnable(action, i, device)
+				);
 			}
 		}
 	};
@@ -331,5 +305,55 @@ public class UsbHelper {
 		void UsbTunerDeviceAttached(UsbDevice attachedDevice);
 
 		void UsbTunerDeviceDetached(UsbDevice detachedDevice);
+	}
+
+	private class UsbBroadcastReceiverRunnable implements Runnable {
+		private final String action;
+		private final Intent intent;
+		private final UsbDevice device;
+
+		UsbBroadcastReceiverRunnable(String a, Intent i, UsbDevice d) {
+			action = a; intent = i; device = d;
+		}
+
+		@Override
+		public void run() {
+			if (action.equals(ACTION_USB_PERMISSION)) {
+				if (DEBUG) Log.d(TAG, "Received Permission request: " + action);
+
+				mPermissionPending = false;
+
+				if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+					if (DEBUG)
+						Log.d(TAG, "permission granted for device " + device.getDeviceName());
+					devicePermission(device.getDeviceName(), true);
+				} else {
+					if (DEBUG)
+						Log.d(TAG, "permission denied for device " + device.getDeviceName());
+					devicePermission(device.getDeviceName(), false);
+				}
+
+				if (device.equals(mPendingPermissionDevice)) {
+					mPendingPermissionDevice = null;
+				}
+
+				if (mPendingPermissionDevice != null) {
+					requestPermission(mPendingPermissionDevice);
+				}
+			} else
+			if (action.equals(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
+				if (DEBUG) Log.d(TAG, "USB Device detached: " + device.getDeviceName());
+				deviceDetached(device.getDeviceName());
+				if (mUsbCb != null) {
+					mUsbCb.UsbTunerDeviceDetached(device);
+				}
+			} else
+			if (action.equals(UsbManager.ACTION_USB_DEVICE_ATTACHED)) {
+				if (DEBUG) Log.d(TAG, "USB Device attached: " + device.getDeviceName());
+				if (mUsbCb != null) {
+					mUsbCb.UsbTunerDeviceAttached(device);
+				}
+			}
+		}
 	}
 }

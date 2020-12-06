@@ -779,11 +779,6 @@ public class TunerIpShoutcast implements Tuner, IcyStreamDataSource.IcyMetadataL
 	private class SerializeServicesTask extends AsyncTask<Void, Void, Void> {
 
 		@Override
-		protected void onPreExecute() {
-			super.onPreExecute();
-		}
-
-		@Override
 		protected Void doInBackground(Void... params) {
 			RadioServiceManager.getInstance().serializeServices(RadioServiceType.RADIOSERVICE_TYPE_IP);
 			if(DEBUG)Log.d(TAG, "Serializing Services: " + RadioServiceManager.getInstance().isServiceListReady(RadioServiceType.RADIOSERVICE_TYPE_IP));
@@ -797,19 +792,9 @@ public class TunerIpShoutcast implements Tuner, IcyStreamDataSource.IcyMetadataL
 			}
 			return null;
 		}
-
-		@Override
-		protected void onPostExecute(Void aVoid) {
-			super.onPostExecute(aVoid);
-		}
 	}
 
 	private class RestoreServicesTask extends AsyncTask<Void, Void, Void> {
-
-		@Override
-		protected void onPreExecute() {
-			super.onPreExecute();
-		}
 
 		@Override
 		protected Void doInBackground(Void... params) {
@@ -824,18 +809,15 @@ public class TunerIpShoutcast implements Tuner, IcyStreamDataSource.IcyMetadataL
 			}
 
 			mServiceList = RadioServiceManager.getInstance().getRadioServices(RadioServiceType.RADIOSERVICE_TYPE_IP);
-			return null;
-		}
 
-		@Override
-		protected void onPostExecute(Void aVoid) {
-			super.onPostExecute(aVoid);
 			if(DEBUG)Log.d(TAG, "Restore services finished with " + mServiceList.size() + " services");
 
 			mIsInitializing = false;
 			mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
 
 			sayReady();
+
+			return null;
 		}
 	}
 

@@ -692,11 +692,6 @@ public class TunerEdistream implements Tuner, IpServiceScanner.IpScannerListener
 	private class RestoreServicesTask extends AsyncTask<Void, Void, Void> {
 
 		@Override
-		protected void onPreExecute() {
-			super.onPreExecute();
-		}
-
-		@Override
 		protected Void doInBackground(Void... params) {
 			//restoreServices();
 			while (!RadioServiceManager.getInstance().isServiceListReady(RadioServiceType.RADIOSERVICE_TYPE_EDI) || !VisualLogoManager.getInstance().isReady()) {
@@ -707,18 +702,14 @@ public class TunerEdistream implements Tuner, IpServiceScanner.IpScannerListener
 				}
 			}
 
-			return null;
-		}
-
-		@Override
-		protected void onPostExecute(Void aVoid) {
-			super.onPostExecute(aVoid);
 			if(DEBUG)Log.d(TAG, "Restore services finished #Services: " + RadioServiceManager.getInstance().getRadioServices(RadioServiceType.RADIOSERVICE_TYPE_EDI).size());
 
 			mIsInitializing = false;
 			mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
 
 			sayReady();
+
+			return null;
 		}
 	}
 

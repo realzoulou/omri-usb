@@ -1,5 +1,6 @@
 package org.omri.radio.impl;
 
+import android.annotation.SuppressLint;
 import android.hardware.usb.UsbDevice;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -7,6 +8,7 @@ import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.omri.radio.Radio;
 import org.omri.radioservice.RadioService;
@@ -55,7 +57,7 @@ public class TunerUsbImpl implements TunerUsb {
 	private final List<RadioService> mScannedServices = Collections.synchronizedList(new ArrayList<>());
 	private boolean mIsScanning = false;
 	private final List<TunerListener> mTunerlisteners = Collections.synchronizedList(new ArrayList<>());
-	private RadioServiceDab mCurrentlyRunningService = null;
+	@Nullable private RadioServiceDab mCurrentlyRunningService = null;
 
 	private UsbDevice mUsbDevice = null;
 
@@ -78,8 +80,8 @@ public class TunerUsbImpl implements TunerUsb {
 
 			UsbHelper.getInstance().attachDevice(this);
 			if(!mRestoreServicesInProgress) {
-				new RestoreServicesTask().execute();
 				mRestoreServicesInProgress = true;
+				new RestoreServicesTask().execute();
 			}
 		}
 	}
@@ -446,17 +448,13 @@ public class TunerUsbImpl implements TunerUsb {
 		}
 	}
 
+	@SuppressLint("StaticFieldLeak")
 	private class SerializeServicesTask extends AsyncTask<Void, Void, Void> {
 
 		private final Tuner mInstance;
 
 		SerializeServicesTask(Tuner instance) {
 			mInstance = instance;
-		}
-
-		@Override
-		protected void onPreExecute() {
-			super.onPreExecute();
 		}
 
 		@Override
@@ -469,11 +467,7 @@ public class TunerUsbImpl implements TunerUsb {
 			}
 
 			mHybridScanEnabled = false;
-			return null;
-		}
 
-		@Override
-		protected void onPostExecute(Void aVoid) {
 			if(mInstance != null) {
 				mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
 				synchronized (mTunerlisteners) {
@@ -483,15 +477,13 @@ public class TunerUsbImpl implements TunerUsb {
 					}
 				}
 			}
+
+			return null;
 		}
 	}
 
+	@SuppressLint("StaticFieldLeak")
 	private class RestoreServicesTask extends AsyncTask<Void, Void, Void> {
-
-		@Override
-		protected void onPreExecute() {
-			super.onPreExecute();
-		}
 
 		@Override
 		protected Void doInBackground(Void... params) {
@@ -505,31 +497,24 @@ public class TunerUsbImpl implements TunerUsb {
 				mServices.clear();
 				mServices.addAll(RadioServiceManager.getInstance().getRadioServices(RadioServiceType.RADIOSERVICE_TYPE_DAB));
 			}
-			return null;
-		}
-
-		@Override
-		protected void onPostExecute(Void aVoid) {
-			super.onPostExecute(aVoid);
-			if(DEBUG)Log.d(TAG, "Restore services finished");
 
 			mRestoreServicesDone = true;
 			mRestoreServicesInProgress = false;
+
+			if(DEBUG)Log.d(TAG, "Restore services finished");
 			callBack(TunerUsbCallbackTypes.TUNER_READY.getIntValue());
 
 			if (!mRestoreVisualsDone && !mRestoreVisualsInProgress) {
 				new RestoreVisualsTask().execute();
 				mRestoreVisualsInProgress = true;
 			}
+
+			return null;
 		}
 	}
 
+	@SuppressLint("StaticFieldLeak")
 	private class RestoreVisualsTask extends AsyncTask<Void, Void, Void> {
-
-		@Override
-		protected void onPreExecute() {
-			super.onPreExecute();
-		}
 
 		@Override
 		protected Void doInBackground(Void... params) {
@@ -538,12 +523,6 @@ public class TunerUsbImpl implements TunerUsb {
 				SystemClock.sleep(100);
 				if(DEBUG)Log.d(TAG, "Waiting for VisualLogoManager or tuner to be ready");
 			}
-			return null;
-		}
-
-		@Override
-		protected void onPostExecute(Void aVoid) {
-			super.onPostExecute(aVoid);
 			if(DEBUG)Log.d(TAG, "Restore visuals finished");
 
 			mRestoreVisualsDone = true;
@@ -551,36 +530,32 @@ public class TunerUsbImpl implements TunerUsb {
 			if(mTunerInitDone) {
 				callBack(TunerUsbCallbackTypes.VISUALLIST_READY.getIntValue());
 			}
+			return null;
 		}
 	}
 
+	@SuppressLint("StaticFieldLeak")
 	private class EnrichServicesData extends AsyncTask<Void, Void, Void> {
 
 		@Override
 		protected Void doInBackground(Void... voids) {
-			for(Tuner ipTuner : Radio.getInstance().getAvailableTuners()) {
-				if(ipTuner.getTunerType() == TunerType.TUNER_TYPE_IP_SHOUTCAST) {
-					for(RadioService ipSrv : ipTuner.getRadioServices()) {
-						synchronized (mServices) {
-							for (RadioService dabSrv : mServices) {
-								if (ipSrv.equals(dabSrv)) {
-									if (!ipSrv.getLogos().isEmpty()) {
-										((RadioServiceDabImpl) dabSrv).addLogo(ipSrv.getLogos());
-									}
+			final List<Tuner> ipTuners = Radio.getInstance().getAvailableTuners(TunerType.TUNER_TYPE_IP_SHOUTCAST);
+			for(Tuner ipTuner : ipTuners) {
+				final List<RadioService> ipRadioServices = ipTuner.getRadioServices();
+				for(RadioService ipSrv : ipRadioServices) {
+					synchronized (mServices) {
+						for (RadioService dabSrv : mServices) {
+							if (ipSrv.equals(dabSrv)) {
+								if (!ipSrv.getLogos().isEmpty()) {
+									((RadioServiceDabImpl) dabSrv).addLogo(ipSrv.getLogos());
 								}
 							}
 						}
 					}
-
-					break;
 				}
 			}
-			return null;
-		}
-
-		@Override
-		protected void onPostExecute(Void aVoid) {
 			afterEnrich();
+			return null;
 		}
 	}
 
