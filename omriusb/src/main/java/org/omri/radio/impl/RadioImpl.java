@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.hardware.usb.UsbDevice;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.util.Pair;
@@ -135,15 +136,11 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 
 			int ntpRetries = 5;
 			while(!mNtpSync && ntpRetries > 0) {
-				//Waiting for NTP time sync, will block up to 5000 ms
+				//Waiting for NTP time sync, will block up to 50 ms
 				--ntpRetries;
 
-				try {
-					if(DEBUG)Log.d(TAG, "Waiting for NTP sync...");
-					Thread.sleep(10);
-				} catch(InterruptedException interExc) {
-					if(DEBUG)interExc.printStackTrace();
-				}
+				if(DEBUG)Log.d(TAG, "Waiting for NTP sync...");
+				SystemClock.sleep(10);
 			}
 
 			SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
@@ -154,17 +151,6 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 			if (DEBUG) Log.d(TAG, "Prefs LookupOnMobile: " + useLookupOnMobile);
 			if (DEBUG) Log.d(TAG, "Prefs StreamMobile: " + useIpStreamOnMobile);
 			if (DEBUG) Log.d(TAG, "Prefs StreamHqMobile: " + useIpStreamHqOnMobile);
-
-			//early initializing LogoManager as it takes some time to restore serialized Logos
-			while(!VisualLogoManager.getInstance().isReady()) {
-				//Waiting for Logomanager
-				try {
-					if(DEBUG)Log.d(TAG, "Waiting for VisualLogomanager...");
-					Thread.sleep(10);
-				} catch(InterruptedException interExc) {
-					if(DEBUG)interExc.printStackTrace();
-				}
-			}
 
 			boolean redirectCoutToALog = false;
 			String rawRecordingPath = "";
