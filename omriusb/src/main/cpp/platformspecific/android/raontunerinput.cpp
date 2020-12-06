@@ -103,6 +103,8 @@ void RaonTunerInput::initializeSync() {
 
             m_isInitialized = true;
             m_usbDevice->callCallback(JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_CALLBACK_READY);
+        } else {
+            m_usbDevice->callCallback(JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_CALLBACK_FAILED);
         }
     }
 }
@@ -125,7 +127,7 @@ void RaonTunerInput::tuneFrequency(int frequencyKHz) {
 
 void RaonTunerInput::tuneFrequencySync(int frequencyKHz) {
     if(!m_isInitialized) {
-        std::cout << LOG_TAG << "Device not initialized" << std::endl;
+        std::clog << LOG_TAG << "Device not initialized" << std::endl;
         return;
     }
 

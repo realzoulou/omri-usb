@@ -311,6 +311,13 @@ public class TunerUsbImpl implements TunerUsb {
 				break;
 			}
 			case TUNER_FAILED:
+				mTunerStatus = TunerStatus.TUNER_STATUS_ERROR;
+				synchronized (mTunerlisteners) {
+					for (TunerListener listener : mTunerlisteners) {
+						listener.tunerStatusChanged(this, mTunerStatus);
+					}
+				}
+				break;
 			case TUNER_FREQUENCY_LOCKED:
 			case TUNER_FREQUENCY_NOT_LOCKED:
 				break;
