@@ -129,6 +129,7 @@ JDabService::~JDabService() {
     if (!JNI_DETACH(m_javaVm, wasDetached)) {
         std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
     }
+    std::cout << m_logTag << "Destroyed SId " << std::hex << m_serviceId << std::dec << std::endl;
 }
 
 void JDabService::unlinkDabService() {

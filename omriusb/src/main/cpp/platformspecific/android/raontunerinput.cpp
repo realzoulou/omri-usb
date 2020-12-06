@@ -234,50 +234,19 @@ void RaonTunerInput::stopAllRunningServices() {
 void RaonTunerInput::commandProcessing() {
     pthread_setname_np(pthread_self(), "CommandQ");
     while(m_commandThreadRunning) {
-        std::function<void(void)> command;
-        if (m_commandQueue.tryPop(command, std::chrono::milliseconds(2))) {
-            command();
+        if (hasUsbIoErrors()) {
+            m_commandThreadRunning = false;
         } else {
-            /*
-            --m_antLvlCnt;
-            if(!m_antLvlCnt) {
-                std::cout << LOG_TAG << "Pushing GetAntennaLevel" << std::endl;
-                m_commandQueue.push(std::bind(&RaonTunerInput::getAntennaLevel, this));
-                m_antLvlCnt = 100;
+            std::function<void(void)> command;
+            if (m_commandQueue.tryPop(command, std::chrono::milliseconds(2))) {
+                command();
+            } else {
+                m_commandQueue.push(std::bind(&RaonTunerInput::readData, this));
             }
-
-            uint8_t int_type_val1 = readRegister(INT_E_STATL);
-            bool ofdmLock = static_cast<bool>((int_type_val1 & 0x80u) >> 7u);
-            bool msc1Overrun = (int_type_val1 & MSC1_E_OVER_FLOW) >> 6u;
-            bool msc1Underrun = (int_type_val1 & MSC1_E_UNDER_FLOW) >> 5u;
-            bool msc1Int = (int_type_val1 & MSC1_E_INT) >> 4u;
-            bool msc0Overrun = (int_type_val1 & MSC0_E_OVER_FLOW) >> 3u;
-            bool msc0Underrun = (int_type_val1 & MSC0_E_UNDER_FLOW) >> 2u;
-            bool msc0Int = (int_type_val1 & MSC0_E_INT) >> 1u;
-            bool ficInt = (int_type_val1 & FIC_E_INT);
-
-            if(ficInt) {
-                std::cout << LOG_TAG << "Pushing ReadFic" << std::endl;
-                m_commandQueue.push(std::bind(&RaonTunerInput::readFicData, this));
-            }
-
-            if(msc1Int) {
-                std::cout << LOG_TAG << "Pushing ReadMsc" << std::endl;
-                m_commandQueue.push(std::bind(&RaonTunerInput::readMscData, this));
-            }
-
-            if(msc1Overrun || msc1Underrun) {
-                std::cout << LOG_TAG << "Pushing ClearMsc" << std::endl;
-                m_commandQueue.push(std::bind(&RaonTunerInput::clearMscBuffer, this));
-            }
-            */
-
-            m_commandQueue.push(std::bind(&RaonTunerInput::readData, this));
         }
     }
 
     std::cout << LOG_TAG << (m_usbDevice != nullptr ? getDeviceName() : "NULL") << " CommandQ Process Thread stopped" << std::endl;
-
 }
 
 void RaonTunerInput::processScanCommands() {
@@ -286,6 +255,9 @@ void RaonTunerInput::processScanCommands() {
         std::function<void(void)> command;
         if (m_scanCommandQueue.tryPop(command, std::chrono::milliseconds(24))) {
             command();
+        }
+        if (hasUsbIoErrors()) {
+            m_scanCommandThreadRunning = false;
         }
     }
 
@@ -395,26 +367,26 @@ std::string RaonTunerInput::getDeviceName() const {
     }
 }
 
-//
+bool RaonTunerInput::hasUsbIoErrors() {
+    if (mUsbReadFailure > 10 || mUsbWriteFailure > 10) {
+        std::clog << LOG_TAG << "too many failures in readRegister" << std::endl;
+        if (m_usbDevice != nullptr) {
+            m_usbDevice->callCallback(JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_CALLBACK_FAILED);
+        }
+        return true;
+    }
+    return false;
+}
+
 void RaonTunerInput::threadedFicRead() {
     pthread_setname_np(pthread_self(), "FicRead");
     do {
         readFic();
+        if (hasUsbIoErrors()) {
+            m_readFicThreadRunning = false;
+        }
+
     } while(m_readFicThreadRunning);
-}
-
-void RaonTunerInput::threadedMscRead() {
-    pthread_setname_np(pthread_self(), "MscRead");
-    do {
-        readMsc();
-    } while(m_readMscThreadRunning);
-}
-
-void RaonTunerInput::threadedDataRead() {
-    pthread_setname_np(pthread_self(), "DataRead");
-    do {
-        readData();
-    } while(m_readDataThreadRunning);
 }
 
 void RaonTunerInput::setService() {
@@ -501,9 +473,12 @@ void RaonTunerInput::switchPage(RaonTunerInput::REGISTER_PAGE regPage) {
     std::vector<uint8_t> switchData{0x21, 0x00, 0x00, 0x02, 0x03, static_cast<uint8_t >(regPage)};
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, switchData);
-        if (bytesTransfered < switchData.size()) {
+        if (bytesTransfered == -1 || bytesTransfered < switchData.size()) {
             std::clog << LOG_TAG << "switchPage write exp:" << +switchData.size()
                       << ", rcv:" << +bytesTransfered << std::endl;
+            mUsbWriteFailure++;
+        } else {
+            mUsbWriteFailure = 0;
         }
     }
 }
@@ -512,9 +487,12 @@ void RaonTunerInput::setRegister(uint8_t reg, uint8_t val) {
     std::vector<uint8_t> setRegData{0x21, 0x00, 0x00, 0x02, reg, val};
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, setRegData);
-        if (bytesTransfered < setRegData.size()) {
+        if (bytesTransfered == -1 || bytesTransfered < setRegData.size()) {
             std::clog << LOG_TAG << "setRegister write exp:" << +setRegData.size()
                       << ", rcv:" << +bytesTransfered << std::endl;
+            mUsbWriteFailure++;
+        } else {
+            mUsbWriteFailure = 0;
         }
     }
 }
@@ -523,17 +501,22 @@ uint8_t RaonTunerInput::readRegister(uint8_t reg) {
     std::vector<uint8_t> xferbuff{0x22, 0x00, 0x01, 0x00, reg};
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, xferbuff);
-        if (bytesTransfered < xferbuff.size()) {
+        if (bytesTransfered  == -1 || bytesTransfered < xferbuff.size()) {
             std::clog << LOG_TAG << "readRegister write exp:" << +xferbuff.size()
                       << ", rcv:" << +bytesTransfered << std::endl;
+            mUsbWriteFailure++;
+        } else {
+            mUsbWriteFailure = 0;
         }
 
         bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, xferbuff);
-        if (bytesTransfered < xferbuff.size()) {
+        if (bytesTransfered == -1 || bytesTransfered < xferbuff.size()) {
             std::clog << LOG_TAG << "readRegister read exp:" << +xferbuff.size()
                 << ", rcv:" << +bytesTransfered << std::endl;
+            mUsbReadFailure++;
             return 0;
         } else {
+            mUsbReadFailure = 0;
             return xferbuff[4];
         }
     } else {
@@ -1570,6 +1553,9 @@ void RaonTunerInput::readFicData() {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, reqFic);
         if (bytesTransfered < reqFic.size()) {
             std::clog << LOG_TAG << "readFicData write exp:5, rcvd:" << + bytesTransfered << std::endl;
+            mUsbWriteFailure++;
+        } else {
+            mUsbWriteFailure = 0;
         }
         std::vector<uint8_t> reFicRet(400);
         bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, reFicRet);
@@ -1582,6 +1568,7 @@ void RaonTunerInput::readFicData() {
         //std::cout << LOG_TAG << "FicData: " << std::hex << std::setfill('0') << std::setw(2) << +reFicRet[5] << " " << +reFicRet[6] << " " << +reFicRet[7] << " " << +reFicRet[8] << std::dec << std::endl;
 
         if(bytesTransfered >= 4) {
+            mUsbReadFailure = 0;
             auto it = reFicRet.begin() + 4;
             int payloadLen = bytesTransfered - 4;
             if (payloadLen % FicParser::FIB_SIZE != 0) {
@@ -1593,6 +1580,7 @@ void RaonTunerInput::readFicData() {
             dataInput(ficData, 0x64, false);
         } else {
             std::clog << LOG_TAG << "readFicData read exp:4, rcvd:" << +bytesTransfered << std::endl;
+            mUsbReadFailure++;
         }
     } else {
         std::clog << LOG_TAG << "readFicData no USB device" << std::endl;
@@ -1617,6 +1605,7 @@ void RaonTunerInput::readData() {
     switchPage(REGISTER_PAGE_DD);
 
     uint8_t int_type_val1 = readRegister(INT_E_STATL);
+
     bool ofdmLock = static_cast<bool>((int_type_val1 & 0x80u) >> 7u);
     bool msc1Overrun = (int_type_val1 & MSC1_E_OVER_FLOW) >> 6u;
     bool msc1Underrun = (int_type_val1 & MSC1_E_UNDER_FLOW) >> 5u;

@@ -115,6 +115,10 @@ private:
     std::string m_recordPathFilename{""};
     uint64_t m_lastFlushTime{0ULL};
 
+    // failures in readRegister()
+    uint32_t mUsbReadFailure{0};
+    uint32_t mUsbWriteFailure{0};
+
 private:
     void commandProcessing();
 
@@ -128,9 +132,7 @@ private:
     void setService();
 
     void threadedFicRead();
-    void threadedMscRead();
-
-    void threadedDataRead();
+    bool hasUsbIoErrors();
 
     void scanNext();
 
