@@ -78,7 +78,7 @@ import static org.omri.BuildConfig.DEBUG;
  * @author Fabian Sattler, IRT GmbH
  */
 
-class IpServiceScanner {
+public class IpServiceScanner {
 
 	private final static String TAG = "IpServiceScanner";
 
@@ -132,13 +132,15 @@ class IpServiceScanner {
 
 			for(eu.hradio.core.radiodns.RadioDnsService rdnsSrv : availableServices) {
 				if(rdnsSrv.getServiceType() == eu.hradio.core.radiodns.RadioDnsServiceType.RADIO_EPG) {
-					if(!mAvailableServices.containsValue(rdnsSrv)) {
-						if(DEBUG)Log.d(TAG, "Adding " + rdnsSrv.getTarget() + " to SI scan list");
-						mAvailableServices.put(radioService, rdnsSrv);
-					} else {
-						if(DEBUG)Log.d(TAG, "AvailServicesMap already contains this service");
+					synchronized (mAvailableServices) {
+						if (!mAvailableServices.containsValue(rdnsSrv)) {
+							if (DEBUG)
+								Log.d(TAG, "Adding " + rdnsSrv.getTarget() + " to SI scan list");
+							mAvailableServices.put(radioService, rdnsSrv);
+						} else {
+							if (DEBUG) Log.d(TAG, "AvailServicesMap already contains " + rdnsSrv.getTarget());
+						}
 					}
-
 					break;
 				}
 			}
@@ -151,8 +153,10 @@ class IpServiceScanner {
 
 					notifyListeners(50, false);
 
-					for (eu.hradio.core.radiodns.RadioDnsService rdnsSrv : mAvailableServices.values()) {
-						((RadioDnsServiceEpg) rdnsSrv).getServiceInformation(mSiCallback);
+					synchronized (mAvailableServices) {
+						for (eu.hradio.core.radiodns.RadioDnsService rdnsSrv : mAvailableServices.values()) {
+							((RadioDnsServiceEpg) rdnsSrv).getServiceInformation(mSiCallback);
+						}
 					}
 				} else {
 					notifyListeners(100, true);
@@ -368,6 +372,8 @@ class IpServiceScanner {
 										} else {
 											if(DEBUG)Log.d(TAG, "HRadioHttpClient Logos for " + ipSrv.getServiceLabel() + " existing, not downloading");
 										}
+									} else {
+										Log.w(TAG, "ignore logo with mime '" + logoMime + "'");
 									}
 								}
 							}
@@ -479,11 +485,11 @@ class IpServiceScanner {
 
 													switch (mediaDesc.getMultimediaType()) {
 														case "logo_colour_square": {
-															mmType = MultimediaType.MULTIMEDIA_LOGO_SQUARE;
-															logoMime = VisualMimeType.METADATA_VISUAL_MIMETYPE_PNG;
+														mmType = MultimediaType.MULTIMEDIA_LOGO_SQUARE;
+														logoMime = VisualMimeType.METADATA_VISUAL_MIMETYPE_PNG;
 															logoWidth = 32;
 															logoHeight = 32;
-															break;
+														break;
 														}
 														case "logo_colour_rectangle": {
 															mmType = MultimediaType.MULTIMEDIA_LOGO_RECTANGLE;
@@ -547,6 +553,8 @@ class IpServiceScanner {
 														} else {
 															if(DEBUG)Log.d(TAG, "HRadioHttpClient Logos for " + dabSrv.getServiceLabel() + " existing, not downloading");
 														}
+													} else {
+														Log.w(TAG, "ignore logo with mime '" + logoMime + "'");
 													}
 												}
 											}
@@ -799,19 +807,24 @@ class IpServiceScanner {
 										}
 									}
 
-									if (logoMime != VisualMimeType.METADATA_VISUAL_MIMETYPE_UNKNOWN) {
+									// relax requirement for proper MIME type
+									/*if (logoMime != VisualMimeType.METADATA_VISUAL_MIMETYPE_UNKNOWN)*/ {
 										stationLogo.setVisualMimeType(logoMime);
 										stationLogo.setLogoUrl(multiMedia.getUrl());
 										stationLogo.addBearer(ipSrv.getBearers());
 
-										Collections.sort(stationLogo.getBearers());
+										// why sorting? Collections.sort(stationLogo.getBearers());
 
 										String logoPath = downloadHttpLogoFile(multiMedia.getUrl(), multiMedia, stationLogo);
 										if (logoPath != null) {
 											stationLogo.setFilePath(logoPath);
 											VisualLogoManager.getInstance().addLogoVisual(stationLogo);
+										} else {
+											Log.w(TAG, "LogoDownload failed: " + multiMedia.getUrl());
 										}
-									}
+									} /* else {
+										Log.w(TAG, "ignore logo with mime '" + logoMime + "'");
+									} */
 								}
 							}
 
@@ -885,7 +898,9 @@ class IpServiceScanner {
 				mIsScanning = true;
 
 				mLookups.clear();
-				mAvailableServices.clear();
+				synchronized (mAvailableServices) {
+					mAvailableServices.clear();
+				}
 				mSiCallbacksPendings.set(0);
 				mScanRdnsOptionsBundle = null;
 				if (searchOptions != null) {
@@ -970,19 +985,20 @@ class IpServiceScanner {
 		code if the resource has not changed.
 	*/
 	private String downloadHttpLogoFile(String logoUrl, Multimedia mm, VisualLogoImpl logo) {
-		if (DEBUG) Log.d(TAG, "LogoDownload URL: " + (logoUrl != null ? logoUrl : "null"));
+		if (DEBUG) Log.d(TAG, "LogoDownload URL: " + logoUrl);
 		final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
 		InputStream inputStream = null;
-
 		FileOutputStream fileOutputStream = null;
 		HttpURLConnection httpUrlConnection = null;
-		File logofile = null;
 		boolean downloadNeeded = true;
 
-		logofile = createLogoFileName(mm, logo);
+		File logofile = createLogoFileName(mm, logo);
+
 		if (logofile == null) {
+			Log.w(TAG, "LogoDownload URL: " + logoUrl + " failed to create file " + logo.getFilePath());
 			return null;
 		}
+
 		final long logoFileLastModified = logofile.lastModified();
 		final long logoFileAgeMillis = System.currentTimeMillis() - logoFileLastModified;
 
@@ -1024,11 +1040,15 @@ class IpServiceScanner {
 			}
 		}
 		else /* logoFileAgeMillis < 1 day */ {
-            if (logoFileAgeMillis < TimeUnit.MINUTES.toMillis(30)) {
+			if (logoFileAgeMillis < TimeUnit.MINUTES.toMillis(30)) {
                 // downloaded in the last 30 minutes, no need to download again
                 downloadNeeded = false;
             }
         }
+        // regardless of age of file: If it is empty, attempt download
+        if (logofile.length() == 0L) {
+        	downloadNeeded = true;
+		}
 
 		if (downloadNeeded) {
 			try {
@@ -1036,7 +1056,8 @@ class IpServiceScanner {
 
 				if (httpUrlConnection != null) {
 					inputStream = httpUrlConnection.getInputStream();
-					if (DEBUG)Log.d(TAG, "Downloading LogoFile: " + logofile.getAbsolutePath());
+					if (DEBUG)Log.d(TAG, "Downloading LogoFile: " + logofile.getAbsolutePath()
+							+ " from " + httpUrlConnection.getURL().toString());
 					if (!logofile.exists()) {
 						try {
 							if (!logofile.createNewFile()) {
@@ -1090,17 +1111,18 @@ class IpServiceScanner {
 		return logofile != null ? logofile.getName() : null;
 	}
 
-	private @Nullable HttpURLConnection getConnection(String connUrl) throws IOException {
-		URL url = new URL(connUrl);
+	public static @Nullable HttpURLConnection getConnection(String connUrl) throws IOException {
+		final URL url = new URL(connUrl);
 		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-		conn.setReadTimeout(2000);
-		conn.setConnectTimeout(2000);
+		conn.setReadTimeout(10000);
+		conn.setConnectTimeout(15000);
 		conn.setRequestMethod("GET");
+		conn.setInstanceFollowRedirects(true);
 		conn.setDoInput(true);
 		conn.connect();
 
 		int httpResponseCode = conn.getResponseCode();
-		if(DEBUG)Log.d(TAG, "GetConnection HTTP responseCode: " + httpResponseCode);
+		if(DEBUG)Log.d(TAG, "GetConnection HTTP: " + httpResponseCode + " " + connUrl);
 		switch (httpResponseCode) {
 			case HttpURLConnection.HTTP_OK:
 				// all fine
@@ -1114,11 +1136,12 @@ class IpServiceScanner {
 			case HttpURLConnection.HTTP_MOVED_PERM:
 			case HttpURLConnection.HTTP_MOVED_TEMP: {
 				String redirectUrl = conn.getHeaderField("Location");
-				if (redirectUrl != null && !redirectUrl.isEmpty()) {
+				if (redirectUrl != null) {
 					if (DEBUG) Log.d(TAG, "GetConnection Following redirect to: " + redirectUrl);
 					conn.disconnect();
-
-					return getConnection(redirectUrl);
+					return IpServiceScanner.getConnection(redirectUrl);
+				} else {
+					Log.w(TAG, "GetConnection Redirect URL had no field Location " + redirectUrl);
 				}
 			}
 			break;
@@ -1136,14 +1159,19 @@ class IpServiceScanner {
 		File logoCacheDir = getLogoFilesCacheDir();
 		if(logoCacheDir != null) {
 			logoFile = new File(mLogoCacheDir.getAbsolutePath() + "/" + logo.hashCode() + "_" + mm.getWidth() + "_" + mm.getHeight());
-			if(DEBUG) {
-				if (logoFile.exists()) {
-					SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-					Log.d(TAG, "Logofile: '" + logoFile.getAbsolutePath() + "' already exists, last modified "
-							+ dateFormat.format(new Date(logoFile.lastModified())));
-				} else {
-					Log.d(TAG, "Logofile: '" + logoFile.getAbsolutePath() + "' doesn't exist");
+			if (logoFile.exists()) {
+				SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+				if(DEBUG) Log.d(TAG, "Logofile: '" + logoFile.getAbsolutePath() + "' already exists, last modified "
+						+ dateFormat.format(new Date(logoFile.lastModified())));
+			} else {
+				try {
+					if (!logoFile.createNewFile()) {
+						Log.w(TAG, "Logofile: '" + logoFile.getAbsolutePath() + "' failed to create");
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
+				if(DEBUG) Log.d(TAG, "Logofile: '" + logoFile.getAbsolutePath() + "' didn't exist");
 			}
 		}
 

@@ -1,7 +1,8 @@
 package eu.hradio.core.radiodns.radioepg.multimedia;
 
-import java.io.*;
 import androidx.annotation.NonNull;
+
+import java.io.Serializable;
 
 public class Multimedia implements Serializable
 {
@@ -67,7 +68,7 @@ public class Multimedia implements Serializable
         return this.mMime;
     }
     
-    public MultimediaTransferType getTranferType() {
+    public MultimediaTransferType getTransferType() {
         return this.mTransferType;
     }
 }

@@ -261,6 +261,13 @@ abstract class RadioEpgParser
             if (mmType != MultimediaType.MULTIMEDIA_LOGO_UNRESTRICTED && multimediaMime == null) {
                 multimediaMime = "";
             }
+            /** relax requirement ETSI TS 102 818, chap 5.8, Attribute mimeValue
+             * Required except if the type is logo_colour_square or logo_colour_rectangle
+              */
+            if (mmType == MultimediaType.MULTIMEDIA_LOGO_UNRESTRICTED && multimediaMime == null) {
+                if (DEBUG) Log.d(TAG, TYPE_ATTR + "=" + MultimediaType.LOGO_UNRESTRICTED + " missing " + MIMEVALUE_ATTR);
+                multimediaMime = "";
+            }
             if (mmType == MultimediaType.MULTIMEDIA_LOGO_UNRESTRICTED) {
                 int mmWidth = -1;
                 int mmHeight = -1;

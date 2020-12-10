@@ -1,14 +1,27 @@
 package eu.hradio.core.radiodns;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 
-import org.minidns.record.*;
-import org.omri.radioservice.*;
-import java.util.concurrent.*;
-import java.io.*;
-import java.net.*;
-import java.util.*;
-import java.text.*;
+import org.minidns.record.SRV;
+import org.omri.BuildConfig;
+import org.omri.radio.impl.IpServiceScanner;
+import org.omri.radioservice.RadioService;
+
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class RadioDnsServiceEpg extends RadioDnsService
 {
@@ -44,10 +57,18 @@ public class RadioDnsServiceEpg extends RadioDnsService
                     public void run() {
                         try {
                             final RadioEpgSiParser parser = new RadioEpgSiParser();
-                            RadioDnsServiceEpg.this.mSi = parser.parse(RadioDnsServiceEpg.this.getConnection(RadioDnsServiceEpg.this.mSiUrl).getInputStream());
-                            RadioDnsServiceEpg.this.callSiCallbacks(RadioDnsServiceEpg.this);
+                            final HttpURLConnection urlConnection = IpServiceScanner.getConnection(mSiUrl);
+                            if (urlConnection != null) {
+                                mSi = parser.parse(urlConnection.getInputStream());
+                                if (BuildConfig.DEBUG) Log.i(TAG, "getServiceInformation: parsed " + urlConnection.getURL().toString());
+                            } else {
+                                Log.w(TAG,"failed to connect to " + mSiUrl);
+                            }
+                            callSiCallbacks(RadioDnsServiceEpg.this);
                         }
-                        catch (IOException ex) {}
+                        catch (Exception e) {
+                            e.printStackTrace();
+                        }
                         finally {
                             RadioDnsServiceEpg.this.callSiCallbacks(RadioDnsServiceEpg.this);
                             RadioDnsServiceEpg.this.mSiParserRunning = false;
@@ -61,26 +82,7 @@ public class RadioDnsServiceEpg extends RadioDnsService
             this.callSiCallbacks(this);
         }
     }
-    
-    private HttpURLConnection getConnection(final String connUrl) throws IOException {
-        final URL url = new URL(connUrl);
-        final HttpURLConnection conn = (HttpURLConnection)url.openConnection();
-        conn.setReadTimeout(10000);
-        conn.setConnectTimeout(15000);
-        conn.setRequestMethod("GET");
-        conn.setDoInput(true);
-        conn.connect();
-        final int httpResponseCode = conn.getResponseCode();
-        if (httpResponseCode == 301 || httpResponseCode == 302) {
-            final String redirectUrl = conn.getHeaderField("Location");
-            if (redirectUrl != null && !redirectUrl.isEmpty()) {
-                conn.disconnect();
-                return this.getConnection(redirectUrl);
-            }
-        }
-        return conn;
-    }
-    
+
     public void getProgrammeInformation(@NonNull final RadioDnsServiceEpgPiCallback cb) {
         this.getProgrammeInformation(0, cb);
     }
@@ -110,10 +112,18 @@ public class RadioDnsServiceEpg extends RadioDnsService
                     public void run() {
                         try {
                             final RadioEpgPiParser parser = new RadioEpgPiParser();
-                            RadioDnsServiceEpg.this.mPiMap.put(dateString, parser.parse(RadioDnsServiceEpg.this.getConnection(piUrl).getInputStream()));
+                            final HttpURLConnection urlConnection = IpServiceScanner.getConnection(piUrl);
+                            if (urlConnection != null) {
+                                RadioDnsServiceEpg.this.mPiMap.put(dateString, parser.parse(urlConnection.getInputStream()));
+
+                            } else {
+                                Log.w(TAG, "failed to connect to " + piUrl);
+                            }
                             RadioDnsServiceEpg.this.callPiCallbacks(dateString, RadioDnsServiceEpg.this);
                         }
-                        catch (IOException ex) {}
+                        catch (IOException e) {
+                            e.printStackTrace();
+                        }
                         finally {
                             RadioDnsServiceEpg.this.callPiCallbacks(dateString, RadioDnsServiceEpg.this);
                             RadioDnsServiceEpg.this.mPiThreadsRunning.put(dateString, false);

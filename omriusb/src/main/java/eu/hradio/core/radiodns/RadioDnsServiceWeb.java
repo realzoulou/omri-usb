@@ -1,11 +1,19 @@
 package eu.hradio.core.radiodns;
 
-import org.minidns.record.*;
-import org.omri.radioservice.*;
-import java.util.concurrent.*;
+import android.util.Log;
+
 import androidx.annotation.NonNull;
-import java.io.*;
-import java.net.*;
+
+import org.minidns.record.SRV;
+import org.omri.BuildConfig;
+import org.omri.radio.impl.IpServiceScanner;
+import org.omri.radioservice.RadioService;
+
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class RadioDnsServiceWeb extends RadioDnsService
 {
@@ -35,10 +43,18 @@ public class RadioDnsServiceWeb extends RadioDnsService
                     public void run() {
                         try {
                             final RadioWebApplicationParser parser = new RadioWebApplicationParser();
-                            RadioDnsServiceWeb.this.mAIL = parser.parse(RadioDnsServiceWeb.this.getConnection(RadioDnsServiceWeb.this.mAilUrl).getInputStream());
+                            final HttpURLConnection urlConnection = IpServiceScanner.getConnection(mAilUrl);
+                            if (urlConnection != null) {
+                                RadioDnsServiceWeb.this.mAIL = parser.parse(urlConnection.getInputStream());
+                                if (BuildConfig.DEBUG) Log.i(TAG, "getApplicationInformationList: parsed " + urlConnection.getURL().toString());
+                            } else {
+                                Log.w(TAG,"failed to connect to " + mAilUrl);
+                            }
                             RadioDnsServiceWeb.this.callCallbacks();
                         }
-                        catch (IOException ex) {}
+                        catch (IOException e) {
+                            e.printStackTrace();
+                        }
                         finally {
                             RadioDnsServiceWeb.this.callCallbacks();
                             RadioDnsServiceWeb.this.mAppParserRunning = false;
@@ -52,26 +68,7 @@ public class RadioDnsServiceWeb extends RadioDnsService
             this.callCallbacks();
         }
     }
-    
-    private HttpURLConnection getConnection(final String connUrl) throws IOException {
-        final URL url = new URL(connUrl);
-        final HttpURLConnection conn = (HttpURLConnection)url.openConnection();
-        conn.setReadTimeout(10000);
-        conn.setConnectTimeout(15000);
-        conn.setRequestMethod("GET");
-        conn.setDoInput(true);
-        conn.connect();
-        final int httpResponseCode = conn.getResponseCode();
-        if (httpResponseCode == 301 || httpResponseCode == 302) {
-            final String redirectUrl = conn.getHeaderField("Location");
-            if (redirectUrl != null && !redirectUrl.isEmpty()) {
-                conn.disconnect();
-                return this.getConnection(redirectUrl);
-            }
-        }
-        return conn;
-    }
-    
+
     private void callCallbacks() {
         if (this.mCallbacks.size() > 0) {
             final Object[] array;
