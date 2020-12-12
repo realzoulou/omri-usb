@@ -52,12 +52,17 @@ public:
     int getMaximumConcurrentSubChannels() const override;
     void addMscCallback(CallbackFunction cb, uint8_t subchanId) override;
     void addFicCallback(CallbackFunction cb) override;
-    void startService(std::shared_ptr <JDabService> serviceLink) override;
+    void startService(std::shared_ptr <JDabService>& serviceLink) override;
+    std::shared_ptr<JDabService>& getStartedService() override;
     void stopService(const DabService &service) override;
     void stopAllRunningServices() override;
     void startServiceScan() override;
     void stopServiceScan() override;
     std::string getDeviceName() const override;
+
+protected:
+    // from DabEnsemble
+    virtual void checkServiceSanity(const uint32_t serviceId) override;
 
 public:
     void setJavaClassDemoTuner(JNIEnv* env, jclass demoTunerClass);

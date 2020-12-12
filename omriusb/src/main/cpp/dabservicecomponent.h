@@ -35,6 +35,16 @@ public:
         MSC_PACKET_MODE_DATA
     };
 
+    static constexpr uint8_t SUBCHID_INVALID = 0xFFu;
+    static constexpr uint8_t SCIDS_INVALID = 0xFFu;
+    static constexpr uint16_t MSC_STARTADDR_INVALID = 0xFFFFu;
+    static constexpr uint16_t SUBCHAN_SIZE_INVALID = 0xFFFFu;
+    static constexpr uint16_t SUBCHAN_BITRATE_INVALID = 0xFFFFu;
+    static constexpr uint8_t CHARSET_INVALID = 0xFFu;
+    static constexpr uint8_t PROT_LEVEL_INVALID = 0xFFu;
+    static constexpr uint8_t PROT_TYPE_INVALID = 0xFFu;
+    static constexpr uint8_t UEPTABLEINDEX_INVALID = 0xFFu;
+
 public:
     virtual ~DabServiceComponent();
 
@@ -84,21 +94,23 @@ public:
 
     virtual void flushBufferedData();
 
+    virtual bool checkSanity() const;
+
 protected:
     explicit DabServiceComponent();
 
     DabServiceComponent::SERVICECOMPONENTTYPE m_componentType{SERVICECOMPONENTTYPE::RESERVED};
     bool m_isPrimary{false};
     bool m_isCaApplied{false};
-    uint8_t m_subChanId{0xFF};
-    uint8_t m_scIdS{0xFF};
-    uint16_t m_mscStartAddress{0xFFFF};
-    uint16_t m_subChanSize{0xFFFF};
+    uint8_t m_subChanId{SUBCHID_INVALID};
+    uint8_t m_scIdS{SCIDS_INVALID};
+    uint16_t m_mscStartAddress{MSC_STARTADDR_INVALID};
+    uint16_t m_subChanSize{SUBCHAN_SIZE_INVALID};
     std::string m_convoCodingRate{""};
     std::string m_protectionLevelString{""};
-    uint16_t m_subChanBitrate{0x0000};
+    uint16_t m_subChanBitrate{SUBCHAN_BITRATE_INVALID};
 
-    uint8_t m_labelCharset{0x00};
+    uint8_t m_labelCharset{CHARSET_INVALID};
     std::string m_serviceComponentLabel{""};
     std::string m_serviceComponentShortLabel{""};
 
@@ -106,9 +118,9 @@ protected:
 
     bool m_fecSchemeAplied{false};
 
-    uint8_t m_protectionLevel{0xFF};
-    uint8_t m_protectionType{0xFF};
-    uint8_t m_uepTableIdx{0xFF};
+    uint8_t m_protectionLevel{PROT_LEVEL_INVALID};
+    uint8_t m_protectionType{PROT_TYPE_INVALID};
+    uint8_t m_uepTableIdx{UEPTABLEINDEX_INVALID};
 
 private:
     std::string m_logTag = "[DabServiceComponent]";

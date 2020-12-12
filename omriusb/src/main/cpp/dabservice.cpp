@@ -23,8 +23,10 @@
 #include <iostream>
 
 #include "dabservicecomponentmscpacketdata.h"
+#include "dabensemble.h"
 
 DabService::DabService() {
+    m_ensembleFrequency = DabEnsemble::FREQ_INVALID;
     //std::cout << "DabService constructed" << std::endl;
 }
 
@@ -103,7 +105,8 @@ void DabService::setIsProgrammeService(bool isProgramme) {
 }
 
 void DabService::setCaId(uint8_t caId) {
-    m_caId = m_caApplied = caId;
+    m_caId = caId;
+    m_caApplied = true;
 }
 
 void DabService::setNumberOfServiceComponents(uint8_t numSc) {
@@ -118,7 +121,7 @@ void DabService::setServiceLabel(const std::string& label) {
     if(m_serviceLabel.empty()) {
         m_serviceLabel = label;
 
-        //std::cout << m_logTag << " Setting ServiceLabel: " << m_serviceLabel << " to SId: " << std::hex << +m_serviceId << std::dec << std::endl;
+        //std::cout << m_logTag << "Setting ServiceLabel: " << m_serviceLabel << " to SId: " << std::hex << +m_serviceId << std::dec << std::endl;
     }
 }
 
@@ -126,13 +129,13 @@ void DabService::setServiceShortLabel(const std::string& shortLabel) {
     if(m_serviceShortLabel.empty()) {
         m_serviceShortLabel = shortLabel;
 
-        //std::cout << m_logTag << " Setting ServiceShortlabel: " << m_serviceShortLabel << " to SId: " << std::hex << +m_serviceId << std::dec << std::endl;
+        //std::cout << m_logTag << "Setting ServiceShortlabel: " << m_serviceShortLabel << " to SId: " << std::hex << +m_serviceId << std::dec << std::endl;
     }
 }
 
 void DabService::addServiceComponent(const std::shared_ptr<DabServiceComponent>& component) {
     m_components.push_back(component);
-    std::cout << m_logTag << " Adding ServicecomponentPtr with SubChanId: " << std::hex << +component->getSubChannelId()
+    std::cout << m_logTag << "Adding ServicecomponentPtr with SubChanId: " << std::hex << +component->getSubChannelId()
         << " for SId: " << +m_serviceId << std::dec << " as Servicecomponent# " << +m_components.size()
         << " isPrim:" << +component->isPrimary()
         << std::endl;
@@ -145,7 +148,7 @@ void DabService::setProgrammeTypeCode(uint8_t intPtyCode) {
         m_ptyName16 = registeredtables::PROGRAMME_TYPE_NAME[m_ptyCode][1];
         m_ptyName8 = registeredtables::PROGRAMME_TYPE_NAME[m_ptyCode][2];
 
-        std::cout << m_logTag << " Setting " << (m_ptyIsDynamic ? "dynamic" : "static") << " PTY for SId: " << std::hex << +m_serviceId << std::dec << " to: " << +m_ptyCode << " : " << m_ptyNameFull << " : " << m_ptyName16 << " : " << m_ptyName8 << std::endl;
+        std::cout << m_logTag << "Setting " << (m_ptyIsDynamic ? "dynamic" : "static") << " PTY for SId: " << std::hex << +m_serviceId << std::dec << " to: " << +m_ptyCode << " : " << m_ptyNameFull << " : " << m_ptyName16 << " : " << m_ptyName8 << std::endl;
     }
 }
 
@@ -163,4 +166,54 @@ void DabService::setDabEnsemble(DabEnsemble *pEnsemble) {
 
 DabEnsemble* DabService::getDabEnsemble() const {
     return m_ptr_dabEnsemble;
+}
+
+bool DabService::checkSanity() const {
+    bool isSane = true;
+    std::stringstream logStr;
+    logStr << m_logTag << "check sanity SId=0x" << std::hex << +getServiceId() << std::dec << ":";
+
+    if (getServiceId() == SID_INVALID) {
+        logStr << " SID:invalid";
+        isSane = false;
+    }
+    else if (getEnsembleFrequency() == DabEnsemble::FREQ_INVALID) {
+        logStr << " EFreq:invalid";
+        isSane = false;
+    }
+    else if (getNumberServiceComponents() == 0) {
+        logStr << " numCmp:0";
+        isSane = false;
+    }
+    else if (getLabelCharset() == CHARSET_INVALID) {
+        logStr << " charset:invalid";
+        isSane = false;
+    }
+    else if (getServiceLabel().empty()) {
+        logStr << " label:empty";
+        isSane = false;
+    }
+    else if (getServiceShortLabel().empty()) {
+        logStr << " short label:empty";
+        isSane = false;
+    }
+    else if (getServiceComponents().size() != getNumberServiceComponents()) {
+        logStr << " components != numCmp:" << +getServiceComponents().size() << "/" << +getNumberServiceComponents();
+        isSane = false;
+    } else {
+        for (const auto& srvCmp : getServiceComponents()) {
+            bool wasSane = srvCmp->checkSanity();
+            if (!wasSane) {
+                // log message was created in checkSanity already, clear this logStr buffer
+                logStr.str(std::string());
+                isSane = false;
+                break;
+            }
+        }
+    }
+    if (!isSane && logStr.str().length() > 0) {
+        std::cout << logStr.str() << std::endl;
+    }
+
+    return isSane;
 }

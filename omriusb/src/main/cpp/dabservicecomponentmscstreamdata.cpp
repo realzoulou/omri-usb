@@ -21,6 +21,7 @@
 #include "dabservicecomponentmscstreamdata.h"
 
 #include <iostream>
+#include <sstream>
 
 DabServiceComponentMscStreamData::DabServiceComponentMscStreamData() {
     m_componentType = DabServiceComponent::SERVICECOMPONENTTYPE::MSC_STREAM_DATA;
@@ -44,4 +45,27 @@ void DabServiceComponentMscStreamData::componentMscDataInput(const std::vector<u
 
 void DabServiceComponentMscStreamData::flushBufferedData() {
 
+}
+
+bool DabServiceComponentMscStreamData::checkSanity() const {
+    bool isSuperSane = DabServiceComponent::checkSanity();
+    bool isSane = true;
+    std::stringstream logStr;
+    logStr << m_logTag << "    check sanity sub channel: " << +getSubChannelId()
+           << " dscty:0x" << std::hex << +getDataServiceComponentType() << std::dec;
+    if (isSane) {
+        if (getDataServiceComponentType() == STREAMDATATYPE_INVALID) {
+            logStr << " invalid";
+            isSane = false;
+        } else
+        if (getProtectionLevel() == PROT_LEVEL_INVALID || getProtectionType() == PROT_TYPE_INVALID) {
+            logStr << std::hex << " protLevel:0x" << +getProtectionLevel()
+                   << " protType:0x" << +getProtectionType() << std::dec;
+            isSane = false;
+        }
+    }
+    if (!isSane) {
+        std::cout << logStr.str() << std::endl;
+    }
+    return isSane && isSuperSane;
 }

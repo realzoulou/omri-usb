@@ -26,6 +26,31 @@
 
 constexpr uint16_t FicParser::CRC_CCITT_TABLE[];
 
+bool FicParser::FIB_CRC_CHECK(const uint8_t* data) const {
+
+    //fixed fib size
+    uint16_t dataLen = FIB_SIZE;
+
+    //initial register
+    uint16_t crc = 0xffff;
+    uint16_t crc2 = 0xffff;
+
+    uint16_t crcVal, i;
+    uint8_t  crcCalData;
+
+    for (i = 0; i < (dataLen - 2); i++) {
+        crcCalData = *(data+i);
+        crc = (crc << 8)^FicParser::CRC_CCITT_TABLE[(crc >> 8)^(crcCalData)++];
+    }
+
+    crcVal = *(data+i) << 8u;
+    crcVal = crcVal | *(data+i+1);
+
+    crc2 = (crcVal^crc2);
+
+    return crc == crc2;
+}
+
 //calling inherited constructor with FIC_ID
 FicParser::FicParser() {
     std::cout << M_LOG_TAG << " Constructing" << std::endl;
@@ -146,101 +171,45 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
         }
         case Fig::FIG_00_TYPE::BASIC_SUBCHANNEL_ORGANIZATION: {
             Fig_00_Ext_01 extOne(ficData);
-
-            bool done{false};
-            if(!contains<Fig_00_Ext_01>(m_parsedFig0001, extOne)) {
-                m_parsedFig0001.push_back(extOne);
-                if(m_1wasDone) {
-                    //std::cout << "FICParser Ext 1 was done" << std::endl;
-                }
-            } else {
-                done = true;
-                m_1wasDone = true;
-            }
-
             m_fig00_01dispatcher.invoke(extOne);
-            //tell callbacks that there will be no new FIGs
-            if(done) {
-                m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::BASIC_SUBCHANNEL_ORGANIZATION);
-            }
+            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::BASIC_SUBCHANNEL_ORGANIZATION);
             break;
         }
         case Fig::FIG_00_TYPE::BASIC_SERVICE_COMPONENT_DEFINITION: {
             Fig_00_Ext_02 extTwo(ficData);
-
-            bool done{false};
-            if(!contains<Fig_00_Ext_02>(m_parsedFig0002, extTwo)) {
-                if(m_2wasDone) {
-                    //std::cout << "FICParser Ext 2 was done" << std::endl;
-                }
-                m_parsedFig0002.push_back(extTwo);
-            } else {
-                done = true;
-                m_2wasDone = true;
-            }
-
             m_fig00_02dispatcher.invoke(extTwo);
-            if(done) {
-                m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::BASIC_SERVICE_COMPONENT_DEFINITION);
-            }
+            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::BASIC_SERVICE_COMPONENT_DEFINITION);
             break;
         }
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_PACKET_MODE: {
             Fig_00_Ext_03 extThree(ficData);
-
-            bool done{false};
-            if(!contains<Fig_00_Ext_03>(m_parsedFig0003, extThree)) {
-                if(m_3wasDone) {
-                    //std::cout << "FICParser Ext 3 was done" << std::endl;
-                }
-                m_parsedFig0003.push_back(extThree);
-            } else {
-                done = true;
-                m_3wasDone = true;
-            }
-
             m_fig00_03dispatcher.invoke(extThree);
-            if(done) {
-                m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::SERVICE_COMPONENT_PACKET_MODE);
-            }
             break;
         }
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_STREAM_CA: {
             Fig_00_Ext_04 extFour(ficData);
+            m_fig00_04dispatcher.invoke(extFour);
             break;
         }
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_LANGUAGE: {
             Fig_00_Ext_05 extFive(ficData);
+            m_fig00_05dispatcher.invoke(extFive);
             break;
         }
         case Fig::FIG_00_TYPE::SERVICE_LINKING_INFORMATION: {
             Fig_00_Ext_06 extSix(ficData);
-
             m_fig00_06dispatcher.invoke(extSix);
             break;
         }
         case Fig::FIG_00_TYPE::CONFIGURATION_INFORMATION: {
             Fig_00_Ext_07 extSeven(ficData);
+            m_fig00_07dispatcher.invoke(extSeven);
             break;
         }
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_GLOBAL_DEFINITION: {
             Fig_00_Ext_08 extEight(ficData);
-
-            bool done{false};
-            if(!contains<Fig_00_Ext_08>(m_parsedFig0008, extEight)) {
-                if(m_8wasDone) {
-                    //std::cout << "FICParser Ext 8 was done" << std::endl;
-                }
-                m_parsedFig0008.push_back(extEight);
-            } else {
-                done = true;
-                m_8wasDone = true;
-            }
-
             m_fig00_08dispatcher.invoke(extEight);
-            if(done) {
-                m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::SERVICE_COMPONENT_GLOBAL_DEFINITION);
-            }
+            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::SERVICE_COMPONENT_GLOBAL_DEFINITION);
             break;
         }
         case Fig::FIG_00_TYPE::COUNTRY_LTO_INTERNATIONAL_TABLE: {
@@ -255,34 +224,13 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
         }
         case Fig::FIG_00_TYPE::USERAPPLICATION_INFORMATION: {
             Fig_00_Ext_13 ext3Ten(ficData);
-
-            bool done{false};
-            if(!contains<Fig_00_Ext_13>(m_parsedFig0013, ext3Ten)) {
-                m_parsedFig0013.push_back(ext3Ten);
-            } else {
-                done = true;
-            }
-
             m_fig00_13dispatcher.invoke(ext3Ten);
-            if(done) {
-                m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::USERAPPLICATION_INFORMATION);
-            }
+            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::USERAPPLICATION_INFORMATION);
             break;
         }
         case Fig::FIG_00_TYPE::FEC_SUBCHANNEL_ORGANIZATION: {
-            bool done{false};
             Fig_00_Ext_14 ext4Ten(ficData);
-
-            if(!contains<Fig_00_Ext_14>(m_parsedFig0014, ext4Ten)) {
-                m_parsedFig0014.push_back(ext4Ten);
-            } else {
-                done = true;
-            }
-
             m_fig00_14dispatcher.invoke(ext4Ten);
-            if(done) {
-                m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::FEC_SUBCHANNEL_ORGANIZATION);
-            }
             break;
         }
         case Fig::FIG_00_TYPE::PROGRAMME_NUMBER: {
@@ -291,18 +239,7 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
         }
         case Fig::FIG_00_TYPE::PROGRAMME_TYPE: {
             Fig_00_Ext_17 ext7Ten(ficData);
-
-            bool done{false};
-            if(!contains<Fig_00_Ext_17>(m_parsedFig0017, ext7Ten)) {
-                m_parsedFig0017.push_back(ext7Ten);
-            } else {
-                done = true;
-            }
-
             m_fig00_17dispatcher.invoke(ext7Ten);
-            if(done) {
-                m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::PROGRAMME_TYPE);
-            }
             break;
         }
         case Fig::FIG_00_TYPE::ANNOUNCEMENT_SUPPORT: {
@@ -317,6 +254,7 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
         }
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_INFORMATION: {
             Fig_00_Ext_20 extTwenty(ficData);
+            m_fig00_20dispatcher.invoke(extTwenty);
             break;
         }
         case Fig::FIG_00_TYPE::FREQUENCY_INFORMATION: {
@@ -331,10 +269,12 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
         }
         case Fig::FIG_00_TYPE::OE_ANNOUNCEMENT_SUPPORT: {
             Fig_00_Ext_25 ext5Twenty(ficData);
+            m_fig00_25dispatcher.invoke(ext5Twenty);
             break;
         }
         case Fig::FIG_00_TYPE::OE_ANNOUNCEMENT_SWITCHING: {
             Fig_00_Ext_26 ext6Twenty(ficData);
+            m_fig00_26dispatcher.invoke(ext6Twenty);
             break;
         }
         default:
@@ -348,83 +288,30 @@ void FicParser::parseFig_01(const std::vector<uint8_t>& ficData) {
     switch(ficData[0] & 0x07u) {
         case Fig::FIG_01_TYPE::ENSEMBLE_LABEL: {
             Fig_01_Ext_00 extZero(ficData);
-
-            bool done{false};
-            if(!contains<Fig_01_Ext_00>(m_parsedFig0100, extZero)) {
-                m_parsedFig0100.push_back(extZero);
-            } else {
-                done = true;
-            }
-
             m_fig01_00dispatcher.invoke(extZero);
-            if(done) {
-                m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::ENSEMBLE_LABEL);
-            }
-
+            m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::ENSEMBLE_LABEL);
             break;
         }
         case Fig::FIG_01_TYPE::PROGRAMME_SERVICE_LABEL: {
             Fig_01_Ext_01 extOne(ficData);
-
-            bool done{false};
-            if(!contains<Fig_01_Ext_01>(m_parsedFig0101, extOne)) {
-                m_parsedFig0101.push_back(extOne);
-            } else {
-                done = true;
-            }
-
             m_fig01_01dispatcher.invoke(extOne);
-            if(done) {
-                m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::PROGRAMME_SERVICE_LABEL);
-            }
+            m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::PROGRAMME_SERVICE_LABEL);
             break;
         }
         case Fig::FIG_01_TYPE::SERVICE_COMPONENT_LABEL: {
             Fig_01_Ext_04 ext4(ficData);
-
-            bool done{false};
-            if(!contains<Fig_01_Ext_04>(m_parsedFig0104, ext4)) {
-                m_parsedFig0104.push_back(ext4);
-            } else {
-                done = true;
-            }
-
             m_fig01_04dispatcher.invoke(ext4);
-            if(done) {
-                m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::SERVICE_COMPONENT_LABEL);
-            }
             break;
         }
         case Fig::FIG_01_TYPE::DATA_SERVICE_LABEL: {
             Fig_01_Ext_05 ext5(ficData);
-
-            bool done{false};
-            if(!contains<Fig_01_Ext_05>(m_parsedFig0105, ext5)) {
-                m_parsedFig0105.push_back(ext5);
-            } else {
-                done = true;
-            }
-
             m_fig01_05dispatcher.invoke(ext5);
-            if(done) {
-                m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::DATA_SERVICE_LABEL);
-            }
             break;
         }
         case Fig::FIG_01_TYPE::XPAD_USERAPPLICATION_LABEL: {
             Fig_01_Ext_06 ext6(ficData);
-
-            bool done{false};
-            if(!contains<Fig_01_Ext_06>(m_parsedFig0106, ext6)) {
-                m_parsedFig0106.push_back(ext6);
-            } else {
-                done = true;
-            }
-
             m_fig01_06dispatcher.invoke(ext6);
-            if(done) {
-                m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::XPAD_USERAPPLICATION_LABEL);
-            }
+            m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::XPAD_USERAPPLICATION_LABEL);
             break;
         }
         default:
@@ -549,17 +436,4 @@ std::shared_ptr<FicParser::Fig_01_06_Callback> FicParser::registerFig_01_06_Call
 void FicParser::reset() {
     m_fibDataQueue.clear();
     ficBuffer.clear();
-    m_parsedFig0001.clear();
-    m_parsedFig0002.clear();
-    m_parsedFig0003.clear();
-    m_parsedFig0008.clear();
-    m_parsedFig0013.clear();
-    m_parsedFig0014.clear();
-    m_parsedFig0017.clear();
-    m_parsedFig0100.clear();
-    m_parsedFig0101.clear();
-    m_parsedFig0104.clear();
-    m_parsedFig0105.clear();
-    m_parsedFig0106.clear();
-    m_1wasDone = m_2wasDone = m_3wasDone = m_8wasDone = false;
 }

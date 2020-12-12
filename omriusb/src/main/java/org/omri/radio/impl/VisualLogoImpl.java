@@ -72,17 +72,11 @@ public class VisualLogoImpl extends VisualImpl implements Serializable {
 
 	void addBearer(RadioDnsEpgBearer bearer) {
 		if(bearer != null) {
-			if(BuildConfig.DEBUG)Log.d(TAG, "Adding Bearer: " + bearer.getBearerId());
 			mBearers.add(bearer);
 		}
 	}
 
 	void addBearer(List<RadioDnsEpgBearer> bearerList) {
-		if(BuildConfig.DEBUG) {
-			for(RadioDnsEpgBearer bearer : bearerList) {
-				Log.d(TAG, "Adding Bearer: " + bearer.getBearerId());
-			}
-		}
 		mBearers.addAll(bearerList);
 	}
 

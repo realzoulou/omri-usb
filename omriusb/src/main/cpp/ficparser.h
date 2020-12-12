@@ -217,55 +217,7 @@ private:
         0xEF1F, 0xFF3E, 0xCF5D, 0xDF7C, 0xAF9B, 0xBFBA, 0x8FD9, 0x9FF8,
         0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0
     };
-
-    static inline bool FIB_CRC_CHECK(const uint8_t* data) {
-
-        //fixed fib size
-        uint16_t dataLen = FIB_SIZE;
-
-        //initial register
-        uint16_t crc = 0xffff;
-        uint16_t crc2 = 0xffff;
-
-        uint16_t crcVal, i;
-        uint8_t  crcCalData;
-
-        for (i = 0; i < (dataLen - 2); i++) {
-            crcCalData = *(data+i);
-            crc = (crc << 8)^FicParser::CRC_CCITT_TABLE[(crc >> 8)^(crcCalData)++];
-        }
-
-        crcVal = *(data+i) << 8;
-        crcVal = crcVal | *(data+i+1);
-
-        crc2 = (crcVal^crc2);
-
-        if(crc == crc2) {
-            return true;
-        }
-
-        return false;
-    }
-
-private:
-    std::vector<Fig_00_Ext_01> m_parsedFig0001;
-    std::vector<Fig_00_Ext_02> m_parsedFig0002;
-    std::vector<Fig_00_Ext_03> m_parsedFig0003;
-    std::vector<Fig_00_Ext_08> m_parsedFig0008;
-    std::vector<Fig_00_Ext_13> m_parsedFig0013;
-    std::vector<Fig_00_Ext_14> m_parsedFig0014;
-    std::vector<Fig_00_Ext_17> m_parsedFig0017;
-
-    std::vector<Fig_01_Ext_00> m_parsedFig0100;
-    std::vector<Fig_01_Ext_01> m_parsedFig0101;
-    std::vector<Fig_01_Ext_04> m_parsedFig0104;
-    std::vector<Fig_01_Ext_05> m_parsedFig0105;
-    std::vector<Fig_01_Ext_06> m_parsedFig0106;
-
-    bool m_1wasDone{false};
-    bool m_2wasDone{false};
-    bool m_3wasDone{false};
-    bool m_8wasDone{false};
+    bool FIB_CRC_CHECK(const uint8_t* data) const;
 
 private:
     template<class T>

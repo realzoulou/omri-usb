@@ -42,26 +42,26 @@ DabEnsemble::~DabEnsemble() {
 
 void DabEnsemble::reset() {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << " Resetting Ensemble informations" << std::endl;
+    std::cout << m_logTag << " Resetting Ensemble" << std::endl;
 
-    m_reseting = true;
+    m_resetting = true;
     m_ensembleCollectFinished = false;
 
     if (m_ficPtr != nullptr) {
         m_ficPtr.get()->reset();
     }
 
-    m_ensembleId = 0xFFFF;
+    m_ensembleId = EID_INVALID;
     m_cifCntHigh = 0x00;
     m_cifCntLow = 0x00;
     m_cifCntHighNext = 0x00;
     m_cifCntLowNext = 0x00;
     m_announcementsSupported = false;
-    m_ensembleEcc = 0xFF;
+    m_ensembleEcc = ECC_INVALID;
 
-    m_labelCharset = 0x00;
-    m_ensembleLabel = "";
-    m_ensembleShortLabel = "";
+    m_labelCharset = CHARSET_INVALID;
+    m_ensembleLabel.clear();
+    m_ensembleShortLabel.clear();
 
     m_streamComponentsMap.clear();
     m_packetComponentsMap.clear();
@@ -69,7 +69,7 @@ void DabEnsemble::reset() {
 
     registerCbs();
 
-    m_reseting = false;
+    m_resetting = false;
 }
 
 uint16_t DabEnsemble::getEnsembleId() const {
@@ -186,7 +186,7 @@ void DabEnsemble::unregisterCbsAfterEnsembleCollect() {
 }
 void DabEnsemble::dataInput(const std::vector<uint8_t>& data, uint8_t subChId, bool synchronized) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    if(!m_reseting) {
+    if(!m_resetting) {
         if(subChId != 0x64) {
             auto compIter = m_streamComponentsMap.find(subChId);
             if(compIter != m_streamComponentsMap.cend()) {
@@ -209,7 +209,7 @@ void DabEnsemble::dataInput(const std::vector<uint8_t>& data, uint8_t subChId, b
 //added to flush component decoders
 void DabEnsemble::flushBufferedComponentData(uint8_t subChId) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    if(!m_reseting) {
+    if(!m_resetting) {
         auto compIter = m_streamComponentsMap.find(subChId);
         if(compIter != m_streamComponentsMap.cend()) {
             compIter->second->flushBufferedData();
@@ -275,7 +275,6 @@ void DabEnsemble::fig00_00_input(const Fig_00_Ext_00& fig00) {
 void DabEnsemble::fig00_01_input(const Fig_00_Ext_01& fig01) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     for(const auto& subOrga : fig01.getSubchannelOrganizations()) {
-        std::shared_ptr<DabServiceComponent> component{nullptr};
         auto streamCompIter = m_streamComponentsMap.find(subOrga.subChannelId);
         if(streamCompIter != m_streamComponentsMap.cend()) {
             streamCompIter->second->setMscStartAddress(subOrga.startAddress);
@@ -315,7 +314,7 @@ void DabEnsemble::fig00_02_input(const Fig_00_Ext_02 &fig02) {
             DabService service;
 
             if(srvDesc.isProgrammeService) {
-                service.setServiceId(srvDesc.serviceId & 0x0000FFFF);
+                service.setServiceId(srvDesc.serviceId & 0x0000FFFFu);
             } else {
                 service.setServiceId(srvDesc.serviceId);
             }
@@ -324,7 +323,7 @@ void DabEnsemble::fig00_02_input(const Fig_00_Ext_02 &fig02) {
             service.setCaId(srvDesc.caId);
             service.setNumberOfServiceComponents(srvDesc.numServiceComponents);
 
-            for(const Fig_00_Ext_02::ServiceComponentDescription& srvCom : srvDesc.serviceComponents) {
+            for(const auto& srvCom : srvDesc.serviceComponents) {
                 std::shared_ptr<DabServiceComponent> componentPtr;
 
                 switch (srvCom.transportModeId) {
@@ -717,8 +716,11 @@ void DabEnsemble::fig00_08_input(const Fig_00_Ext_08& fig08) {
 
 void DabEnsemble::fig00_09_input(const Fig_00_Ext_09& fig09) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << " Ensemble ECC: " << std::hex << +fig09.getEnsembleEcc() << std::dec << std::endl;
-    m_ensembleEcc = fig09.getEnsembleEcc();
+    if (m_ensembleEcc != fig09.getEnsembleEcc()) {
+        std::cout << m_logTag << " Ensemble ECC: " << std::hex << +fig09.getEnsembleEcc()
+                  << std::dec << std::endl;
+        m_ensembleEcc = fig09.getEnsembleEcc();
+    }
 }
 
 void DabEnsemble::fig00_10_input(const Fig_00_Ext_10& fig10) {
@@ -763,7 +765,7 @@ void DabEnsemble::fig00_14_input(const Fig_00_Ext_14& fig14) {
         return;
     }
 
-    for(const Fig_00_Ext_14::FecSchemeDescription& fecDesc : fig14.getFecSchemeDescriptions()) {
+    for(const auto& fecDesc : fig14.getFecSchemeDescriptions()) {
         if(fecDesc.fecScheme == Fig_00_Ext_14::FEC_SCHEME::APPLIED) {
             auto packCompIter = m_packetComponentsMap.cbegin();
             while(packCompIter != m_packetComponentsMap.cend()) {
@@ -779,7 +781,7 @@ void DabEnsemble::fig00_14_input(const Fig_00_Ext_14& fig14) {
 
 void DabEnsemble::fig00_17_input(const Fig_00_Ext_17& fig17) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    for(auto ptyInfo : fig17.getProgrammeTypeInformations()) {
+    for(const auto& ptyInfo : fig17.getProgrammeTypeInformations()) {
         auto serviceIter = m_servicesMap.find(ptyInfo.serviceId);
         if(serviceIter != m_servicesMap.cend()) {
             serviceIter->second.setProgrammeTypeIsDynamic(ptyInfo.isDynamic);
@@ -836,6 +838,9 @@ void DabEnsemble::fig00_19_input(const Fig_00_Ext_19& fig19) {
 
 void DabEnsemble::fig01_00_input(const Fig_01_Ext_00& fig10) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+    std::cout << m_logTag << " ServiceSanity FIC 01_00: " << std::hex << +fig10.getEnsembleId() << std::dec
+              << " short: " << fig10.getEnsembleShortLabel()
+              << " long: " << fig10.getEnsembleLabel() << std::endl;
     if(m_ensembleLabel.empty() && m_ensembleShortLabel.empty()) {
         if(fig10.getEnsembleId() == m_ensembleId) {
             m_ensembleLabel = fig10.getEnsembleLabel();
@@ -858,10 +863,10 @@ void DabEnsemble::fig01_01_input(const Fig_01_Ext_01& fig11) {
 
 void DabEnsemble::fig01_04_input(const Fig_01_Ext_04& fig14) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << " ServiceSanity FIC 01_04: " << std::hex << +fig14.getServiceId() << std::dec << ", SCIDs: " << +fig14.getServiceComponentIdWithinService() << " : " << fig14.getServiceComponentLabel() << std::endl;
+    std::cout << m_logTag << " ServiceSanity FIC 01_04: " << std::hex << +fig14.getServiceId() << std::dec << ", SCIdS: " << +fig14.getServiceComponentIdWithinService() << " : " << fig14.getServiceComponentLabel() << std::endl;
     auto serviceIter = m_servicesMap.find(fig14.getServiceId());
     if(serviceIter != m_servicesMap.cend()) {
-        for(auto component : serviceIter->second.getServiceComponents()) {
+        for(auto& component : serviceIter->second.getServiceComponents()) {
             if(component->getServiceComponentIdWithinService() == fig14.getServiceComponentIdWithinService()) {
                 component->setLabelCharset(fig14.getCharset());
                 component->setServiceComponentLabel(fig14.getServiceComponentLabel());
@@ -901,7 +906,7 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
             break;
         }
         case Fig::FIG_00_TYPE::BASIC_SUBCHANNEL_ORGANIZATION: {
-            if(m_fig003done && !m_fig001done) {
+            if(!m_fig001done) {
                 std::cout << m_logTag << " ServiceSanity FIC 00_01 Done!" << std::endl;
                 m_fig001done = true;
             }
@@ -910,41 +915,43 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
         case Fig::FIG_00_TYPE::BASIC_SERVICE_COMPONENT_DEFINITION: {
             if(!m_fig002done) {
                 std::cout << m_logTag << " ServiceSanity FIC 00_02 Done!" << std::endl;
-                //There are no Packet streams
-                if(m_packetComponentsMap.empty()) {
-                    m_fig003done = true;
-                    m_fig014done = true;
-                    m_fig105done = true;
-                    m_fig013done = true;
-                }
                 m_fig002done = true;
             }
             break;
         }
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_PACKET_MODE: {
-            if(!m_fig003done && !m_fig008done) {
+            if(!m_fig003done) {
                 std::cout << m_logTag << " ServiceSanity FIC 00_03 Done!" << std::endl;
                 m_fig003done = true;
             }
             break;
         }
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_GLOBAL_DEFINITION: {
-            if(!m_fig008done && m_fig001done && m_fig003done) {
+            if(!m_fig008done) {
                 std::cout << m_logTag << " ServiceSanity FIC 00_08 Done!" << std::endl;
                 m_fig008done = true;
             }
             break;
         }
         case Fig::FIG_00_TYPE::USERAPPLICATION_INFORMATION: {
-            m_fig013done = true;
+            if (!m_fig013done) {
+                std::cout << m_logTag << " ServiceSanity FIC 00_08 Done!" << std::endl;
+                m_fig013done = true;
+            }
             break;
         }
         case Fig::FIG_00_TYPE::FEC_SUBCHANNEL_ORGANIZATION: {
-            m_fig014done = true;
+            if (!m_fig014done) {
+                std::cout << m_logTag << " ServiceSanity FIC 00_14 Done!" << std::endl;
+                m_fig014done = true;
+            }
             break;
         }
         case Fig::FIG_00_TYPE::PROGRAMME_TYPE: {
-            m_fig017done = true;
+            if (m_fig017done) {
+                std::cout << m_logTag << " ServiceSanity FIC 00_14 Done!" << std::endl;
+                m_fig017done = true;
+            }
             break;
         }
         default:
@@ -955,10 +962,8 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
     logmsg << "0/0:" << m_fig000done << ", ";
     logmsg << "0/1:" << m_fig001done << ", ";
     logmsg << "0/2:" << m_fig002done << ", ";
-    logmsg << "0/3:" << m_fig003done << ", ";
     logmsg << "0/8:" << m_fig008done << ", ";
     logmsg << "0/13:" << m_fig013done << ", ";
-    logmsg << "0/14:" << m_fig014done << ", ";
     logmsg << "1/0:" << m_fig100done << ", ";
     logmsg << "1/1:" << m_fig101done;
     std::cout << logmsg.str() << std::endl;
@@ -967,12 +972,17 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
      * The service organization defines the services and service components carried in the ensemble.
      * It is coded in the Extensions 2, 3, 4, 8 and 13 of FIG type 0
      *
-     * Implementation note: FIG 0/4 is not considered because no support for CA
+     * Implementation note:
+     * FIG 0/3 not needed (for packet mode only)
+     * FIG 0/4 not needed (no support for CA)
+     * FIG 1/0 needed for ensemble label
+     * FIG 1/1 needed for service label
      */
-    if(m_fig000done && m_fig001done && m_fig002done && m_fig003done && m_fig008done && m_fig013done) {
+    if(m_fig000done && m_fig001done && m_fig002done && m_fig008done && m_fig013done) {
         m_fig0done = true;
-        if(m_fig1done) {
-            checkServiceSanity();
+        if (m_fig100done && m_fig101done) {
+            // Note: A Tuner may override this to apply sanity check only to a specific service
+            checkServiceSanity(DabService::SID_INVALID);
         }
     }
 }
@@ -1012,56 +1022,59 @@ void DabEnsemble::fig_01_done_cb(Fig::FIG_01_TYPE type) {
     }
 }
 
-void DabEnsemble::checkServiceSanity() {
+void DabEnsemble::checkServiceSanity(const uint32_t serviceId ) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    for(const auto& srvMap : m_servicesMap) {
-        uint32_t numPrimAudioComponents = 0;
-        auto srv = srvMap.second;
-        for(const auto& srvComp : srv.getServiceComponents()) {
-            //std::cout << m_logTag << " ServiceSanity Check for SId: " << std::hex << +srv.getServiceId() << std::dec << " Components: " << +srv.getServiceComponents().size() << " : " << +srv.getNumberServiceComponents() << std::endl;
-            if(srvComp->getSubChannelId() != 0xFF && srvComp->getMscStartAddress() != 0xFFFF && srvComp->getSubchannelSize() != 0xFFFF && (srv.getNumberServiceComponents() == srv.getServiceComponents().size()) ) {
-                switch(srvComp->getServiceComponentType()) {
-                    case DabServiceComponent::SERVICECOMPONENTTYPE::MSC_PACKET_MODE_DATA: {
-                        std::shared_ptr<DabServiceComponentMscPacketData> packComp = std::static_pointer_cast<DabServiceComponentMscPacketData>(srvComp);
-                        if(packComp->getProtectionLevel() != 0xFF && packComp->getProtectionType() != 0xFF) {
-                            continue;
-                        } else {
-                            std::clog << m_logTag << "  ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << ", SubchanId: "  << +srvComp->getSubChannelId() << std::dec << ", MSC: " << +srvComp->getMscStartAddress() << ", SubSize: " << +srvComp->getSubchannelSize() << std::endl;
-                            return;
-                        }
-                    }
-                    case DabServiceComponent::SERVICECOMPONENTTYPE::MSC_STREAM_AUDIO: {
-                        std::shared_ptr<DabServiceComponentMscStreamAudio> mscSaComp = std::static_pointer_cast<DabServiceComponentMscStreamAudio>(srvComp);
-                        if(srv.getServiceLabel().empty()) {
-                            std::clog << m_logTag << "  ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << std::dec << " empty servicelabel" << std::endl;
-                            return;
-                        }
-                        if(m_ensembleEcc == 0xFF) {
-                            std::clog << m_logTag << "  ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << std::dec << " EnsembleECC is 0xFF" << std::endl;
-                            return;
-                        }
-                        if (srv.isProgrammeService() && mscSaComp->isPrimary()) {
-                            numPrimAudioComponents++;
-                        }
-                        break;
-                    }
-                    default: {
-                        break;
+
+    if (serviceId != DabService::SID_INVALID) {
+        // find specific service and check its sanity
+        const auto & iter = m_servicesMap.find(serviceId);
+        if (iter != m_servicesMap.cend()) {
+            if (! iter->second.checkSanity() ){
+                std::cout << m_logTag << "checkServiceSanity failed for SId 0x" << std::hex << +serviceId << std::dec << std::endl;
+                return;
+            }
+        } else {
+            // cannot find specific service
+            std::cout << m_logTag << "checkServiceSanity failed to find SId 0x" << std::hex << +serviceId << std::dec << std::endl;
+            return;
+        }
+    } else {
+        // check all services in ensemble
+        for (const auto &srvMapEntry : m_servicesMap) {
+            bool wasSane = srvMapEntry.second.checkSanity();
+            if (wasSane && srvMapEntry.second.isProgrammeService()) {
+                uint32_t numPrimAudioComponents = 0;
+                for (const auto &srvCmp : srvMapEntry.second.getServiceComponents()) {
+                    if (srvCmp->isPrimary()) {
+                        numPrimAudioComponents++;
                     }
                 }
-                continue;
-            } else {
-                std::cout << m_logTag << "  ServiceSanity failed for SId: " << std::hex << +srv.getServiceId() << ", SubchanId: "  << +srvComp->getSubChannelId() << std::dec << ", MSC: " << +srvComp->getMscStartAddress() << ", SubSize: " << +srvComp->getSubchannelSize() << " Components: " << +srv.getServiceComponents().size() << " : " << +srv.getNumberServiceComponents() << std::endl;
+                if (numPrimAudioComponents > 1) {
+                    std::clog << m_logTag << "checkServiceSanity for SId 0x" << std::hex
+                              << +srvMapEntry.second.getServiceId()
+                              << ": num primary audio stream components: "
+                              << +numPrimAudioComponents << std::endl;
+                }
+            }
+            if (!wasSane) {
+                std::cout << m_logTag << "checkServiceSanity failed to find SId 0x" << std::hex
+                          << +srvMapEntry.second.getServiceId() << std::dec << std::endl;
                 return;
             }
         }
-        if (numPrimAudioComponents > 1) {
-            std::clog << m_logTag << "  ServiceSanity warning for SId: " << std::hex << +srv.getServiceId()
-                << ": num primary audio stream components: " << +numPrimAudioComponents << std::endl;
-        }
+    }
+    // service(s) checked, now ensemble itself
+    std::stringstream logStr;
+    logStr << m_logTag << "checkServiceSanity failed EId=0x" << std::hex << +getEnsembleId() << std::dec;
+    if (getEnsembleEcc() == ECC_INVALID || getEnsembleId() == EID_INVALID
+       || getEnsembleLabelCharset() == CHARSET_INVALID || getEnsembleLabel().empty() || getEnsembleShortLabel().empty()) {
+        logStr << " ECC:0x" << std::hex << +getEnsembleEcc() << std::dec << " '" << getEnsembleLabel() << "', '"
+               << getEnsembleShortLabel() << "' charset:0x" << std::hex << +getEnsembleLabelCharset() << std::dec;
+        std::cout << logStr.str() << std::endl;
+        return;
     }
 
-    std::cout << m_logTag << " ServiceSanity passed!" << std::endl;
+    std::cout << m_logTag << " checkServiceSanity passed '" << getEnsembleLabel() << "'" << std::endl;
     m_ensembleCollectFinished = true;
 
     unregisterCbsAfterEnsembleCollect();

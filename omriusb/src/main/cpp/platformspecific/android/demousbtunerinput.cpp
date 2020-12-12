@@ -68,7 +68,9 @@ int DemoUsbTunerInput::getCurrentTunedFrequency() const {
 }
 
 void DemoUsbTunerInput::tuneFrequency(int frequencyKHz) {
+    std::cout << LOG_TAG << "Demo Tuning Frequency: " << +frequencyKHz << " kHz" << std::endl;
     m_currentFrequency = static_cast<uint32_t>(frequencyKHz);
+    m_ensembleFrequency = static_cast<uint32_t>(frequencyKHz);
 }
 
 const DabEnsemble &DemoUsbTunerInput::getEnsemble() const {
@@ -85,7 +87,7 @@ void DemoUsbTunerInput::addMscCallback(DabInput::CallbackFunction cb, uint8_t su
 void DemoUsbTunerInput::addFicCallback(DabInput::CallbackFunction cb) {
 }
 
-void DemoUsbTunerInput::startService(std::shared_ptr<JDabService> serviceLink) {
+void DemoUsbTunerInput::startService(std::shared_ptr<JDabService>& serviceLink) {
     if (serviceLink != nullptr) {
         // stop any running service
         stopAllRunningServices();
@@ -100,6 +102,10 @@ void DemoUsbTunerInput::startService(std::shared_ptr<JDabService> serviceLink) {
         if (javaDabServiceObject != nullptr) {
             std::string description = callJavaRadioServiceGetDescription(javaDabServiceObject);
             std::cout << LOG_TAG << "startService " << description << std::endl;
+
+            m_ensembleCollectFinished = false;
+            tuneFrequency(serviceLink.get()->getEnsembleFrequency());
+
             inputStreamOpen(description); // description contains the absolute filename
             readDataThreadStart();
         } else {
@@ -108,6 +114,9 @@ void DemoUsbTunerInput::startService(std::shared_ptr<JDabService> serviceLink) {
     } else {
         std::clog << LOG_TAG << "startService: serviceLink null" << std::endl;
     }
+}
+std::shared_ptr<JDabService>& DemoUsbTunerInput::getStartedService() {
+    return m_startServiceLink;
 }
 
 void DemoUsbTunerInput::ensembleCollectFinished() {
@@ -501,4 +510,15 @@ void DemoUsbTunerInput::inputStreamClose() {
     if (m_inFileStream.is_open()) {
         m_inFileStream.close();
     }
+}
+
+void DemoUsbTunerInput::checkServiceSanity(const uint32_t serviceId) {
+    std::shared_ptr<JDabService> &startedService = getStartedService();
+    if (startedService != nullptr) {
+        uint32_t sid = startedService->getServiceId();
+        std::cout << LOG_TAG << "call DabEnsemble checkServiceSanity 0x" << std::hex << +sid << std::dec << std::endl;
+        DabEnsemble::checkServiceSanity(sid);
+        return;
+    }
+    DabEnsemble::checkServiceSanity(serviceId);
 }

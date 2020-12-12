@@ -18,10 +18,11 @@
  *
  */
 
+#include <iostream>
+#include <sstream>
+
 #include "dabservicecomponentmscstreamaudio.h"
 #include "dabmpegservicecomponentdecoder.h"
-
-#include <iostream>
 
 DabServiceComponentMscStreamAudio::DabServiceComponentMscStreamAudio() {
     m_componentType = DabServiceComponent::SERVICECOMPONENTTYPE::MSC_STREAM_AUDIO;
@@ -46,7 +47,7 @@ uint8_t DabServiceComponentMscStreamAudio::getAudioServiceComponentType() const 
 
 void DabServiceComponentMscStreamAudio::setAudioServiceComponentType(uint8_t ascty) {
     m_ascTy = ascty;
-    if(m_ascTy == 0x3F) {
+    if(m_ascTy == AUDIOTYPE_AAC) {
         std::cout << m_logTag << " ############## Creating AAC component decoder: " << +m_subChanBitrate << std::endl;
         std::shared_ptr<DabPlusServiceComponentDecoder> componentDecoder = std::make_shared<DabPlusServiceComponentDecoder>();
         componentDecoder->setSubchannelBitrate(m_subChanBitrate);
@@ -54,13 +55,15 @@ void DabServiceComponentMscStreamAudio::setAudioServiceComponentType(uint8_t asc
 
         m_componentDecoder = componentDecoder;
     }
-    if(m_ascTy == 0x00) {
+    else if(m_ascTy == AUDIOTYPE_MP2) {
         std::cout << m_logTag << " ############## Creating MPEG component decoder: " << +m_subChanBitrate << std::endl;
         std::shared_ptr<DabMpegServiceComponentDecoder> componentDecoder = std::make_shared<DabMpegServiceComponentDecoder>();
         componentDecoder->setSubchannelBitrate(static_cast<uint16_t>(m_subChanBitrate));
         m_padCallback = componentDecoder->registerPadDataCallback(std::bind(&PadDecoder::padDataInput, &m_padDecoder, std::placeholders::_1));
 
         m_componentDecoder = componentDecoder;
+    } else {
+        std::clog << m_logTag << " AScTy was set as " << std::hex << +ascty << std::dec << std::endl;
     }
 }
 
@@ -82,10 +85,10 @@ void DabServiceComponentMscStreamAudio::addUserApplication(const DabUserApplicat
 void DabServiceComponentMscStreamAudio::setSubchannelBitrate(uint16_t bitrateKbits) {
     DabServiceComponentMscStream::setSubchannelBitrate(bitrateKbits);
     if(m_componentDecoder != nullptr) {
-        if(m_ascTy == 0x3F) {
+        if(m_ascTy == AUDIOTYPE_AAC) {
             m_componentDecoder->setSubchannelBitrate(m_subChanBitrate);
         }
-        if(m_ascTy == 0x00) {
+        else if(m_ascTy == AUDIOTYPE_MP2) {
             m_componentDecoder->setSubchannelBitrate(static_cast<uint16_t>(m_subChanBitrate));
         }
     }
@@ -95,11 +98,11 @@ void DabServiceComponentMscStreamAudio::setSubchannelId(uint8_t subChanId) {
     DabServiceComponentMscStream::setSubchannelId(subChanId);
 
     if(m_componentDecoder != nullptr) {
-        if(m_ascTy == 0x3F) {
-            m_componentDecoder->setSubchannelBitrate(m_subChanBitrate);
+        if(m_ascTy == AUDIOTYPE_AAC) {
+            m_componentDecoder->setSubchannelBitrate(getSubchannelBitrate());
         }
-        if(m_ascTy == 0x00) {
-            m_componentDecoder->setSubchannelBitrate(static_cast<uint16_t>(m_subChanBitrate));
+        else if(m_ascTy == AUDIOTYPE_MP2) {
+            m_componentDecoder->setSubchannelBitrate(static_cast<uint16_t>(getSubchannelBitrate()));
         }
     }
 }
@@ -107,12 +110,12 @@ void DabServiceComponentMscStreamAudio::setSubchannelId(uint8_t subChanId) {
 void DabServiceComponentMscStreamAudio::componentMscDataInput(const std::vector<uint8_t>& mscData, bool synchronized) {
     //std::cout << m_logTag << " MSC Data input: " << std::hex << +mscData.data()[0] << std::dec << std::endl;
 
-    if(m_subChanId != 0xFF) {
+    if(getSubChannelId() != SUBCHID_INVALID) {
         if(m_componentDecoder != nullptr) {
             m_componentDecoder->componentDataInput(mscData, synchronized);
         }
     } else {
-        std::cout << m_logTag << " dismissed MSC Data " << std::hex << +mscData.data()[0] << std::dec << std::endl;
+        std::cout << m_logTag << " dismissed MSC Data of len " << +mscData.size() << std::endl;
     }
 }
 
@@ -125,7 +128,7 @@ void DabServiceComponentMscStreamAudio::flushBufferedData() {
 }
 
 std::shared_ptr<DabServiceComponentMscStreamAudio::AUDIO_DATA_CALLBACK> DabServiceComponentMscStreamAudio::registerAudioDataCallback(DabServiceComponentMscStreamAudio::AUDIO_DATA_CALLBACK cb) {
-    if(m_ascTy == 0x3F) {
+    if(m_ascTy == AUDIOTYPE_AAC) {
         return (std::static_pointer_cast<DabPlusServiceComponentDecoder>(m_componentDecoder))->registerAudioDataCallback(cb);
     } else {
         return (std::static_pointer_cast<DabMpegServiceComponentDecoder>(m_componentDecoder))->registerAudioDataCallback(cb);
@@ -133,9 +136,40 @@ std::shared_ptr<DabServiceComponentMscStreamAudio::AUDIO_DATA_CALLBACK> DabServi
 }
 
 void DabServiceComponentMscStreamAudio::clearCallbacks() {
-    if(m_ascTy == 0x3F) {
+    if(m_ascTy == AUDIOTYPE_AAC) {
         (std::static_pointer_cast<DabPlusServiceComponentDecoder>(m_componentDecoder))->clearCallbacks();
     } else {
         (std::static_pointer_cast<DabMpegServiceComponentDecoder>(m_componentDecoder))->clearCallbacks();
     }
+}
+
+bool DabServiceComponentMscStreamAudio::checkSanity() const {
+    bool isSuperSane = DabServiceComponentMscStream::checkSanity();
+    bool isSane = true;
+    std::stringstream logStr;
+    logStr << m_logTag << "    check sanity sub channel: " << +getSubChannelId()
+        << " ascty:0x" << std::hex << +getAudioServiceComponentType() << std::dec;
+    switch (getAudioServiceComponentType()) {
+        case AUDIOTYPE_AAC:
+        case AUDIOTYPE_MP2:
+            break;
+        default:
+            logStr << " invalid";
+            isSane = false;
+            break;
+    }
+    /* Not checking Service Component labels
+    if (getServiceComponentLabel().empty()) {
+        logStr << " label:empty";
+        isSane = false;
+    }
+    else if (getServiceComponentShortLabel().empty()) {
+        logStr << " short label:empty";
+        isSane = false;
+    }
+     */
+    if (!isSane) {
+        std::cout << logStr.str() << std::endl;
+    }
+    return isSane && isSuperSane;
 }

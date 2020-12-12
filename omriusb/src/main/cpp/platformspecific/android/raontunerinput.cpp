@@ -170,7 +170,7 @@ void RaonTunerInput::addFicCallback(DabInput::CallbackFunction cb) {
 
 }
 
-void RaonTunerInput::startService(std::shared_ptr<JDabService> serviceLink) {
+void RaonTunerInput::startService(std::shared_ptr<JDabService>& serviceLink) {
     //check if this service is already running
     if(m_startServiceLink != nullptr) {
         if(m_startServiceLink->getEnsembleFrequency() == serviceLink->getEnsembleFrequency() &&
@@ -178,22 +178,37 @@ void RaonTunerInput::startService(std::shared_ptr<JDabService> serviceLink) {
            m_startServiceLink->getEnsembleId() == serviceLink->getEnsembleId() &&
            m_startServiceLink->getServiceId() == serviceLink->getServiceId()) {
             std::cout << LOG_TAG << "Starting service is already running" << std::endl;
-
-            //TODO really call 'serviceStarted' if the service is already running?
-            //m_usbDevice->serviceStarted(m_startServiceLink->getJavaDabServiceObject());
             return;
         }
     }
     m_commandQueue.push(std::bind(&RaonTunerInput::startServiceSync, this, serviceLink));
 }
 
-void RaonTunerInput::startServiceSync(std::shared_ptr<JDabService> serviceLink) {
-    std::cout << LOG_TAG << "Starting service... 0x" << std::hex << serviceLink->getServiceId() << std::dec << std::endl;
+std::shared_ptr<JDabService>& RaonTunerInput::getStartedService() {
+    return m_startServiceLink;
+}
 
+void RaonTunerInput::checkServiceSanity(const uint32_t serviceId) {
+    if (!m_isScanning) {
+        std::shared_ptr<JDabService> &startedService = getStartedService();
+        if (startedService != nullptr) {
+            uint32_t sid = startedService->getServiceId();
+            std::cout << LOG_TAG << "call DabEnsemble checkServiceSanity 0x" << std::hex << +sid << std::dec << std::endl;
+            DabEnsemble::checkServiceSanity(sid);
+            return;
+        }
+    }
+    DabEnsemble::checkServiceSanity(serviceId);
+}
+
+
+void RaonTunerInput::startServiceSync(const std::shared_ptr<JDabService>& serviceLink) {
     if(m_isScanning) {
+        std::clog << LOG_TAG << "not while scanning: startServiceSync" << std::endl;
         return;
     }
 
+    std::cout << LOG_TAG << "Starting service... 0x" << std::hex << serviceLink->getServiceId() << std::dec << std::endl;
     if(m_startServiceLink != nullptr) {
         m_startServiceLink->decodeAudio(false);
         m_startServiceLink->unlinkDabService();

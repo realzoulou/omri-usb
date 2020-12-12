@@ -26,6 +26,11 @@
 class DabServiceComponentMscStreamData : public DabServiceComponentMscStream {
 
 public:
+    enum {
+        STREAMDATATYPE_INVALID = 0xFFu
+    };
+
+public:
     explicit DabServiceComponentMscStreamData();
     virtual ~DabServiceComponentMscStreamData();
 
@@ -36,10 +41,12 @@ public:
     virtual void componentMscDataInput(const std::vector<uint8_t>& mscData, bool synchronized) override;
     virtual void flushBufferedData() override;
 
+    virtual bool checkSanity() const override;
+
 private:
     std::string m_logTag = "[DabServiceComponentMscStreamData]";
 
-    uint8_t m_dscTy;
+    uint8_t m_dscTy{STREAMDATATYPE_INVALID};
 };
 
 #endif // DABSERVICECOMPONENTMSCSTREAMDATA_H

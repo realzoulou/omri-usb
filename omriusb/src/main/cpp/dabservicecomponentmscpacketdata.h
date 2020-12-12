@@ -26,6 +26,14 @@
 class DabServiceComponentMscPacketData : public DabServiceComponent {
 
 public:
+    enum {
+        PACKETDATATYPE_INVALID = 0xFFu
+    };
+    static constexpr uint16_t SERVICECOMPONENTID_INVALID = 0xFFFFu;
+    static constexpr uint16_t PACKETADDRESS_INVALID = 0xFFFFu;
+    static constexpr uint16_t CAORG_INVALID = 0xFFFFu;
+
+public:
     explicit DabServiceComponentMscPacketData();
     virtual ~DabServiceComponentMscPacketData();
 
@@ -43,6 +51,8 @@ public:
 
     virtual void componentMscDataInput(const std::vector<uint8_t>& mscData, bool synchronized) override;
     virtual void flushBufferedData() override;
+
+    virtual bool checkSanity() const override;
 
 private:
     static constexpr uint8_t PACKETLENGTH[4][2] {
@@ -71,10 +81,10 @@ private:
 private:
     std::string m_logTag = "[DabServiceComponentMscPacketData]";
 
-    uint16_t m_serviceComponentId{0xFFFF};
-    uint8_t m_dscty{0xFF};
-    uint16_t m_packetAddress{0xFFFF};
-    uint16_t m_caOrg{0x0000};
+    uint16_t m_serviceComponentId{SERVICECOMPONENTID_INVALID};
+    uint8_t m_dscty{PACKETDATATYPE_INVALID};
+    uint16_t m_packetAddress{PACKETADDRESS_INVALID};
+    uint16_t m_caOrg{CAORG_INVALID};
     bool m_dataGroupsUsed{false};
 
     MscPacketData m_mscPacket;

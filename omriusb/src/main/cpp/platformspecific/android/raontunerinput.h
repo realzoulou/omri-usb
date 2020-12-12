@@ -52,7 +52,8 @@ public:
     void addMscCallback(CallbackFunction cb, uint8_t subchanId) override;
     void addFicCallback(CallbackFunction cb) override;
 
-    void startService(std::shared_ptr<JDabService> serviceLink) override;
+    void startService(std::shared_ptr<JDabService>& serviceLink) override;
+    std::shared_ptr<JDabService>& getStartedService() override;
     void stopService(const DabService& service) override;
     void stopAllRunningServices() override;
 
@@ -62,6 +63,10 @@ public:
     std::string getDeviceName() const override;
 
     std::vector<std::shared_ptr<LinkedServiceDab>> getLinkedServices(const LinkedServiceDab &service) override;
+
+protected:
+    // from DabEnsemble
+    virtual void checkServiceSanity(const uint32_t serviceId) override;
 
 private:
     const std::string LOG_TAG{"[RaonUsbTuner] "};
@@ -124,7 +129,7 @@ private:
 
     void initializeSync();
     void tuneFrequencySync(int frequencyKHz);
-    void startServiceSync(std::shared_ptr<JDabService> serviceLink);
+    void startServiceSync(const std::shared_ptr<JDabService>& serviceLink);
 
 private:
     void ensembleCollectFinished();

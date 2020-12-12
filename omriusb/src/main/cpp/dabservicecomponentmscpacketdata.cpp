@@ -21,6 +21,7 @@
 #include "dabservicecomponentmscpacketdata.h"
 
 #include <iostream>
+#include <sstream>
 
 #include "global_definitions.h"
 
@@ -253,4 +254,27 @@ void DabServiceComponentMscPacketData::componentMscDataInput(const std::vector<u
         }
         //std::cout << m_logTag << " ############################ MSC Packetdata DGUsed: " << std::boolalpha << m_dataGroupsUsed << std::noboolalpha << " Length: " << +mscData.size() << " : " << +DabServiceComponentMscPacketData::PACKETLENGTH[packetLength][0] << " - " << +usefulDataLength << " FirstLast: " << +firstLast << " for SubchanId: " << std::hex << +m_subChanId << std::dec <<  " Cont: " << +continuityIndex << " Address: " << +m_packetAddress << " : " << +packetAddress << " UApps: " << +m_userApplications.size() << std::endl;
     }
+}
+
+bool DabServiceComponentMscPacketData::checkSanity() const {
+    bool isSuperSane = DabServiceComponent::checkSanity();
+    bool isSane = true;
+    std::stringstream logStr;
+    logStr << m_logTag << "    check sanity sub channel: " << +getSubChannelId()
+           << " dscty:0x" << std::hex << +getDataServiceComponentType() << std::dec;
+    if (isSane) {
+        if (getDataServiceComponentType() == PACKETDATATYPE_INVALID) {
+            logStr << " invalid";
+            isSane = false;
+        }
+        else if (getProtectionLevel() == PROT_LEVEL_INVALID || getProtectionType() == PROT_TYPE_INVALID) {
+            logStr << std::hex << " protLevel:0x" << +getProtectionLevel()
+                   << " protType:0x" << +getProtectionType() << std::dec;
+            isSane = false;
+        }
+    }
+    if (!isSane) {
+        std::cout << logStr.str() << std::endl;
+    }
+    return isSane && isSuperSane;
 }

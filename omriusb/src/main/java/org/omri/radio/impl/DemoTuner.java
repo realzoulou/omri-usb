@@ -269,6 +269,7 @@ public class DemoTuner implements Tuner {
 							foundService.setEnsembleId(eid);
 							foundService.setServiceId(sid);
 							foundService.setIsProgrammeService(true);
+							foundService.setEnsembleFrequency(174928000 /* fake 5A */);
 							mServices.add(foundService);
 						}
 					}

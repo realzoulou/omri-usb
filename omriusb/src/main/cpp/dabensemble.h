@@ -38,6 +38,12 @@
 class DabEnsemble {
 
 public:
+    static constexpr uint32_t FREQ_INVALID = 0;
+    static constexpr uint32_t EID_INVALID = 0x0000FFFF;
+    static constexpr uint8_t ECC_INVALID = 0xFF;
+    static constexpr uint8_t CHARSET_INVALID = 0xFF;
+
+public:
     explicit DabEnsemble();
     virtual ~DabEnsemble();
 
@@ -71,7 +77,7 @@ protected:
     virtual void flushAllBufferedComponentData();
 
     std::unique_ptr<FicParser> m_ficPtr{nullptr};
-    uint32_t m_ensembleFrequency{0};
+    uint32_t m_ensembleFrequency{FREQ_INVALID};
     bool m_ensembleCollectFinished{false};
 
     // mutex to guard read/write access to internal data
@@ -80,10 +86,11 @@ protected:
     // by leaving the method, the mutex is automatically released
     std::recursive_mutex m_mutex;
 
+    virtual void checkServiceSanity(const uint32_t serviceId);
+
 private:
     void registerCbs();
     void unregisterCbsAfterEnsembleCollect();
-    void checkServiceSanity();
 
     void fig00_00_input(const Fig_00_Ext_00& fig00);
     void fig00_01_input(const Fig_00_Ext_01& fig01);
@@ -150,20 +157,20 @@ private:
 
 private:
     bool m_isInitializing{false};
-    std::atomic<bool> m_reseting{false};
+    std::atomic<bool> m_resetting{false};
 
     //FIG 0/1 information
-    uint16_t m_ensembleId{0xFFFF};
+    uint16_t m_ensembleId{EID_INVALID};
     uint8_t m_cifCntHigh{0x00};
     uint8_t m_cifCntLow{0x00};
     uint8_t m_cifCntHighNext{0x00};
     uint8_t m_cifCntLowNext{0x00};
     bool m_announcementsSupported{false};
 
-    uint8_t m_ensembleEcc{0xFF};
+    uint8_t m_ensembleEcc{ECC_INVALID};
 
     //FIG 1/0
-    uint8_t m_labelCharset{0x00};
+    uint8_t m_labelCharset{CHARSET_INVALID};
     std::string m_ensembleLabel{""};
     std::string m_ensembleShortLabel{""};
 

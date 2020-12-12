@@ -19,9 +19,11 @@
  */
 
 #include "dabservicecomponent.h"
+#include "dabservicecomponentmscstreamaudio.h"
 
 #include <iostream>
 #include <algorithm>
+#include <sstream>
 
 DabServiceComponent::DabServiceComponent() {
 
@@ -203,4 +205,36 @@ void DabServiceComponent::addUserApplication(const DabUserApplication& uApp) {
 
 void DabServiceComponent::flushBufferedData() {
 
+}
+
+bool DabServiceComponent::checkSanity() const {
+    bool isSane = true;
+    std::stringstream logStr;
+    logStr << m_logTag << "  check sanity SubChanId=" << +getSubChannelId() << ":"
+           << " SCIdS:" << +getServiceComponentIdWithinService();
+
+    if (getSubChannelId() == SUBCHID_INVALID || getServiceComponentIdWithinService() == SCIDS_INVALID) {
+        logStr << " invalid";
+        isSane = false;
+    }
+    else if (getMscStartAddress() == MSC_STARTADDR_INVALID) {
+        logStr << " mscstart:" << +getMscStartAddress();
+        isSane = false;
+    }
+    else if (getSubchannelSize() == SUBCHAN_SIZE_INVALID) {
+        logStr << " subch size:" << +getSubchannelSize();
+        isSane = false;
+    }
+    else if (getSubchannelBitrate() == SUBCHAN_BITRATE_INVALID) {
+        logStr << " bitrate:" << +getSubchannelBitrate();
+        isSane = false;
+    }
+    else if (getServiceComponentType() == SERVICECOMPONENTTYPE::RESERVED) {
+        logStr << " comptype:" << +getServiceComponentType();
+        isSane = false;
+    }
+    if (!isSane) {
+        std::cout << logStr.str() << std::endl;
+    }
+    return isSane;
 }

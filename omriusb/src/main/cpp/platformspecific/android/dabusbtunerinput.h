@@ -32,7 +32,8 @@
 class DabUsbTunerInput : public DabInput {
 
 public:
-    virtual void startService(std::shared_ptr<JDabService> serviceLink) = 0;
+    virtual void startService(std::shared_ptr<JDabService>& serviceLink) = 0;
+    virtual std::shared_ptr<JDabService>& getStartedService() = 0;
     virtual void stopService(const DabService& service) = 0;
 
     virtual void startServiceScan() = 0;
