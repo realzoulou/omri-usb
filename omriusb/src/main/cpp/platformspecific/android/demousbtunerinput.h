@@ -58,7 +58,7 @@ public:
     void stopAllRunningServices() override;
     void startServiceScan() override;
     void stopServiceScan() override;
-    std::string getDeviceName() const override;
+    std::string getDeviceName() override;
 
 protected:
     // from DabEnsemble

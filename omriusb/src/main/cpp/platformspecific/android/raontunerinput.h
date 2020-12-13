@@ -28,6 +28,7 @@
 #include "../../linkedservicedab.h"
 
 #include <memory>
+#include <mutex>
 #include <array>
 #include <fstream>
 
@@ -60,7 +61,7 @@ public:
     void startServiceScan() override;
     void stopServiceScan() override;
 
-    std::string getDeviceName() const override;
+    std::string getDeviceName() override;
 
     std::string getHardwareVersion() const override ;
     std::string getSoftwareVersion() const override ;
@@ -101,6 +102,8 @@ private:
     int m_maxCollectionWaitLoops{MAX_COLLECTION_LOOPS}; //5 seconds
     int m_ficCollectionWaitLoops{300};
 
+    std::recursive_mutex m_classmutex;
+
     ConcurrentQueue<std::function<void(void)>> m_scanCommandQueue;
     std::atomic<bool> m_scanCommandThreadRunning{false};
     std::thread m_scanCommandThread;
@@ -123,6 +126,7 @@ private:
     // failures in readRegister()
     uint32_t mUsbReadFailure{0};
     uint32_t mUsbWriteFailure{0};
+    bool mUsbIoErrorReported{false};
 
 private:
     void commandProcessing();
@@ -354,6 +358,8 @@ private:
 
     void startReadDataThread();
     void stopReadDataThread();
+
+    void stopScanCommandThread();
 
     uint8_t getLockStatus();
 

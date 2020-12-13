@@ -40,7 +40,7 @@ public:
     virtual void stopServiceScan() = 0;
     virtual void stopAllRunningServices() = 0;
 
-    virtual std::string getDeviceName() const = 0;
+    virtual std::string getDeviceName() = 0;
 
     virtual std::string getHardwareVersion() const {
         return ""; // dummy implementation for sub-classes that can't implement this

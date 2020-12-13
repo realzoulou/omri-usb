@@ -189,7 +189,7 @@ void DemoUsbTunerInput::stopServiceScan() {
     std::cout << LOG_TAG << "stopServiceScan not supported" << std::endl;
 }
 
-std::string DemoUsbTunerInput::getDeviceName() const {
+std::string DemoUsbTunerInput::getDeviceName() {
     return "";
 }
 

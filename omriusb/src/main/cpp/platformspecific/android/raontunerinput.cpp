@@ -62,20 +62,20 @@ RaonTunerInput::RaonTunerInput(std::shared_ptr<JTunerUsbDevice> usbDevice, const
 }
 
 RaonTunerInput::~RaonTunerInput() {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_classmutex);
     std::cout << LOG_TAG << "destructing...." << std::endl;
 
+    stopScanCommandThread();
     stopReadFicThread();
-
-    m_scanCommandThreadRunning = false;
-    if(m_scanCommandThread.joinable()) {
-        m_scanCommandThread.join();
-    }
-
     stopReadDataThread();
     rawRecordClose();
+
+    std::cout << LOG_TAG << "destructed" << std::endl;
 }
 
 void RaonTunerInput::initialize() {
+    mUsbIoErrorReported = false;
+    mUsbReadFailure = mUsbWriteFailure = 0;
     m_commandQueue.push(std::bind(&RaonTunerInput::initializeSync, this));
 }
 
@@ -250,9 +250,7 @@ void RaonTunerInput::stopAllRunningServices() {
 void RaonTunerInput::commandProcessing() {
     pthread_setname_np(pthread_self(), "CommandQ");
     while(m_commandThreadRunning) {
-        if (hasUsbIoErrors()) {
-            m_commandThreadRunning = false;
-        } else {
+        if (!hasUsbIoErrors()) {
             std::function<void(void)> command;
             if (m_commandQueue.tryPop(command, std::chrono::milliseconds(2))) {
                 command();
@@ -268,12 +266,11 @@ void RaonTunerInput::commandProcessing() {
 void RaonTunerInput::processScanCommands() {
     pthread_setname_np(pthread_self(), "ScanCommandQ");
     while(m_scanCommandThreadRunning) {
-        std::function<void(void)> command;
-        if (m_scanCommandQueue.tryPop(command, std::chrono::milliseconds(24))) {
-            command();
-        }
-        if (hasUsbIoErrors()) {
-            m_scanCommandThreadRunning = false;
+        if (!hasUsbIoErrors()) {
+            std::function<void(void)> command;
+            if (m_scanCommandQueue.tryPop(command, std::chrono::milliseconds(24))) {
+                command();
+            }
         }
     }
 
@@ -306,6 +303,19 @@ void RaonTunerInput::stopScanCommand() {
         m_usbDevice->callCallback(JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_CALLBACK_READY);
     }
     startReadDataThread();
+}
+
+void RaonTunerInput::stopScanCommandThread() {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_classmutex);
+    if (m_scanCommandThreadRunning) {
+        std::cout << LOG_TAG << "Stopping ScanCommand thread..." << std::endl;
+        m_scanCommandThreadRunning = false;
+        if (m_scanCommandThread.joinable()) {
+            std::cout << LOG_TAG << "Joining ScanCommand thread..." << std::endl;
+            m_scanCommandThread.join();
+            std::cout << LOG_TAG << "Joining ScanCommand thread done" << std::endl;
+        }
+    }
 }
 
 void RaonTunerInput::startServiceScan() {
@@ -375,7 +385,7 @@ void RaonTunerInput::scanNext() {
     }
 }
 
-std::string RaonTunerInput::getDeviceName() const {
+std::string RaonTunerInput::getDeviceName() {
     if (m_usbDevice != nullptr) {
         return m_usbDevice->getDeviceName();
     } else {
@@ -392,10 +402,15 @@ std::string RaonTunerInput::getSoftwareVersion() const {
 
 bool RaonTunerInput::hasUsbIoErrors() {
     if (mUsbReadFailure > 10 || mUsbWriteFailure > 10) {
-        std::clog << LOG_TAG << "too many failures in readRegister" << std::endl;
-        if (m_usbDevice != nullptr) {
-            m_usbDevice->callCallback(JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_CALLBACK_FAILED);
+        if (!mUsbIoErrorReported) {
+            mUsbIoErrorReported = true;
+            std::clog << LOG_TAG << "too many USB IO failures" << std::endl;
+            if (m_usbDevice != nullptr) {
+                m_usbDevice->callCallback(
+                        JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_CALLBACK_FAILED);
+            }
         }
+        usleep(50000); // slow down calling thread
         return true;
     }
     return false;
@@ -403,13 +418,11 @@ bool RaonTunerInput::hasUsbIoErrors() {
 
 void RaonTunerInput::threadedFicRead() {
     pthread_setname_np(pthread_self(), "FicRead");
-    do {
-        readFic();
-        if (hasUsbIoErrors()) {
-            m_readFicThreadRunning = false;
+    while (m_readFicThreadRunning) {
+        if (!hasUsbIoErrors()) {
+            readFic();
         }
-
-    } while(m_readFicThreadRunning);
+    }
 }
 
 void RaonTunerInput::setService() {
@@ -1529,8 +1542,9 @@ void RaonTunerInput::startReadFicThread() {
 }
 
 void RaonTunerInput::stopReadFicThread() {
-    std::cout << LOG_TAG << "Stopping FIC thread..." << std::endl;
+    std::lock_guard<std::recursive_mutex> lockGuard(m_classmutex);
     if(m_readFicThreadRunning) {
+        std::cout << LOG_TAG << "Stopping FIC thread..." << std::endl;
         m_readFicThreadRunning = false;
         if(m_readFicThread.joinable()) {
             std::cout << LOG_TAG << "Joining FIC thread..." << std::endl;
@@ -1550,8 +1564,9 @@ void RaonTunerInput::startReadDataThread() {
 }
 
 void RaonTunerInput::stopReadDataThread() {
-    std::cout << LOG_TAG << "Stopping Data thread..." << std::endl;
+    std::lock_guard<std::recursive_mutex> lockGuard(m_classmutex);
     if(m_commandThreadRunning) {
+        std::cout << LOG_TAG << "Stopping Data thread..." << std::endl;
         m_commandThreadRunning = false;
         if(m_commandThread.joinable()) {
             std::cout << LOG_TAG << "Joining Data thread..." << std::endl;
