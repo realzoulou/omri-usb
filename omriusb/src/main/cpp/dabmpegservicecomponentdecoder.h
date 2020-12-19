@@ -55,8 +55,6 @@ private:
     CallbackDispatcher<std::function<void (const std::vector<uint8_t>&)>> m_padDataDispatcher;
     CallbackDispatcher<AUDIO_COMPONENT_DATA_CALLBACK> m_audioDataDispatcher;
 
-    bool m_frameSizeAdjusted{false};
-
 private:
     void processData();
     void synchronizeData(const std::vector<uint8_t>& unsyncData);
