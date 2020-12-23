@@ -27,6 +27,7 @@
 #include <functional>
 
 #include "callbackhandle.h"
+#include "dabservicecomponent.h"
 
 class DabServiceComponentDecoder {
 
@@ -35,6 +36,8 @@ public:
     virtual ~DabServiceComponentDecoder();
 
     virtual void setSubchannelBitrate(uint16_t bitrate);
+    virtual void setSubchannelId(uint8_t subChanId);
+    virtual uint8_t getSubChannelId();
     virtual void componentDataInput(const std::vector<uint8_t>& frameData, bool synchronized) = 0;
     virtual void flushBufferedData();
 
@@ -45,8 +48,9 @@ public:
 
 protected:
     CallbackDispatcher<DabServiceComponentDecoder::Component_Data_Callback> m_componentDataDispatcher;
-    uint16_t m_subChanBitrate{0x00};
-    int m_frameSize{0x00};
+    uint16_t m_subChanBitrate{DabServiceComponent::SUBCHAN_BITRATE_INVALID};
+    uint8_t m_subChanId{DabServiceComponent::SUBCHID_INVALID};
+    uint32_t m_frameSize{0};
 };
 
 #endif // DABSERVICECOMPONENTDECODER

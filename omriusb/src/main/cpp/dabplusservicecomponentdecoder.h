@@ -76,7 +76,7 @@ private:
         RSDecoder();
         ~RSDecoder();
 
-        void DecodeSuperframe(uint8_t *sf, size_t sf_len);
+        bool DecodeSuperFrame(uint8_t *sf, size_t sf_len);
     };
 
     RSDecoder m_rsDec;
@@ -84,11 +84,25 @@ private:
 private:
     const std::string m_logTag = "[DabPlusServiceComponentDecoder]";
 
-    DabSuperFrame m_currentSuperFrame;
-    bool m_isSync{false};
-    int m_dabSuperFrameCount{0};
+    static const uint8_t NUM_FRAMES_PER_SUPER_FRAME = 5;
+    static const uint8_t NUM_BYTES_FOR_FIRE_CODE_CHECK = 11;
 
     uint16_t m_superFrameSize{0};
+
+    static bool combineSuperFrame(/*out*/ DabSuperFrame& superFrame,
+            /*in*/ std::vector<std::vector<uint8_t>> & frameRingBuffer,
+            /*in*/ uint8_t frameRingBufNextIdx);
+
+    bool decodeSuperFrameHeader(const std::vector<uint8_t> & superFrameData,
+                                       const uint16_t superFrameSize, /* != superFrameData.size() !! */
+                                       bool & dacRate,
+                                       bool & sbr,
+                                       bool & chanMode,
+                                       bool & ps,
+                                       uint8_t & numAUs,
+                                       std::vector<uint16_t> & auStarts,
+                                       std::vector<uint16_t> & auLengths,
+                                       bool verbose) const ;
 
     ConcurrentQueue <std::vector<uint8_t>> m_conQueue;
     CallbackDispatcher<std::function<void (const std::vector<uint8_t>&)>> m_padDataDispatcher;
@@ -97,65 +111,26 @@ private:
     std::atomic<bool> m_processThreadRunning{false};
     std::thread m_processThread;
 
+    // mutex to guard read/write access to internal data
+    // use it by placing following code as (typ.) first instruction of a method:
+    //   std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+    // by leaving the method, the mutex is automatically released
+    std::recursive_mutex m_mutex;
+
+    void resetInSync();
     std::vector<uint8_t> m_unsyncDataBuffer;
     bool m_unsyncSync{false};
     int m_unsyncFrameCount{0};
-
-    inline bool CRC_CCITT_CHECK_LOCAL(const std::vector<uint8_t>& data, uint16_t dataStart, uint16_t dataLen) {
-        //initial register all 1
-        if(dataLen < 2) {
-            return false;
-        }
-
-        uint16_t crc{0xffff};
-        uint16_t crc2{0xffff};
-
-        uint16_t crcVal{0};
-        uint8_t crcCalData{0};
-
-        try {
-            auto dataIter = data.begin() + dataStart;
-            while(dataIter < (data.begin() + dataStart + dataLen - 2)) {
-                crcCalData = static_cast<uint8_t>(*dataIter++);
-                crc = (crc << 8)^CRC_CCITT_TABLE[(crc >> 8)^(crcCalData)++];
-            }
-
-            crcVal = (*dataIter++) << 8;
-            crcVal = static_cast<uint16_t>(crcVal | (*dataIter));
-        } catch(std::out_of_range oor) {
-            std::cout << m_logTag << " CRC iterator out of range catched..." << std::endl;
-            return false;
-        }
-
-        crc2 = (crcVal^crc2);
-
-        return crc == crc2;
-    }
+    unsigned m_unsyncByteCount{0};
 
 private:
     void processData();
-
     void synchronizeData(const std::vector<uint8_t>& unsyncData);
 
 private:
     static const uint16_t FIRECODE_TABLE[256];
-    static inline bool CHECK_FIRECODE(const uint8_t* frameData) {
-        uint16_t firstState = (frameData[2] << 8) | frameData[3];
-        uint16_t secState;
 
-        for(int16_t i = 4; i < 11; i++) {
-            secState = FIRECODE_TABLE[firstState >> 8];
-            firstState = (uint16_t)(((secState & 0x00ff) ^ frameData[i]) | ((secState ^ firstState << 8) & 0xff00));
-        }
-
-        for(int16_t i = 0; i < 2; i++) {
-            secState = FIRECODE_TABLE[firstState >> 8];
-            firstState = (uint16_t)(((secState & 0x00ff) ^ frameData[i]) | ((secState ^ firstState << 8) & 0xff00));
-        }
-
-        return firstState == 0;
-    }
-
+    static bool CHECK_FIRECODE(const uint8_t* const frameData, size_t size);
 };
 
 #endif // DABPLUSSERVICECOMPONENTDECODER_H

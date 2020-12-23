@@ -19,6 +19,7 @@
  */
 
 #include "dabservicecomponentdecoder.h"
+#include "dabservicecomponent.h"
 
 DabServiceComponentDecoder::DabServiceComponentDecoder() {
 
@@ -33,8 +34,10 @@ void DabServiceComponentDecoder::flushBufferedData() {
 }
 
 void DabServiceComponentDecoder::setSubchannelBitrate(uint16_t bitrate) {
-    m_subChanBitrate = bitrate;
-    m_frameSize = m_subChanBitrate*3;
+    if (bitrate != DabServiceComponent::SUBCHAN_BITRATE_INVALID) {
+        m_subChanBitrate = bitrate;
+        m_frameSize = m_subChanBitrate * 3;
+    }
 }
 
 std::shared_ptr<DabServiceComponentDecoder::Component_Data_Callback> DabServiceComponentDecoder::registerComponentDataCallback(DabServiceComponentDecoder::Component_Data_Callback cb) {
@@ -43,4 +46,14 @@ std::shared_ptr<DabServiceComponentDecoder::Component_Data_Callback> DabServiceC
 
 void DabServiceComponentDecoder::clearCallbacks() {
     m_componentDataDispatcher.clear();
+}
+
+void DabServiceComponentDecoder::setSubchannelId(uint8_t subChanId) {
+    if (subChanId != DabServiceComponent::SUBCHID_INVALID) {
+        m_subChanId = subChanId;
+    }
+}
+
+uint8_t DabServiceComponentDecoder::getSubChannelId() {
+    return m_subChanId;
 }

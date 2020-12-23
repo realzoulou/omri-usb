@@ -423,7 +423,7 @@ void RaonTunerInput::setService() {
                 for (const auto& srvComp : srv->getServiceComponents()) {
                     if((srvComp->getServiceComponentType() == DabServiceComponent::MSC_STREAM_AUDIO) &&
                             (srvComp->isPrimary() || srv->getNumberServiceComponents() == 1)) {
-                        std::cout << LOG_TAG << "Starting SubChanId: " << std::hex << +srvComp->getSubChannelId() << std::dec << std::endl;
+                        std::cout << LOG_TAG << "Starting SubChanId: " << +srvComp->getSubChannelId() << std::endl;
                         m_currentSubchanId = srvComp->getSubChannelId();
 
                         clearAndSetupMscMemory();

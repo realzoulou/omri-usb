@@ -63,6 +63,7 @@ private:
     uint8_t m_noCiLastLength{0};
 
     std::vector<uint8_t> m_unsyncDataBuffer;
+    unsigned m_unsyncByteCount{0};
 
     static constexpr uint8_t XPAD_SIZE[8] {
         4, 6, 8, 12, 16, 24, 32, 48

@@ -84,13 +84,10 @@ void DabServiceComponentMscStreamAudio::addUserApplication(const DabUserApplicat
 
 void DabServiceComponentMscStreamAudio::setSubchannelBitrate(uint16_t bitrateKbits) {
     DabServiceComponentMscStream::setSubchannelBitrate(bitrateKbits);
+
     if(m_componentDecoder != nullptr) {
-        if(m_ascTy == AUDIOTYPE_AAC) {
-            m_componentDecoder->setSubchannelBitrate(m_subChanBitrate);
-        }
-        else if(m_ascTy == AUDIOTYPE_MP2) {
-            m_componentDecoder->setSubchannelBitrate(static_cast<uint16_t>(m_subChanBitrate));
-        }
+        m_componentDecoder->setSubchannelBitrate(getSubchannelBitrate());
+        m_componentDecoder->setSubchannelId(getSubChannelId());
     }
 }
 
@@ -98,12 +95,8 @@ void DabServiceComponentMscStreamAudio::setSubchannelId(uint8_t subChanId) {
     DabServiceComponentMscStream::setSubchannelId(subChanId);
 
     if(m_componentDecoder != nullptr) {
-        if(m_ascTy == AUDIOTYPE_AAC) {
-            m_componentDecoder->setSubchannelBitrate(getSubchannelBitrate());
-        }
-        else if(m_ascTy == AUDIOTYPE_MP2) {
-            m_componentDecoder->setSubchannelBitrate(static_cast<uint16_t>(getSubchannelBitrate()));
-        }
+        m_componentDecoder->setSubchannelId(subChanId);
+        m_componentDecoder->setSubchannelBitrate(getSubchannelBitrate());
     }
 }
 

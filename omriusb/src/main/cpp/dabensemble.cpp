@@ -1075,14 +1075,17 @@ void DabEnsemble::checkServiceSanity(const uint32_t serviceId ) {
     }
 
     std::cout << m_logTag << " checkServiceSanity passed '" << getEnsembleLabel() << "'" << std::endl;
-    m_ensembleCollectFinished = true;
 
-    unregisterCbsAfterEnsembleCollect();
+    if (!m_ensembleCollectFinished) {
+        m_ensembleCollectFinished = true;
 
-    if (!m_ensembleCollectDoneDispatcher.hasCallbacks()) {
-        std::clog << m_logTag << " EnsembleCollectDone has no callbacks" << std::endl;
+        unregisterCbsAfterEnsembleCollect();
+
+        if (!m_ensembleCollectDoneDispatcher.hasCallbacks()) {
+            std::clog << m_logTag << " EnsembleCollectDone has no callbacks" << std::endl;
+        }
+        m_ensembleCollectDoneDispatcher.invoke();
     }
-    m_ensembleCollectDoneDispatcher.invoke();
 }
 
 std::shared_ptr<std::function<void()>> DabEnsemble::registerEnsembleCollectDoneCallback(std::function<void()> cb) {

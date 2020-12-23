@@ -21,12 +21,14 @@
 #include "dabmpegservicecomponentdecoder.h"
 #include "global_definitions.h"
 #include "paddecoder.h"
+#include "fig.h"
 
 #include <iomanip>
 
 #include <pthread.h>
 #include <unistd.h>
 #include <cerrno>
+#include <sstream>
 
 constexpr uint8_t DabMpegServiceComponentDecoder::XPAD_SIZE[8];
 constexpr uint16_t DabMpegServiceComponentDecoder::M1L2_BITRATE_IDX[];
@@ -34,14 +36,14 @@ constexpr uint16_t DabMpegServiceComponentDecoder::M1_SAMPLINGFREQUENCY_IDX[];
 constexpr uint8_t DabMpegServiceComponentDecoder::CHANNELMODE_IDX[];
 
 DabMpegServiceComponentDecoder::DabMpegServiceComponentDecoder() {
-    std::cout << m_logTag << "Creating" << std::endl;
+    //std::cout << m_logTag << "Creating" << std::endl;
 
     m_processThreadRunning = true;
     m_processThread = std::thread(&DabMpegServiceComponentDecoder::processData, this);
 }
 
 DabMpegServiceComponentDecoder::~DabMpegServiceComponentDecoder() {
-    std::cout << m_logTag << "Destroying" << std::endl;
+    //std::cout << m_logTag << "Destroying" << std::endl;
 
     m_processThreadRunning = false;
     if (m_processThread.joinable()) {
@@ -63,54 +65,76 @@ void DabMpegServiceComponentDecoder::flushBufferedData() {
 }
 
 void DabMpegServiceComponentDecoder::componentDataInput(const std::vector<uint8_t> &frameData, bool synchronized) {
-    //std::cout << m_logTag << "componentDataInput: " << frameData.size() << " - " << +m_frameSize << " : " << +m_subChanBitrate << " : " << std::hex << std::setfill('0') << std::setw(2) << +frameData[0] << +frameData[1] << +frameData[2] << std::dec << std::endl;
+    if(!m_processThreadRunning || m_frameSize == 0) {
+        return;
+    }
 
     if(synchronized) {
         m_conQueue.push(frameData);
     } else {
-        if (m_frameSize > 0) {
-            synchronizeData(frameData);
-        }
+        synchronizeData(frameData);
     }
 }
 
 void DabMpegServiceComponentDecoder::synchronizeData(const std::vector<uint8_t>& unsyncData) {
+
     std::vector<uint8_t> data;
-    if(!m_unsyncDataBuffer.empty()) {
+
+    auto unsyncDataBufferSize = m_unsyncDataBuffer.size();
+    if(unsyncDataBufferSize > 0) {
         // prepend any left over data from previous call
         data.insert(data.begin(), m_unsyncDataBuffer.begin(), m_unsyncDataBuffer.end());
+
+        // only for housekeeping
+        if (m_unsyncByteCount >= unsyncDataBufferSize) {
+            // don't calculate these bytes twice
+            m_unsyncByteCount -= unsyncDataBufferSize;
+        } // else: m_unsyncByteCount was reset to 0 from "outside"
+
+        // clear old data
         m_unsyncDataBuffer.clear();
     }
 
+    // add new data coming in
     data.insert(data.end(), unsyncData.begin(), unsyncData.end());
 
     auto unsyncIter = data.begin();
     auto frameStartIter = data.begin();
     auto frameEndIter = data.begin();
 
-    while(unsyncIter < data.end()) {
-        if (*unsyncIter == 0xFF && ((*(unsyncIter+1)) & 0xF0u) == 0xF0) {
+    while (unsyncIter < data.end()) {
+        if (*unsyncIter == 0xFF && ((*(unsyncIter + 1)) & 0xF0u) == 0xF0) {
             frameStartIter = unsyncIter;
             unsyncIter += 2; // don't test the same 2 bytes again
+            m_unsyncByteCount += 2;
             frameEndIter = unsyncIter;
             while (unsyncIter < data.end()) {
                 // test for MPEG sync word, but ignore occasional 0xFFF if frame is not yet long enough
                 auto frameLen = std::distance(frameStartIter, unsyncIter);
-                if (*unsyncIter == 0xFF && ((*(unsyncIter+1)) & 0xF0u) == 0xF0 && frameLen >= m_frameSize ) {
+                if (*unsyncIter == 0xFF && ((*(unsyncIter + 1)) & 0xF0u) == 0xF0 && frameLen >= m_frameSize) {
+                    if (m_unsyncByteCount > m_frameSize) {
+                        std::stringstream logStr;
+                        logStr << m_logTag << " SubChanId " << +getSubChannelId()
+                               << ": MPEG sync word after "
+                               << +m_unsyncByteCount << " bytes (frame size "
+                               << m_frameSize << ")";
+                        std::cout << logStr.str() << std::endl;
+                    }
                     m_conQueue.push(std::vector<uint8_t>(frameStartIter, frameEndIter));
                     frameStartIter = unsyncIter;
+                    m_unsyncByteCount = 0;
                 }
+                // next byte in inner while loop
                 ++unsyncIter; ++frameEndIter;
-            }
+                ++m_unsyncByteCount;
+            } // inner while loop
         } else {
             ++unsyncIter;
+            ++m_unsyncByteCount;
         }
     }
-    auto remainLen = std::distance(frameStartIter, data.end());
-    if (remainLen > 0) {
-        // store data to be processed in next call
-        m_unsyncDataBuffer.insert(m_unsyncDataBuffer.begin(), frameStartIter, data.end());
-    }
+
+    m_unsyncDataBuffer.insert(m_unsyncDataBuffer.begin(), frameStartIter, data.end());
 }
 
 void DabMpegServiceComponentDecoder::processData() {
@@ -128,13 +152,13 @@ void DabMpegServiceComponentDecoder::processData() {
         if(m_conQueue.tryPop(frameData, std::chrono::milliseconds(50))) {
             auto frameIter = frameData.begin();
             while(frameIter < frameData.end()) {
-                if(*frameIter++ == 0xFF && (*frameIter & 0xF0) == 0xF0) {
+                if(*frameIter++ == 0xFF && (*frameIter & 0xF0u) == 0xF0u) {
                     // https://en.wikipedia.org/wiki/MPEG_elementary_stream#General_layout_of_MPEG-1_audio_elementary_stream
-                    const auto mpegAudioVersionId = static_cast<uint8_t>(((*frameIter & 0x08) >> 3) & 0x01);
-                    const auto mpegAudioLayer = static_cast<uint8_t>(((*frameIter & 0x06) >> 1) & 0x03);
-                    const bool crcProtection = (*frameIter++ & 0x01) != 0;
+                    const auto mpegAudioVersionId = static_cast<uint8_t>(((*frameIter & 0x08u) >> 3u) & 0x01u);
+                    const auto mpegAudioLayer = static_cast<uint8_t>(((*frameIter & 0x06u) >> 1u) & 0x03u);
+                    const bool crcProtection = (*frameIter++ & 0x01u) != 0;
 
-                    const auto bitrateIdx = static_cast<uint8_t>(((*frameIter & 0xF0) >> 4) & 0x0F);
+                    const auto bitrateIdx = static_cast<uint8_t>(((*frameIter & 0xF0u) >> 4u) & 0x0Fu);
 
                     uint16_t bitrate;
                     if(bitrateIdx <= M1L2_BITRATE_IDX_MAX) {
@@ -144,7 +168,7 @@ void DabMpegServiceComponentDecoder::processData() {
                         break; // skip this whole frame
                     }
 
-                    const auto samplingIdx = static_cast<uint8_t>(((*frameIter & 0x0C) >> 2) & 0x03);
+                    const auto samplingIdx = static_cast<uint8_t>(((*frameIter & 0x0Cu) >> 2u) & 0x03u);
                     uint16_t samplingRate;
 
                     if(samplingIdx <= M1_SAMPLINGFREQUENCY_IDX_MAX) {
@@ -157,10 +181,10 @@ void DabMpegServiceComponentDecoder::processData() {
                         break; // skip this whole frame
                     }
 
-                    const bool paddingFlag = (((*frameIter & 0x02) >> 1) & 0x01) != 0;
-                    const bool privateFlag = (*frameIter++ & 0x01) != 0;
+                    const bool paddingFlag = (((*frameIter & 0x02u) >> 1u) & 0x01u) != 0;
+                    const bool privateFlag = (*frameIter++ & 0x01u) != 0;
 
-                    const auto channelMode = static_cast<uint8_t>(((*frameIter & 0xC0) >> 6) & 0x03);
+                    const auto channelMode = static_cast<uint8_t>(((*frameIter & 0xC0u) >> 6u) & 0x03u);
                     auto channels = CHANNELMODE_IDX[0];
                     if(channelMode <= CHANNELMODE_IDX_MAX) {
                         channels = CHANNELMODE_IDX[channelMode];
@@ -171,10 +195,10 @@ void DabMpegServiceComponentDecoder::processData() {
 
                     //std::cout << m_logTag << " ID: " << +mpegAudioVersionId << " SamplingIdx: " << +samplingIdx << " SampleRate: " << samplingRate << " Channels: " << +channels << std::endl;
 
-                    const auto modeExtension = static_cast<uint8_t>(((*frameIter & 0x30) >> 4) & 0x03);
-                    const bool copyRight = (((*frameIter & 0x08) >> 3) & 0x01) != 0;
-                    const bool original = (((*frameIter & 0x04) >> 2) & 0x01) != 0;
-                    const auto emphasis = static_cast<uint8_t>(*frameIter++ & 0x03);
+                    const auto modeExtension = static_cast<uint8_t>(((*frameIter & 0x30u) >> 4u) & 0x03u);
+                    const bool copyRight = (((*frameIter & 0x08u) >> 3u) & 0x01u) != 0;
+                    const bool original = (((*frameIter & 0x04u) >> 2u) & 0x01u) != 0;
+                    const auto emphasis = static_cast<uint8_t>(*frameIter++ & 0x03u);
 
                     uint8_t scaleCrcLen;
                     if (channelMode == 0x03) { // single channel mode
@@ -195,12 +219,12 @@ void DabMpegServiceComponentDecoder::processData() {
                     auto padRiter = frameData.rbegin();
                     while (padRiter < frameData.rend()) {
                         //F-PAD
-                        const bool ciPresent = (((*padRiter & 0x02) >> 1) & 0x01) != 0;
-                        const bool z = (*padRiter & 0x01) != 0;
+                        const bool ciPresent = (((*padRiter & 0x02u) >> 1u) & 0x01u) != 0;
+                        const bool z = (*padRiter & 0x01u) != 0;
 
                         ++padRiter; //Byte L data field
-                        const auto fPadType = static_cast<uint8_t>(((*padRiter & 0xC0) >> 6) & 0x03); //Byte L-1 data field
-                        xPadIndicator = static_cast<PadDecoder::X_PAD_INDICATOR>(((*padRiter++ & 0x30) >> 4) & 0x03);
+                        const auto fPadType = static_cast<uint8_t>(((*padRiter & 0xC0u) >> 6u) & 0x03u); //Byte L-1 data field
+                        xPadIndicator = static_cast<PadDecoder::X_PAD_INDICATOR>(((*padRiter++ & 0x30u) >> 4u) & 0x03u);
 
                         if(fPadType == 0 || fPadType == 2) { // "10" = old DAB 1.4.1 only, "01" and "11" = RFU
                             padRiter += scaleCrcLen;
@@ -243,8 +267,8 @@ void DabMpegServiceComponentDecoder::processData() {
                                              */
                                             // list of up to 4 contents indicator
                                             for (int i = 0; i < PadDecoder::VAR_XPAD_MAX_CI; i++) {
-                                                const auto xpadLengthIndex = static_cast<uint8_t>((*padRiter & 0xE0) >> 5);
-                                                const auto xpadAppType = static_cast<uint8_t>(*padRiter++ & 0x1f);
+                                                const auto xpadLengthIndex = static_cast<uint8_t>((*padRiter & 0xE0u) >> 5u);
+                                                const auto xpadAppType = static_cast<uint8_t>(*padRiter++ & 0x1fu);
 
                                                 ++m_noCiLastLength;
 

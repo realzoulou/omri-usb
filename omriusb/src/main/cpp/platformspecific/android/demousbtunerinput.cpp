@@ -126,7 +126,7 @@ void DemoUsbTunerInput::ensembleCollectFinished() {
 
 void DemoUsbTunerInput::setService() {
     if(m_startServiceLink != nullptr) {
-        std::cout << LOG_TAG << "Starting service " << std::hex
+        std::cout << LOG_TAG << "Starting service 0x" << std::hex
             << +m_startServiceLink->getServiceId() << std::dec << std::endl;
 
         bool foundSId = false, foundSrvComp = false;
@@ -138,7 +138,7 @@ void DemoUsbTunerInput::setService() {
                 for (const auto& srvComp : srv->getServiceComponents()) {
                     if((srvComp->getServiceComponentType() == DabServiceComponent::MSC_STREAM_AUDIO) &&
                        (srvComp->isPrimary() || srv->getNumberServiceComponents() == 1)) {
-                        std::cout << LOG_TAG << "Starting SubChanId: " << std::hex << +srvComp->getSubChannelId() << std::dec << std::endl;
+                        std::cout << LOG_TAG << "Starting SubChanId: " << +srvComp->getSubChannelId() << std::endl;
                         m_currentSubchanId = srvComp->getSubChannelId();
 
                         m_startServiceLink->decodeAudio(true);
