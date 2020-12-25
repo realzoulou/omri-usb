@@ -62,6 +62,9 @@ public:
 
     std::string getDeviceName() const override;
 
+    std::string getHardwareVersion() const override ;
+    std::string getSoftwareVersion() const override ;
+
     std::vector<std::shared_ptr<LinkedServiceDab>> getLinkedServices(const LinkedServiceDab &service) override;
 
 protected:
@@ -73,6 +76,9 @@ private:
     constexpr static uint8_t MAXIMUM_CONCURRENT_SUBCHANNELS{1};
     constexpr static uint8_t RAON_ENDPOINT_OUT = 0x02;
     constexpr static uint8_t RAON_ENDPOINT_IN = 0x82;
+
+    std::string m_HwVersion{""};
+    std::string m_SwVersion{""};
 
     uint32_t m_currentFrequency{0};
 
@@ -87,16 +93,10 @@ private:
     std::atomic<bool> m_readFicThreadRunning{false};
     std::thread m_readFicThread;
 
-    std::atomic<bool> m_readMscThreadRunning{false};
-    std::thread m_readMscThread;
-
-    std::atomic<bool> m_readDataThreadRunning{false};
-    std::thread m_readDataThread;
-
     uint8_t m_currentSubchanId{0xFF};
 
     int m_currentScanningEnsembleNum{0};
-    //TODO changed from 100
+    //changed from 100
     constexpr static int MAX_COLLECTION_LOOPS = 200;
     int m_maxCollectionWaitLoops{MAX_COLLECTION_LOOPS}; //5 seconds
     int m_ficCollectionWaitLoops{300};
@@ -325,7 +325,8 @@ private:
     void rtvStreamDisable();
     void rtvConfigureHostIF();
     void rtvRFInitilize();
-    void rtvRfSpecial();
+    void rtvEcho();
+    void rtvVersion();
 
     void setFrequency(uint32_t frequencyKhz);
 

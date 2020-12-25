@@ -183,6 +183,16 @@ public class DemoTuner implements Tuner {
 	}
 
 	@Override
+	public @NonNull String getHardwareVersion() {
+		return "demoHw";
+	}
+
+	@Override
+	public @NonNull String getSoftwareVersion() {
+		return "demoSw";
+	}
+
+	@Override
 	public void subscribe(TunerListener tunerListener) {
 		if(!mTunerlisteners.contains(tunerListener)) {
 			mTunerlisteners.add(tunerListener);

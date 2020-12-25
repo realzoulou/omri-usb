@@ -40,7 +40,7 @@ static std::vector<std::shared_ptr<JUsbDevice>> m_usbDevices;
 
 static std::vector<std::unique_ptr<DabUsbTunerInput>> m_dabInputs;
 
-static JavaVM* m_javaVm = nullptr;
+static JavaVM *m_javaVm = nullptr;
 
 static jclass m_usbTunerClass = nullptr;
 static jclass m_radioServiceDabImplClass = nullptr;
@@ -76,36 +76,49 @@ static void cacheClassDefinitions(JavaVM *vm) {
         return;
     }
 
-    JNIEnv* env;
-    vm->GetEnv ((void **) &env, JNI_VERSION_1_6);
+    JNIEnv *env;
+    vm->GetEnv((void **) &env, JNI_VERSION_1_6);
 
     // ArrayList
-    m_ArrayListClass = (jclass)env->NewGlobalRef(env->FindClass("java/util/ArrayList"));
+    m_ArrayListClass = (jclass) env->NewGlobalRef(env->FindClass("java/util/ArrayList"));
     m_ArrayList_init_mId = env->GetMethodID(m_ArrayListClass, "<init>", "(I)V");
     m_ArrayList_add_mId = env->GetMethodID(m_ArrayListClass, "add", "(Ljava/lang/Object;)Z");
 
-    m_usbTunerClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/TunerUsb"));
-    m_radioServiceImplClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceImpl"));
-    m_radioServiceDabImplClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceDabImpl"));
+    m_usbTunerClass = (jclass) env->NewGlobalRef(env->FindClass("org/omri/radio/impl/TunerUsb"));
+    m_radioServiceImplClass = (jclass) env->NewGlobalRef(
+            env->FindClass("org/omri/radio/impl/RadioServiceImpl"));
+    m_radioServiceDabImplClass = (jclass) env->NewGlobalRef(
+            env->FindClass("org/omri/radio/impl/RadioServiceDabImpl"));
     m_radioServiceDabImpl_init_mId = env->GetMethodID(m_radioServiceDabImplClass, "<init>", "()V");
-    m_radioServiceDabImpl_setEnsembleEcc_mId = env->GetMethodID(m_radioServiceDabImplClass, "setEnsembleEcc", "(I)V");
-    m_radioServiceDabImpl_setEnsembleFrequency_mId = env->GetMethodID(m_radioServiceDabImplClass, "setEnsembleFrequency", "(I)V");
-    m_radioServiceDabImpl_setEnsembleId_mId = env->GetMethodID(m_radioServiceDabImplClass, "setEnsembleId", "(I)V");
-    m_radioServiceDabImpl_setServiceId_mId = env->GetMethodID(m_radioServiceDabImplClass, "setServiceId", "(I)V");
-    m_dabServiceComponentClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceDabComponentImpl"));
-    m_dabServiceUserApplicationClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/RadioServiceDabUserApplicationImpl"));
+    m_radioServiceDabImpl_setEnsembleEcc_mId = env->GetMethodID(m_radioServiceDabImplClass,
+                                                                "setEnsembleEcc", "(I)V");
+    m_radioServiceDabImpl_setEnsembleFrequency_mId = env->GetMethodID(m_radioServiceDabImplClass,
+                                                                      "setEnsembleFrequency",
+                                                                      "(I)V");
+    m_radioServiceDabImpl_setEnsembleId_mId = env->GetMethodID(m_radioServiceDabImplClass,
+                                                               "setEnsembleId", "(I)V");
+    m_radioServiceDabImpl_setServiceId_mId = env->GetMethodID(m_radioServiceDabImplClass,
+                                                              "setServiceId", "(I)V");
+    m_dabServiceComponentClass = (jclass) env->NewGlobalRef(
+            env->FindClass("org/omri/radio/impl/RadioServiceDabComponentImpl"));
+    m_dabServiceUserApplicationClass = (jclass) env->NewGlobalRef(
+            env->FindClass("org/omri/radio/impl/RadioServiceDabUserApplicationImpl"));
 
     //Metadata classes
-    m_termIdClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/TermIdImpl"));
-    m_dynamicLabelClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/TextualDabDynamicLabelImpl"));
-    m_dynamicLabelPlusItemClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/TextualDabDynamicLabelPlusItemImpl"));
-    m_slideshowClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/VisualDabSlideShowImpl"));
+    m_termIdClass = (jclass) env->NewGlobalRef(env->FindClass("org/omri/radio/impl/TermIdImpl"));
+    m_dynamicLabelClass = (jclass) env->NewGlobalRef(
+            env->FindClass("org/omri/radio/impl/TextualDabDynamicLabelImpl"));
+    m_dynamicLabelPlusItemClass = (jclass) env->NewGlobalRef(
+            env->FindClass("org/omri/radio/impl/TextualDabDynamicLabelPlusItemImpl"));
+    m_slideshowClass = (jclass) env->NewGlobalRef(
+            env->FindClass("org/omri/radio/impl/VisualDabSlideShowImpl"));
 
-    m_ediTunerClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/TunerEdistream"));
+    m_ediTunerClass = (jclass) env->NewGlobalRef(
+            env->FindClass("org/omri/radio/impl/TunerEdistream"));
     //DABtime class
-    m_dabTimeClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/DabTime"));
+    m_dabTimeClass = (jclass) env->NewGlobalRef(env->FindClass("org/omri/radio/impl/DabTime"));
 
-    m_demoTunerClass = (jclass)env->NewGlobalRef(env->FindClass("org/omri/radio/impl/DemoTuner"));
+    m_demoTunerClass = (jclass) env->NewGlobalRef(env->FindClass("org/omri/radio/impl/DemoTuner"));
     if (!JNI_DETACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to detach!" << std::endl;
     }
@@ -118,8 +131,8 @@ static void cleanClassDefinitions(JavaVM *vm) {
         return;
     }
 
-    JNIEnv* env;
-    vm->GetEnv ((void **) &env, JNI_VERSION_1_6);
+    JNIEnv *env;
+    vm->GetEnv((void **) &env, JNI_VERSION_1_6);
 
     env->DeleteGlobalRef(m_ArrayListClass);
 
@@ -148,8 +161,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     std::clog.rdbuf(new androidlogbuf("stdwarn", ANDROID_LOG_WARN));
     std::cerr.rdbuf(new androidlogbuf("stderr", ANDROID_LOG_ERROR));
 
-    JNIEnv* env;
-    vm->GetEnv((void **)&env, JNI_VERSION_1_6);
+    JNIEnv *env;
+    vm->GetEnv((void **) &env, JNI_VERSION_1_6);
     env->GetJavaVM(&m_javaVm);
 
     cacheClassDefinitions(m_javaVm);
@@ -160,8 +173,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 JNIEXPORT void JNI_OnUnload(JavaVM *vm, void *reserved) {
     std::clog << LOG_TAG << " OnUnload" << std::endl;
 
-    JNIEnv* env;
-    vm->GetEnv((void **)&env, JNI_VERSION_1_6);
+    JNIEnv *env;
+    vm->GetEnv((void **) &env, JNI_VERSION_1_6);
     env->GetJavaVM(&m_javaVm);
 
     cleanClassDefinitions(m_javaVm);
@@ -174,8 +187,9 @@ JNIEXPORT void JNI_OnUnload(JavaVM *vm, void *reserved) {
     delete std::cerr.rdbuf(0);
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_created(JNIEnv* env, jobject thiz,
-        jboolean redirectCoutToALog, jstring rawRecordingPath = nullptr) {
+JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_created(JNIEnv *env, jobject thiz,
+                                                                  jboolean redirectCoutToALog,
+                                                                  jstring rawRecordingPath = nullptr) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -193,31 +207,33 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_created(JNIEnv* env, j
         }
     }
     std::cout << LOG_TAG << " created (redirectCout="
-        << std::boolalpha << (JNI_TRUE == m_CoutRedirectedToALog) << std::noboolalpha
-        << ",rawRecordingPath=" <<  m_rawRecordingPath
-        << ")"<< std::endl;
+              << std::boolalpha << (JNI_TRUE == m_CoutRedirectedToALog) << std::noboolalpha
+              << ",rawRecordingPath=" << m_rawRecordingPath
+              << ")" << std::endl;
 
     if (!JNI_DETACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to detach!" << std::endl;
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceDetached(JNIEnv* env, jobject thiz, jstring deviceName) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_deviceDetached(JNIEnv *env, jobject thiz, jstring deviceName) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
         return;
     }
 
-    const char* detachedDeviceName = env->GetStringUTFChars(deviceName, JNI_FALSE);
+    const char *detachedDeviceName = env->GetStringUTFChars(deviceName, JNI_FALSE);
     std::cout << LOG_TAG << " device detached: " << detachedDeviceName << std::endl;
 
     std::string removedDev(detachedDeviceName);
 
     auto bla = m_dabInputs.begin();
-    while(bla < m_dabInputs.end()) {
-        if(bla->get() != nullptr && bla->get()->getDeviceName() == removedDev) {
-            std::cout << LOG_TAG << " Removing UsbTunerInput: " << removedDev << " : " << bla->get()->getDeviceName() << std::endl;
+    while (bla < m_dabInputs.end()) {
+        if (bla->get() != nullptr && bla->get()->getDeviceName() == removedDev) {
+            std::cout << LOG_TAG << " Removing UsbTunerInput: " << removedDev << " : "
+                      << bla->get()->getDeviceName() << std::endl;
             m_dabInputs.erase(bla);
             break;
         }
@@ -225,8 +241,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceDetached(JNIEnv*
     }
 
     auto devIter = m_usbDevices.cbegin();
-    while(devIter != m_usbDevices.cend()) {
-        if(devIter->get() != nullptr && devIter->get()->getDeviceName() == removedDev) {
+    while (devIter != m_usbDevices.cend()) {
+        if (devIter->get() != nullptr && devIter->get()->getDeviceName() == removedDev) {
             std::cout << LOG_TAG << " Removing device: " << removedDev << std::endl;
             m_usbDevices.erase(devIter);
             break;
@@ -241,7 +257,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceDetached(JNIEnv*
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceAttached(JNIEnv* env, jobject thiz, jobject usbDevice) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_deviceAttached(JNIEnv *env, jobject thiz, jobject usbDevice) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -250,7 +267,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceAttached(JNIEnv*
 
     std::cout << LOG_TAG << " Device attached!" << std::endl;
 
-    std::shared_ptr<JTunerUsbDevice> jusbDevice = std::shared_ptr<JTunerUsbDevice>(new JTunerUsbDevice(m_javaVm, env, usbDevice));
+    std::shared_ptr<JTunerUsbDevice> jusbDevice = std::shared_ptr<JTunerUsbDevice>(
+            new JTunerUsbDevice(m_javaVm, env, usbDevice));
 
     jusbDevice->setJavaClassUsbTuner(env, m_usbTunerClass);
     jusbDevice->setJavaClassDabService(env, m_radioServiceDabImplClass);
@@ -263,8 +281,9 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceAttached(JNIEnv*
     uint16_t prodId = jusbDevice->getProductId();
     uint16_t vendId = jusbDevice->getVendorId();
 
-    if(vendId == 0x16C0 && prodId == 0x05DC) {
-        m_dabInputs.push_back(std::unique_ptr<RaonTunerInput>(new RaonTunerInput(jusbDevice, m_rawRecordingPath)));
+    if (vendId == 0x16C0 && prodId == 0x05DC) {
+        m_dabInputs.push_back(std::unique_ptr<RaonTunerInput>(
+                new RaonTunerInput(jusbDevice, m_rawRecordingPath)));
     }
 
     if (!JNI_DETACH(m_javaVm, wasDetached)) {
@@ -272,23 +291,27 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_deviceAttached(JNIEnv*
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_devicePermission(JNIEnv* env, jobject thiz, jstring deviceName, jboolean permissionGranted) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_devicePermission(JNIEnv *env, jobject thiz, jstring deviceName,
+                                                    jboolean permissionGranted) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
         return;
     }
 
-    const char* permissionDeviceName = env->GetStringUTFChars(deviceName, JNI_FALSE);
+    const char *permissionDeviceName = env->GetStringUTFChars(deviceName, JNI_FALSE);
 
     std::string permitDev(permissionDeviceName);
     env->ReleaseStringUTFChars(deviceName, permissionDeviceName);
 
-    std::cout << LOG_TAG << " device permission granted for: " << permitDev << " : " <<  std::boolalpha << static_cast<bool>(permissionGranted) << std::noboolalpha << std::endl;
+    std::cout << LOG_TAG << " device permission granted for: " << permitDev << " : "
+              << std::boolalpha << static_cast<bool>(permissionGranted) << std::noboolalpha
+              << std::endl;
 
     auto devIter = m_usbDevices.cbegin();
-    while(devIter != m_usbDevices.cend()) {
-        if(devIter->get() != nullptr) {
+    while (devIter != m_usbDevices.cend()) {
+        if (devIter->get() != nullptr) {
             std::cout << LOG_TAG << " searching device: " << devIter->get()->getDeviceName()
                       << std::endl;
             if (devIter->get()->getDeviceName() == permitDev) {
@@ -306,7 +329,9 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_devicePermission(JNIEn
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startSrv(JNIEnv* env, jobject thiz, jstring deviceName, jobject dabService) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_startSrv(JNIEnv *env, jobject thiz, jstring deviceName,
+                                            jobject dabService) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -321,9 +346,14 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startSrv(JNIEnv* env, 
     std::cout << LOG_TAG << " starting service for device: " << devName << std::endl;
 
     auto devIter = m_dabInputs.cbegin();
-    while(devIter != m_dabInputs.cend()) {
-        if(devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
-            std::shared_ptr<JDabService> sharedPtr = std::make_shared<JDabService>(m_javaVm, env, m_radioServiceDabImplClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService);
+    while (devIter != m_dabInputs.cend()) {
+        if (devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
+            std::shared_ptr<JDabService> sharedPtr = std::make_shared<JDabService>(m_javaVm, env,
+                                                                                   m_radioServiceDabImplClass,
+                                                                                   m_dynamicLabelClass,
+                                                                                   m_dynamicLabelPlusItemClass,
+                                                                                   m_slideshowClass,
+                                                                                   dabService);
             (*devIter).get()->startService(sharedPtr);
             break;
         }
@@ -335,7 +365,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startSrv(JNIEnv* env, 
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopSrv(JNIEnv* env, jobject thiz, jstring deviceName) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_stopSrv(JNIEnv *env, jobject thiz, jstring deviceName) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -349,8 +380,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopSrv(JNIEnv* env, j
     std::cout << LOG_TAG << " stopping service on device: " << devName << std::endl;
 
     auto devIter = m_dabInputs.cbegin();
-    while(devIter != m_dabInputs.cend()) {
-        if(devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
+    while (devIter != m_dabInputs.cend()) {
+        if (devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
             (*devIter).get()->stopAllRunningServices();
             break;
         }
@@ -362,7 +393,9 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopSrv(JNIEnv* env, j
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_tuneFreq(JNIEnv* env, jobject thiz, jstring deviceName, jlong freq) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_tuneFreq(JNIEnv *env, jobject thiz, jstring deviceName,
+                                            jlong freq) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -378,7 +411,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_tuneFreq(JNIEnv* env, 
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startServiceScan(JNIEnv* env, jobject thiz, jstring deviceName) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_startServiceScan(JNIEnv *env, jobject thiz, jstring deviceName) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -393,8 +427,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startServiceScan(JNIEn
     std::cout << LOG_TAG << " starting serviceScan on device: " << devName << std::endl;
 
     auto devIter = m_dabInputs.cbegin();
-    while(devIter != m_dabInputs.cend()) {
-        if(devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
+    while (devIter != m_dabInputs.cend()) {
+        if (devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
             (*devIter).get()->startServiceScan();
             break;
         }
@@ -406,7 +440,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startServiceScan(JNIEn
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopServiceScan(JNIEnv* env, jobject thiz, jstring deviceName) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_stopServiceScan(JNIEnv *env, jobject thiz, jstring deviceName) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -421,8 +456,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopServiceScan(JNIEnv
     std::cout << LOG_TAG << " stopping serviceScan on device: " << devName << std::endl;
 
     auto devIter = m_dabInputs.cbegin();
-    while(devIter != m_dabInputs.cend()) {
-        if(devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
+    while (devIter != m_dabInputs.cend()) {
+        if (devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
             (*devIter).get()->stopServiceScan();
             break;
         }
@@ -434,7 +469,9 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_stopServiceScan(JNIEnv
     }
 }
 
-JNIEXPORT jobject JNICALL Java_org_omri_radio_impl_UsbHelper_getLinkedServices(JNIEnv * env , jobject thiz, jstring deviceName , jobject dabService ) {
+JNIEXPORT jobject JNICALL
+Java_org_omri_radio_impl_UsbHelper_getLinkedServices(JNIEnv *env, jobject thiz, jstring deviceName,
+                                                     jobject dabService) {
 
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
@@ -446,20 +483,22 @@ JNIEXPORT jobject JNICALL Java_org_omri_radio_impl_UsbHelper_getLinkedServices(J
 
     const char *cDeviceName = env->GetStringUTFChars(deviceName, JNI_FALSE);
     std::string devName(cDeviceName);
-    env->ReleaseStringUTFChars(deviceName, cDeviceName) ;
+    env->ReleaseStringUTFChars(deviceName, cDeviceName);
 
-    std::cout << LOG_TAG << " getting service linking services for device: " << devName << std::endl;
+    std::cout << LOG_TAG << " getting service linking services for device: " << devName
+              << std::endl;
 
     auto devIter = m_dabInputs.cbegin();
     while (devIter != m_dabInputs.cend()) {
         if (devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
 
             // convert Java input dabService via JDabService to a LinkedServiceDab
-            JDabService jDabService(m_javaVm, env, m_radioServiceDabImplClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService);
-            LinkedServiceDab inputService (jDabService.getEnsembleEcc(),
-                                           jDabService.getServiceId(),
-                                           jDabService.getEnsembleId(),
-                                           jDabService.getEnsembleFrequency() / 1000);
+            JDabService jDabService(m_javaVm, env, m_radioServiceDabImplClass, m_dynamicLabelClass,
+                                    m_dynamicLabelPlusItemClass, m_slideshowClass, dabService);
+            LinkedServiceDab inputService(jDabService.getEnsembleEcc(),
+                                          jDabService.getServiceId(),
+                                          jDabService.getEnsembleId(),
+                                          jDabService.getEnsembleFrequency() / 1000);
             // retrieve data
             auto retServices = devIter->get()->getLinkedServices(inputService);
 
@@ -492,10 +531,73 @@ JNIEXPORT jobject JNICALL Java_org_omri_radio_impl_UsbHelper_getLinkedServices(J
     return retObj;
 }
 
+JNIEXPORT jstring JNICALL
+Java_org_omri_radio_impl_UsbHelper_getHardwareVersion(JNIEnv *env, jobject thiz,
+                                                      jstring deviceName) {
+    bool wasDetached;
+    if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+        std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
+        return nullptr;
+    }
+
+    const char *cDeviceName = env->GetStringUTFChars(deviceName, JNI_FALSE);
+    std::string devName(cDeviceName);
+    env->ReleaseStringUTFChars(deviceName, cDeviceName);
+
+    std::string hardwareVersion;
+    auto devIter = m_dabInputs.cbegin();
+    while (devIter != m_dabInputs.cend()) {
+        if (devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
+            hardwareVersion = (*devIter).get()->getHardwareVersion();
+            std::cout << LOG_TAG << " hardware version of device: " << devName << " : " << hardwareVersion << std::endl;
+            break;
+        }
+    }
+
+    jstring retString = env->NewStringUTF(hardwareVersion.c_str());
+
+    if (!JNI_DETACH(m_javaVm, wasDetached)) {
+        std::cerr << LOG_TAG << "jniEnv thread failed to detach!" << std::endl;
+    }
+    return retString;
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_omri_radio_impl_UsbHelper_getSoftwareVersion(JNIEnv *env, jobject thiz,
+                                                      jstring deviceName) {
+    bool wasDetached;
+    if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+        std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
+        return nullptr;
+    }
+
+    const char *cDeviceName = env->GetStringUTFChars(deviceName, JNI_FALSE);
+    std::string devName(cDeviceName);
+    env->ReleaseStringUTFChars(deviceName, cDeviceName);
+
+    std::string softwareVersion;
+    auto devIter = m_dabInputs.cbegin();
+    while (devIter != m_dabInputs.cend()) {
+        if (devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
+            softwareVersion = (*devIter).get()->getSoftwareVersion();
+            std::cout << LOG_TAG << " software version of device: " << devName << " : " << softwareVersion << std::endl;
+            break;
+        }
+    }
+
+    jstring retString = env->NewStringUTF(softwareVersion.c_str());
+
+    if (!JNI_DETACH(m_javaVm, wasDetached)) {
+        std::cerr << LOG_TAG << "jniEnv thread failed to detach!" << std::endl;
+    }
+    return retString;
+}
+
 /* EdiStream -> highly experimental */
 static std::vector<std::shared_ptr<EdiInput>> m_ediInputs;
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediTunerAttached(JNIEnv* env, jobject thiz, jobject ediTuner) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_ediTunerAttached(JNIEnv *env, jobject thiz, jobject ediTuner) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -504,7 +606,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediTunerAttached(JNIEn
 
     std::cout << LOG_TAG << " EdiTuner attached" << std::endl;
 
-    std::shared_ptr<EdiInput> jediTuner = std::shared_ptr<EdiInput>(new EdiInput(m_javaVm, env, ediTuner));
+    std::shared_ptr<EdiInput> jediTuner = std::shared_ptr<EdiInput>(
+            new EdiInput(m_javaVm, env, ediTuner));
     jediTuner->setJavaClassEdiTuner(env, m_ediTunerClass);
     jediTuner->setJavaClassDabTime(env, m_dabTimeClass);
     jediTuner->setJavaClassDabService(env, m_radioServiceDabImplClass);
@@ -519,7 +622,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediTunerAttached(JNIEn
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediTunerDetached(JNIEnv* env, jobject thiz, jobject ediTuner) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_ediTunerDetached(JNIEnv *env, jobject thiz, jobject ediTuner) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -536,21 +640,28 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediTunerDetached(JNIEn
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_startEdiStream(JNIEnv* env, jobject thiz, jobject ediTuner, jobject dabService) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_startEdiStream(JNIEnv *env, jobject thiz, jobject ediTuner,
+                                                  jobject dabService) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
         return;
     }
 
-    m_ediInputs[0]->startService(std::make_shared<JDabService>(m_javaVm, env, m_radioServiceDabImplClass, m_dynamicLabelClass, m_dynamicLabelPlusItemClass, m_slideshowClass, dabService));
+    m_ediInputs[0]->startService(
+            std::make_shared<JDabService>(m_javaVm, env, m_radioServiceDabImplClass,
+                                          m_dynamicLabelClass, m_dynamicLabelPlusItemClass,
+                                          m_slideshowClass, dabService));
 
     if (!JNI_DETACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to detach!" << std::endl;
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediStreamData(JNIEnv* env, jobject thiz, jbyteArray dabEdiData, jint size) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_ediStreamData(JNIEnv *env, jobject thiz, jbyteArray dabEdiData,
+                                                 jint size) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -559,7 +670,7 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediStreamData(JNIEnv* 
 
     //std::cout << LOG_TAG << " UsbHelper starting EdistreamService: " << std::endl;
     std::vector<uint8_t> dataArr(size);
-    env->GetByteArrayRegion (dabEdiData, 0, size, reinterpret_cast<jbyte*>(dataArr.data()));
+    env->GetByteArrayRegion(dabEdiData, 0, size, reinterpret_cast<jbyte *>(dataArr.data()));
 
     m_ediInputs[0]->ediDataInput(dataArr, size);
 
@@ -568,7 +679,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediStreamData(JNIEnv* 
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediFlushBuffer(JNIEnv* env, jobject thiz) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_ediFlushBuffer(JNIEnv *env, jobject thiz) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -587,7 +699,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_ediFlushBuffer(JNIEnv*
 /* Demo Tuner */
 static std::shared_ptr<DemoUsbTunerInput> m_demoInput = nullptr;
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoTunerAttached(JNIEnv* env, jobject thiz, jobject demoTuner) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_demoTunerAttached(JNIEnv *env, jobject thiz, jobject demoTuner) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -609,7 +722,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoTunerAttached(JNIE
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoTunerDetached(JNIEnv* env, jobject thiz, jobject demoTuner) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_demoTunerDetached(JNIEnv *env, jobject thiz, jobject demoTuner) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -627,7 +741,9 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoTunerDetached(JNIE
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoServiceStart(JNIEnv* env, jobject thiz, jobject radioService) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_demoServiceStart(JNIEnv *env, jobject thiz,
+                                                    jobject radioService) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;
@@ -635,8 +751,12 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoServiceStart(JNIEn
     }
 
     if (m_demoInput != nullptr) {
-        std::shared_ptr<JDabService> service = std::make_shared<JDabService>(m_javaVm, env, m_radioServiceDabImplClass, m_dynamicLabelClass,
-            m_dynamicLabelPlusItemClass, m_slideshowClass, radioService);
+        std::shared_ptr<JDabService> service = std::make_shared<JDabService>(m_javaVm, env,
+                                                                             m_radioServiceDabImplClass,
+                                                                             m_dynamicLabelClass,
+                                                                             m_dynamicLabelPlusItemClass,
+                                                                             m_slideshowClass,
+                                                                             radioService);
         m_demoInput->startService(service);
     }
 
@@ -645,7 +765,8 @@ JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoServiceStart(JNIEn
     }
 }
 
-JNIEXPORT void JNICALL Java_org_omri_radio_impl_UsbHelper_demoServiceStop(JNIEnv* env, jobject thiz) {
+JNIEXPORT void JNICALL
+Java_org_omri_radio_impl_UsbHelper_demoServiceStop(JNIEnv *env, jobject thiz) {
     bool wasDetached;
     if (!JNI_ATTACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to attach!" << std::endl;

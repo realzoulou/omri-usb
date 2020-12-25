@@ -179,6 +179,15 @@ public class TunerEdistream implements Tuner, IpServiceScanner.IpScannerListener
 		return new ArrayList<>();
 	}
 
+	@Override
+	public @NonNull String getSoftwareVersion() {
+		return "";
+	}
+
+	@Override
+	public @NonNull String getHardwareVersion() {
+		return "";
+	}
 	private ConcurrentLinkedQueue<RadioServiceDabEdiImpl> mScanSrvQ = new ConcurrentLinkedQueue<>();
 
 	@Override

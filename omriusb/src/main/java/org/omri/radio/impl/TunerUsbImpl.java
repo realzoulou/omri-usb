@@ -273,6 +273,28 @@ public class TunerUsbImpl implements TunerUsb {
 	}
 
 	@Override
+	public @NonNull String getHardwareVersion() {
+		if (mUsbDevice != null) {
+			String hwVersion = UsbHelper.getInstance().getHwVersion(mUsbDevice.getDeviceName());
+			if (hwVersion != null) {
+				return hwVersion;
+			}
+		}
+		return "";
+	}
+
+	@Override
+	public @NonNull String getSoftwareVersion() {
+		if (mUsbDevice != null) {
+			String swVersion = UsbHelper.getInstance().getSwVersion(mUsbDevice.getDeviceName());
+			if (swVersion != null) {
+				return swVersion;
+			}
+		}
+		return "";
+	}
+
+	@Override
 	public void subscribe(TunerListener tunerListener) {
 		synchronized (mTunerlisteners) {
 			if (!mTunerlisteners.contains(tunerListener)) {

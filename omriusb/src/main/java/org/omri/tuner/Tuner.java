@@ -108,7 +108,21 @@ public interface Tuner {
 	 * @return the currently running {@link RadioService} or {@code null} if no {@link RadioService} is running
 	 */
 	public RadioService getCurrentRunningRadioService();
-	
+
+	/**
+	 * Get the software version string of this tuner
+	 * May be an empty string in case it is not supported by this tuner.
+	 * @return software version string
+	 */
+	public @NonNull String getSoftwareVersion();
+
+	/**
+	 * Get the hardware version string of this tuner
+	 * May be an empty string in case it is not supported by this tuner.
+	 * @return software version string
+	 */
+	public @NonNull String getHardwareVersion();
+
 	/**
 	 * Subscribe a {@link TunerListener} to receive updates of this tuner
 	 * @param tunerListener the {@link TunerListener} to subscribe

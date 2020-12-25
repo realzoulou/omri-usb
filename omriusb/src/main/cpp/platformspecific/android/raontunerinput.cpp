@@ -96,7 +96,8 @@ void RaonTunerInput::initializeSync() {
             rtvStreamDisable();
             rtvConfigureHostIF();
             rtvRFInitilize();
-            rtvRfSpecial();
+            rtvEcho();
+            rtvVersion();
 
             setupMscThreshold();
             setupMemoryFIC();
@@ -381,6 +382,13 @@ std::string RaonTunerInput::getDeviceName() const {
         return nullptr;
     }
 }
+std::string RaonTunerInput::getHardwareVersion() const {
+    return m_HwVersion;
+}
+
+std::string RaonTunerInput::getSoftwareVersion() const {
+    return m_SwVersion;
+}
 
 bool RaonTunerInput::hasUsbIoErrors() {
     if (mUsbReadFailure > 10 || mUsbWriteFailure > 10) {
@@ -406,7 +414,7 @@ void RaonTunerInput::threadedFicRead() {
 
 void RaonTunerInput::setService() {
     if(m_startServiceLink != nullptr) {
-        std::cout << LOG_TAG << "Starting service " << std::hex
+        std::cout << LOG_TAG << "Starting service 0x" << std::hex
                   << +m_startServiceLink->getServiceId() << std::dec << std::endl;
 
         if(m_startServiceLink->getEnsembleFrequency() != m_currentFrequency) {
@@ -541,6 +549,7 @@ uint8_t RaonTunerInput::readRegister(uint8_t reg) {
 }
 
 void RaonTunerInput::configurePowerType() {
+    const uint8_t LIBDAB_REG30 = 0xF4;
     uint8_t REG30 = 0xF2 & 0xF0; /*IOLDOCON__REG*/
 
     //DEFINE RTV_IO_1_8V
@@ -549,6 +558,7 @@ void RaonTunerInput::configurePowerType() {
     REG30 = (REG30 | (io_type << 1)); /*IO Type Select.*/
 
     uint8_t REG2F = 0x61; /*DCDC_OUTSEL = 0x03,*/
+    const uint8_t LIBDAB_REG2F = 0x71;
     uint8_t REG52 = 0x07; /*LDODIG_HT = 0x07;*/
     uint8_t REG54 = 0x1C;
 
@@ -558,8 +568,10 @@ void RaonTunerInput::configurePowerType() {
 
     setRegister(0x54, REG54);
     setRegister(0x52, REG52);
-    setRegister(0x30, REG30);
-    setRegister(0x2F, REG2F);
+    //setRegister(0x30, REG30);
+    setRegister(0x30, LIBDAB_REG30);
+    //setRegister(0x2F, REG2F);
+    setRegister(0x2F, LIBDAB_REG2F);
 }
 
 void RaonTunerInput::configureAddClock() {
@@ -1040,21 +1052,45 @@ void RaonTunerInput::rtvRFInitilize() {
     setRegister(0x6B, 0xC5);
 }
 
-void RaonTunerInput::rtvRfSpecial() {
-    std::vector<uint8_t> readReq = {0x10, 0x00, 0x00, 0x01};
+void RaonTunerInput::rtvVersion() {
+    std::vector<uint8_t> cmdReq = {0x01, 0x00, 0x00, 0x00}; // "Version" command
+    int bytes = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, cmdReq);
+
+    std::vector<uint8_t> cmdRespBuf(4);
+    bytes = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, cmdRespBuf);
+
+    // answer is e.g. 0x81 00 00 01 => Hw Version:0.00; Sw Version:0.01
+    if (bytes == 4 && cmdRespBuf[0] == 0x81) {
+        std::stringstream logstr, hwversion, swversion;
+        hwversion << (((cmdRespBuf[1] & 0xF0u) >> 4u) & 0x0Fu) << "."
+                  << (cmdRespBuf[1] & 0x0Fu)
+                  << (((cmdRespBuf[2] & 0xF0u) >> 4u) & 0x0Fu);
+        m_HwVersion = hwversion.str();
+
+        swversion << (cmdRespBuf[2] & 0x0Fu) << "."
+                  << (((cmdRespBuf[3] & 0xF0u) >> 4u) & 0x0Fu)
+                  << (cmdRespBuf[3] & 0x0Fu);
+        m_SwVersion = swversion.str();
+
+        logstr << LOG_TAG << "HW version '" << m_HwVersion
+               << "', SW version '" << m_SwVersion << "'";
+        std::cout << logstr.str() << std::endl;
+    }
+}
+
+void RaonTunerInput::rtvEcho() {
     if (m_usbDevice != nullptr) {
-        int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, readReq);
+        std::vector<uint8_t> cmdReq = {0x00, 0x00, 0x00, 0x00}; // "ECHO" command
+        int bytes = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, cmdReq);
 
-        std::vector<uint8_t> readReqBuf(4);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, readReqBuf);
-
-        readReq = {0x00, 0x00, 0x00, 0x00};
-        bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, readReq);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, readReqBuf);
-
-        readReq = {0x01, 0x00, 0x00, 0x00};
-        bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, readReq);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, readReqBuf);
+        std::vector<uint8_t> cmdRespBuf(4);
+        bytes = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, cmdRespBuf);
+        // answer is 0x80 'D' 'A' 'B'
+        if (bytes == 4 && cmdRespBuf[0] == 0x80) {
+            std::stringstream logStr;
+            logStr << LOG_TAG << "echo: '" << cmdRespBuf[1] << cmdRespBuf[2] << cmdRespBuf [3] << "'";
+            std::cout << logStr.str() << std::endl;
+        }
     }
 }
 

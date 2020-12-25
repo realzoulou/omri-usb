@@ -200,6 +200,16 @@ public class TunerIpShoutcast implements Tuner, IcyStreamDataSource.IcyMetadataL
 	}
 
 	@Override
+	public @NonNull String getSoftwareVersion() {
+		return "";
+	}
+
+	@Override
+	public @NonNull String getHardwareVersion() {
+		return "";
+	}
+
+	@Override
 	public void startRadioServiceScan() {
 		startRadioServiceScan(null);
 	}

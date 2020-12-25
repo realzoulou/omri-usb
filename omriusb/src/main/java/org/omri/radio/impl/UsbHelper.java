@@ -20,7 +20,6 @@ import org.omri.radioservice.RadioServiceDabEdi;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Executors;
 
@@ -77,6 +76,9 @@ public class UsbHelper {
 	private native void startServiceScan(String deviceName);
 	private native void stopServiceScan(String deviceName);
 	private native ArrayList<RadioServiceDab> getLinkedServices(String deviceName, RadioServiceDab dabService);
+	private native String getHardwareVersion(String deviceName);
+	private native String getSoftwareVersion(String deviceName);
+
 
 	/* EdiStream */
 	private native void ediTunerAttached(TunerEdistream ediTuner);
@@ -105,25 +107,6 @@ public class UsbHelper {
 
 			mContext.registerReceiver(mUsbBroadcastReceiver, filter);
 			created(mRedirectCoutToALog, mRawRecordingPath);
-		}
-	}
-
-	public void scanUsbDevices() {
-		if(mUsbManager != null) {
-			mUsbDeviceList = mUsbManager.getDeviceList();
-			Iterator<UsbDevice> udevIter = mUsbDeviceList.values().iterator();
-			while(udevIter.hasNext()) {
-				UsbDevice device = udevIter.next();
-				String devName = device.getDeviceName();
-				int devPid = device.getProductId();
-				int devVid = device.getVendorId();
-				int devIfCount = device.getInterfaceCount();
-
-				if(DEBUG)Log.d(TAG, "DeviceName: " + devName);
-				if(DEBUG)Log.d(TAG, "DevicePid: " + devPid);
-				if(DEBUG)Log.d(TAG, "DeviceVid: " + devVid);
-				if(DEBUG)Log.d(TAG, "DeviceIfCount: " + devIfCount);
-			}
 		}
 	}
 
@@ -159,27 +142,6 @@ public class UsbHelper {
 		startSrv(deviceName, srv);
 	}
 
-	/* EdiStream */
-	void ediStreamTunerAttached(TunerEdistream ediTuner) {
-		ediTunerAttached(ediTuner);
-	}
-
-	void ediStreamTunerDetached(TunerEdistream ediTuner) {
-		ediTunerDetached(ediTuner);
-	}
-
-	void startEdiStreamService(TunerEdistream ediTuner, RadioServiceDabEdi ediSrv) {
-		startEdiStream(ediTuner, ediSrv);
-	}
-
-	void ediStream(byte[] ediData, int size) {
-		ediStreamData(ediData, size);
-	}
-
-	void flushEdiData() {
-		ediFlushBuffer();
-	}
-
 	public void stopService(String deviceName) {
 		stopSrv(deviceName);
 	}
@@ -202,6 +164,35 @@ public class UsbHelper {
 
 	public @Nullable ArrayList<RadioServiceDab> getLinkedDabServices(@NonNull String deviceName, @NonNull RadioServiceDab serviceDab) {
 		return getLinkedServices(deviceName, serviceDab);
+	}
+
+	public @Nullable String getHwVersion(@NonNull String deviceName) {
+		return getHardwareVersion(deviceName);
+	}
+
+	public @Nullable String getSwVersion(@NonNull String deviceName) {
+		return getSoftwareVersion(deviceName);
+	}
+
+	/* EdiStream */
+	void ediStreamTunerAttached(TunerEdistream ediTuner) {
+		ediTunerAttached(ediTuner);
+	}
+
+	void ediStreamTunerDetached(TunerEdistream ediTuner) {
+		ediTunerDetached(ediTuner);
+	}
+
+	void startEdiStreamService(TunerEdistream ediTuner, RadioServiceDabEdi ediSrv) {
+		startEdiStream(ediTuner, ediSrv);
+	}
+
+	void ediStream(byte[] ediData, int size) {
+		ediStreamData(ediData, size);
+	}
+
+	void flushEdiData() {
+		ediFlushBuffer();
 	}
 
 	/* Demo tuner */
