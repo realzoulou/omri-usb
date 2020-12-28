@@ -49,6 +49,7 @@ static jmethodID m_radioServiceDabImpl_setEnsembleEcc_mId = nullptr;
 static jmethodID m_radioServiceDabImpl_setEnsembleFrequency_mId = nullptr;
 static jmethodID m_radioServiceDabImpl_setEnsembleId_mId = nullptr;
 static jmethodID m_radioServiceDabImpl_setServiceId_mId = nullptr;
+static jmethodID m_radioServiceDabImpl_setIsProgrammeService_mId = nullptr;
 static jclass m_radioServiceImplClass = nullptr;
 static jclass m_dabServiceComponentClass = nullptr;
 static jclass m_dabServiceUserApplicationClass = nullptr;
@@ -99,6 +100,8 @@ static void cacheClassDefinitions(JavaVM *vm) {
                                                                "setEnsembleId", "(I)V");
     m_radioServiceDabImpl_setServiceId_mId = env->GetMethodID(m_radioServiceDabImplClass,
                                                               "setServiceId", "(I)V");
+    m_radioServiceDabImpl_setIsProgrammeService_mId = env->GetMethodID(m_radioServiceDabImplClass,
+                                                        "setIsProgrammeService", "(Z)V");
     m_dabServiceComponentClass = (jclass) env->NewGlobalRef(
             env->FindClass("org/omri/radio/impl/RadioServiceDabComponentImpl"));
     m_dabServiceUserApplicationClass = (jclass) env->NewGlobalRef(
@@ -517,6 +520,9 @@ Java_org_omri_radio_impl_UsbHelper_getLinkedServices(JNIEnv *env, jobject thiz, 
                                     static_cast<jint>(s.get()->getEnsembleId()));
                 env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setServiceId_mId,
                                     static_cast<jint>(s.get()->getServiceId()));
+                // assume that all such services are Programme Services
+                env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setIsProgrammeService_mId,
+                                    JNI_TRUE);
 
                 env->CallBooleanMethod(retObj, m_ArrayList_add_mId, jLinkedServiceDab);
             }
