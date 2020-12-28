@@ -50,6 +50,8 @@ static jmethodID m_radioServiceDabImpl_setEnsembleFrequency_mId = nullptr;
 static jmethodID m_radioServiceDabImpl_setEnsembleId_mId = nullptr;
 static jmethodID m_radioServiceDabImpl_setServiceId_mId = nullptr;
 static jmethodID m_radioServiceDabImpl_setIsProgrammeService_mId = nullptr;
+static jmethodID m_radioServiceDabImpl_setServiceLabel_mId = nullptr;
+static jmethodID m_radioServiceDabImpl_getServiceLabel_mId = nullptr;
 static jclass m_radioServiceImplClass = nullptr;
 static jclass m_dabServiceComponentClass = nullptr;
 static jclass m_dabServiceUserApplicationClass = nullptr;
@@ -102,6 +104,10 @@ static void cacheClassDefinitions(JavaVM *vm) {
                                                               "setServiceId", "(I)V");
     m_radioServiceDabImpl_setIsProgrammeService_mId = env->GetMethodID(m_radioServiceDabImplClass,
                                                         "setIsProgrammeService", "(Z)V");
+    m_radioServiceDabImpl_setServiceLabel_mId = env->GetMethodID(m_radioServiceDabImplClass,
+            "setServiceLabel", "(Ljava/lang/String;)V");
+    m_radioServiceDabImpl_getServiceLabel_mId = env->GetMethodID(m_radioServiceDabImplClass,
+            "getServiceLabel", "()Ljava/lang/String;");
     m_dabServiceComponentClass = (jclass) env->NewGlobalRef(
             env->FindClass("org/omri/radio/impl/RadioServiceDabComponentImpl"));
     m_dabServiceUserApplicationClass = (jclass) env->NewGlobalRef(
@@ -497,6 +503,12 @@ Java_org_omri_radio_impl_UsbHelper_getLinkedServices(JNIEnv *env, jobject thiz, 
             // convert Java input dabService via JDabService to a LinkedServiceDab
             JDabService jDabService(m_javaVm, env, m_radioServiceDabImplClass, m_dynamicLabelClass,
                                     m_dynamicLabelPlusItemClass, m_slideshowClass, dabService);
+            // Wrong clang-tidy warning:
+            // "JVM object referenced by 'dabService' is of type 'RadioServiceDab' and it does not
+            // have access to method 'getServiceLabel()' declared in class 'RadioServiceDabImpl'."
+            // NOLINTNEXTLINE
+            auto inputServiceLabel = (jstring) env->CallObjectMethod(dabService, m_radioServiceDabImpl_getServiceLabel_mId);
+
             LinkedServiceDab inputService(jDabService.getEnsembleEcc(),
                                           jDabService.getServiceId(),
                                           jDabService.getEnsembleId(),
@@ -523,6 +535,12 @@ Java_org_omri_radio_impl_UsbHelper_getLinkedServices(JNIEnv *env, jobject thiz, 
                 // assume that all such services are Programme Services
                 env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setIsProgrammeService_mId,
                                     JNI_TRUE);
+                // assume that all such services have the same Service Label as the requested service
+                if (inputServiceLabel != nullptr) {
+                    env->CallVoidMethod(jLinkedServiceDab,
+                                        m_radioServiceDabImpl_setServiceLabel_mId,
+                                        inputServiceLabel);
+                }
 
                 env->CallBooleanMethod(retObj, m_ArrayList_add_mId, jLinkedServiceDab);
             }
