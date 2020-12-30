@@ -446,11 +446,12 @@ public class TunerUsbImpl implements TunerUsb {
 
 	@Override
 	public void serviceStopped(RadioServiceDab stoppedService) {
-		if(DEBUG)Log.d(TAG, "DabService stopped: " + stoppedService.getServiceLabel());
+		// tell service that it was stoppped
+		((RadioServiceImpl) stoppedService).serviceStopped();
+		// inform tuner listeners
 		synchronized (mTunerlisteners) {
 			for (TunerListener listener : mTunerlisteners) {
 				listener.radioServiceStopped(this, stoppedService);
-				((RadioServiceImpl) stoppedService).serviceStopped();
 			}
 		}
 		mCurrentlyRunningService = null;

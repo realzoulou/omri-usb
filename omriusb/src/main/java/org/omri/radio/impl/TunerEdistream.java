@@ -418,9 +418,11 @@ public class TunerEdistream implements Tuner, IpServiceScanner.IpScannerListener
 			if(!mIsReconnecting) {
 				((RadioServiceDabEdiImpl) stoppedService).removeSbtControlCallback(this);
 				if (mTunerStatus != TUNER_STATUS_SCANNING) {
+					// tell service that it was stoppped
+					((RadioServiceImpl) stoppedService).serviceStopped();
+					// inform tuner listeners
 					for (TunerListener listener : mTunerlisteners) {
 						listener.radioServiceStopped(this, stoppedService);
-						((RadioServiceImpl) stoppedService).serviceStopped();
 					}
 				}
 			}
