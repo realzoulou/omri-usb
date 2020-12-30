@@ -152,15 +152,19 @@ void DynamiclabelDecoder::parseDlsData() {
         }
 
         if(segType == SEGMENT_TYPE::ONE_AND_ONLY) {
-            std::cout << m_logTag  << " SEGMENT_TYPE::ONE_AND_ONLY" << std::endl;
-
             DabDynamicLabel label;
             m_currentDlsCharset = label.charset = static_cast<uint8_t>((*dlIter & 0xF0) >> 4);
             uint8_t rfa = static_cast<uint8_t>((*dlIter++ & 0x0F));
 
             m_dlsFullData.clear();
             m_dlsFullData.insert(m_dlsFullData.cend(), dlIter, dlIter+length);
-
+#ifdef VERBOSE
+            std::string loglabel = convertToStdStringUsingCharset(
+                    std::vector<uint8_t>(m_dlsFullData.cbegin(), m_dlsFullData.cend()),
+                    static_cast<const registeredtables::CHARACTER_SET>(m_currentDlsCharset));
+            std::cout << m_logTag  << " SEGMENT_TYPE::ONE_AND_ONLY: charset=" << +m_currentDlsCharset << " '"
+                      << loglabel << std::string() << "'" << std::endl;
+#endif // VERBOSE
             label.dynamicLabel = convertToStdStringUsingCharset(
                     std::vector<uint8_t>(dlIter, dlIter + length),
                     static_cast<const registeredtables::CHARACTER_SET>(m_currentDlsCharset));
