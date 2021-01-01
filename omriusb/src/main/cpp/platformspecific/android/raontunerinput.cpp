@@ -250,6 +250,8 @@ void RaonTunerInput::stopAllRunningServices() {
 
 void RaonTunerInput::commandProcessing() {
     pthread_setname_np(pthread_self(), "CommandQ");
+    std::cout << LOG_TAG << "CommandQ Thread starting" << std::endl;
+
     while(m_commandThreadRunning) {
         if (!hasUsbIoErrors()) {
             std::function<void(void)> command;
@@ -1210,7 +1212,7 @@ void RaonTunerInput::clearAndSetupMscMemory() {
 }
 
 void RaonTunerInput::openSubChannel(uint8_t subchanId) {
-    std::cout << LOG_TAG << "Opening subchannel: " << std::hex << +subchanId << std::dec << std::endl;
+    std::cout << LOG_TAG << "Opening subchannel: " << +subchanId << std::endl;
 
     switchPage(REGISTER_PAGE_DD);
 
@@ -1563,9 +1565,14 @@ void RaonTunerInput::startReadDataThread() {
         m_commandThreadRunning = true;
         if (std::this_thread::get_id() != m_commandThread.get_id()) {
             m_commandThread = std::thread(&RaonTunerInput::commandProcessing, this);
+        } else {
+            // running on the thread that I should start ?!?
+            std::cout << LOG_TAG << "Continue Data thread with NOP" << std::endl;
+            // trigger myself with a NOP
+            m_commandQueue.push(std::bind(&RaonTunerInput::nop, this));
         }
     } else {
-        std::clog << LOG_TAG << "Start Read Data thread: already running!" << std::endl;
+        std::clog << LOG_TAG << "Starting Data thread: already running" << std::endl;
     }
 }
 
