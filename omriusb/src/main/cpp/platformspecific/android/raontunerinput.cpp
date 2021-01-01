@@ -512,8 +512,7 @@ void RaonTunerInput::switchPage(RaonTunerInput::REGISTER_PAGE regPage) {
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, switchData);
         if (bytesTransfered == -1 || bytesTransfered < switchData.size()) {
-            std::clog << LOG_TAG << "switchPage write exp:" << +switchData.size()
-                      << ", rcv:" << +bytesTransfered << std::endl;
+            std::clog << LOG_TAG << "switchPage 0x" << std::hex << +regPage << std::dec << ": write exp:" << +switchData.size() << ", rcv:" << +bytesTransfered << std::endl;
             mUsbWriteFailure++;
         } else {
             mUsbWriteFailure = 0;
@@ -526,8 +525,9 @@ void RaonTunerInput::setRegister(uint8_t reg, uint8_t val) {
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, setRegData);
         if (bytesTransfered == -1 || bytesTransfered < setRegData.size()) {
-            std::clog << LOG_TAG << "setRegister write exp:" << +setRegData.size()
-                      << ", rcv:" << +bytesTransfered << std::endl;
+            std::clog << LOG_TAG << "setRegister 0x" << std::hex << +reg << "=0x" << +val
+                      << std::dec << ": write exp:" << +setRegData.size() << ", rcv:"
+                      << +bytesTransfered << std::endl;
             mUsbWriteFailure++;
         } else {
             mUsbWriteFailure = 0;
@@ -540,8 +540,8 @@ uint8_t RaonTunerInput::readRegister(uint8_t reg) {
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, xferbuff);
         if (bytesTransfered  == -1 || bytesTransfered < xferbuff.size()) {
-            std::clog << LOG_TAG << "readRegister write exp:" << +xferbuff.size()
-                      << ", rcv:" << +bytesTransfered << std::endl;
+            std::clog << LOG_TAG << "readRegister 0x" << std::hex << +reg << std::dec
+                      << ": write exp:" << +xferbuff.size() << ", rcv:" << +bytesTransfered << std::endl;
             mUsbWriteFailure++;
         } else {
             mUsbWriteFailure = 0;
@@ -549,8 +549,9 @@ uint8_t RaonTunerInput::readRegister(uint8_t reg) {
 
         bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, xferbuff);
         if (bytesTransfered == -1 || bytesTransfered < xferbuff.size()) {
-            std::clog << LOG_TAG << "readRegister read exp:" << +xferbuff.size()
-                << ", rcv:" << +bytesTransfered << std::endl;
+            std::clog << LOG_TAG << "readRegister 0x" << std::hex << +reg << std::dec
+                      << ": read exp:" << +xferbuff.size() << ", rcv:" << +bytesTransfered
+                      << std::endl;
             mUsbReadFailure++;
             return 0;
         } else {
