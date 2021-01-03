@@ -34,6 +34,7 @@
 
 #include "../../ficparser.h"
 #include "demousbtunerinput.h"
+#include "jusbdevice.h"
 #include "raontunerinput.h"
 
 constexpr uint8_t RaonTunerInput::g_abAdcClkSynTbl[4][7];
@@ -195,7 +196,7 @@ void RaonTunerInput::checkServiceSanity(const uint32_t serviceId) {
         std::shared_ptr<JDabService> &startedService = getStartedService();
         if (startedService != nullptr) {
             uint32_t sid = startedService->getServiceId();
-            std::cout << LOG_TAG << "call DabEnsemble checkServiceSanity 0x" << std::hex << +sid << std::dec << std::endl;
+            //std::cout << LOG_TAG << "call DabEnsemble checkServiceSanity 0x" << std::hex << +sid << std::dec << std::endl;
             DabEnsemble::checkServiceSanity(sid);
             return;
         }
@@ -518,7 +519,25 @@ void RaonTunerInput::switchPage(RaonTunerInput::REGISTER_PAGE regPage) {
             mUsbWriteFailure++;
         } else {
             mUsbWriteFailure = 0;
+            auto response = std::vector<uint8_t>(1);
+            bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, response);
+            if (bytesTransfered != 1) {
+                std::clog << LOG_TAG << "switchPage 0x" << std::hex << +regPage << std::dec
+                          << ": read exp:" << +response.size() << ", rcv:" << +bytesTransfered
+                          << std::endl;
+                mUsbReadFailure++;
+            } else {
+                if (response[0] != 0xA1) {
+                    std::clog << LOG_TAG << "switchPage 0x" << std::hex << +regPage << " : 0x"
+                              << +response[0] << std::dec << std::endl;
+                    mUsbReadFailure++;
+                } else {
+                    mUsbReadFailure = 0;
+                }
+            }
         }
+    } else {
+        std::clog << LOG_TAG << "switchPage: no USB device" << std::endl;
     }
 }
 
@@ -533,7 +552,25 @@ void RaonTunerInput::setRegister(uint8_t reg, uint8_t val) {
             mUsbWriteFailure++;
         } else {
             mUsbWriteFailure = 0;
+            auto response = std::vector<uint8_t>(1);
+            bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, response);
+            if (bytesTransfered != 1) {
+                std::clog << LOG_TAG << "setRegister 0x" << std::hex << +reg << std::dec
+                          << ": read exp:" << +response.size() << ", rcv:" << +bytesTransfered
+                          << std::endl;
+                mUsbReadFailure++;
+            } else {
+                if (response[0] != 0xA1) {
+                    std::clog << LOG_TAG << "setRegister 0x" << std::hex << +reg << " : 0x"
+                              << +response[0] << std::dec << std::endl;
+                    mUsbReadFailure++;
+                } else {
+                    mUsbReadFailure = 0;
+                }
+            }
         }
+    } else {
+        std::clog << LOG_TAG << "setRegister: no USB device" << std::endl;
     }
 }
 
@@ -1283,7 +1320,7 @@ void RaonTunerInput::readFic() {
     uint8_t demodStat = readRegister(INT_E_STATL);
     bool ficInt = (demodStat & FIC_E_INT);
 
-    if(ficInt && (m_usbDevice != nullptr)) {
+    if(ficInt) {
 
         readFicData();
 
@@ -1363,7 +1400,7 @@ void RaonTunerInput::readMsc() {
         std::vector<uint8_t> mscRecBuff(1536);
 
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, mscReqBuf);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff, 50);
 
         if(m_startServiceLink != nullptr) {
             const std::vector<uint8_t> mscData(mscRecBuff.begin()+4, mscRecBuff.begin()+bytesTransfered);
@@ -1614,7 +1651,7 @@ void RaonTunerInput::readMscData() {
 
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, mscReqBuf);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff, 50);
 
         //std::cout << LOG_TAG << "ReadData: " << +bytesTransfered << std::endl;
 
@@ -1645,7 +1682,7 @@ void RaonTunerInput::readFicData() {
             mUsbWriteFailure = 0;
         }
         std::vector<uint8_t> reFicRet(400);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, reFicRet);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, reFicRet, 50);
 
         switchPage(REGISTER_PAGE_DD);
         /* FIC interrupt status clear */
@@ -1724,7 +1761,7 @@ void RaonTunerInput::readData() {
               " FecSoftReset: " << fecSoftreset << \
               std::noboolalpha << std::endl;
 
-    if(ficInt && (m_usbDevice != nullptr)) {
+    if(ficInt) {
         readFicData();
     }
 
@@ -1767,7 +1804,7 @@ void RaonTunerInput::readData() {
         std::vector<uint8_t> mscRecBuff(4096);
 
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, mscReqBuf);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff, 50);
 
         //std::cout << LOG_TAG << "ReadData: " << +bytesTransfered << std::endl;
 

@@ -100,6 +100,7 @@ target_compile_options(irtdab PUBLIC
         -Wno-unused-parameter
         -Wno-unused-private-field
         -Wno-unused-variable
+        -Wno-gnu-statement-expression
         )
 
 # Specifies libraries CMake should link to your target library. You

@@ -27,6 +27,21 @@
 #include <vector>
 #include <map>
 
+/* POSIX_IOCTL_READ_WRITE_BULKTRANSFER
+ * 0 : Use Android UsbDeviceConnection (with immense overhead for JNI)
+ * 1 : Use POSIX ioctl() to read/write (no overhead, direct kernel communication)
+ */
+#define POSIX_IOCTL_READ_WRITE_BULKTRANSFER 1
+
+#if POSIX_IOCTL_READ_WRITE_BULKTRANSFER == 1
+    /* POSIX_IOCTL_WRITE_ASYNC_BULKTRANSFER
+     * if defined: a method writeBulkTransferDataAsync() is available, which allows to send an
+     * asynchronous write bulk transfer.
+     * Note: The method itself is still synchronous and blocks until response or timeout
+     */
+    // not used (yet?) #define POSIX_IOCTL_WRITE_ASYNC_BULKTRANSFER
+#endif
+
 class JUsbDevice {
 
 public:
@@ -44,10 +59,13 @@ public:
     using PermissionCallbackFunction = std::function<void(const bool permissionGranted)>;
     virtual void requestPermission(PermissionCallbackFunction permissionCallback);
 
-    virtual int writeBulkTransferData(uint8_t endPointAddress, const std::vector<uint8_t>& buffer, int timeOutMs = 5000);
-    virtual int writeBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 5000);
-    virtual int readBulkTransferData(uint8_t endPointAddress, std::vector<uint8_t>& buffer, int timeOutMs = 5000);
-    virtual int readBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 5000);
+    virtual int writeBulkTransferData(uint8_t endPointAddress, const std::vector<uint8_t>& buffer, int timeOutMs = 500);
+    virtual int writeBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 500);
+#if defined(POSIX_IOCTL_WRITE_ASYNC_BULKTRANSFER)
+    virtual int writeBulkTransferDataAsync(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 500);
+#endif // defined(POSIX_IOCTL_WRITE_ASYNC_BULKTRANSFER)
+    virtual int readBulkTransferData(uint8_t endPointAddress, std::vector<uint8_t>& buffer, int timeOutMs = 500);
+    virtual int readBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 500);
 
 private:
     JavaVM* m_javaVm;
