@@ -754,7 +754,7 @@ void DabEnsemble::fig00_13_input(const Fig_00_Ext_13& fig13) {
                 }
             }
         } else {
-            std::cout << m_logTag << " SCIDS UserApplication not found" << std::endl;
+            std::cout << m_logTag << " SId 0x " << std::hex << +uAppInfo.serviceID << std::dec << " not found" << std::endl;
         }
     }
 }
@@ -1074,7 +1074,12 @@ void DabEnsemble::checkServiceSanity(const uint32_t serviceId ) {
         return;
     }
 
-    std::cout << m_logTag << " checkServiceSanity passed '" << getEnsembleLabel() << "'" << std::endl;
+    logStr.str(std::string());
+    logStr << m_logTag << " checkServiceSanity passed '" << getEnsembleLabel() << "'";
+    if (serviceId != DabService::SID_INVALID) {
+        logStr << " for SId 0x" << std::hex << +serviceId << std::dec;
+    }
+    std::cout << logStr.str() << std::endl;
 
     if (!m_ensembleCollectFinished) {
         m_ensembleCollectFinished = true;
