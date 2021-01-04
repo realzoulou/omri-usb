@@ -27,10 +27,10 @@ class DabServiceComponentMscStream : public DabServiceComponent {
 
 public:
     virtual ~DabServiceComponentMscStream() = default;
+    virtual void flushBufferedData();
 
 protected:
-    explicit DabServiceComponentMscStream() = default;
-
+    explicit DabServiceComponentMscStream();
 };
 
 #endif // DABSERVICECOMPONENTMSCSTREAM_H

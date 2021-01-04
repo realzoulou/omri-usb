@@ -184,6 +184,7 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_PACKET_MODE: {
             Fig_00_Ext_03 extThree(ficData);
             m_fig00_03dispatcher.invoke(extThree);
+            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::SERVICE_COMPONENT_PACKET_MODE);
             break;
         }
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_STREAM_CA: {
@@ -231,6 +232,7 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
         case Fig::FIG_00_TYPE::FEC_SUBCHANNEL_ORGANIZATION: {
             Fig_00_Ext_14 ext4Ten(ficData);
             m_fig00_14dispatcher.invoke(ext4Ten);
+            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::FEC_SUBCHANNEL_ORGANIZATION);
             break;
         }
         case Fig::FIG_00_TYPE::PROGRAMME_NUMBER: {
@@ -240,6 +242,7 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
         case Fig::FIG_00_TYPE::PROGRAMME_TYPE: {
             Fig_00_Ext_17 ext7Ten(ficData);
             m_fig00_17dispatcher.invoke(ext7Ten);
+            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::PROGRAMME_TYPE);
             break;
         }
         case Fig::FIG_00_TYPE::ANNOUNCEMENT_SUPPORT: {
@@ -301,11 +304,13 @@ void FicParser::parseFig_01(const std::vector<uint8_t>& ficData) {
         case Fig::FIG_01_TYPE::SERVICE_COMPONENT_LABEL: {
             Fig_01_Ext_04 ext4(ficData);
             m_fig01_04dispatcher.invoke(ext4);
+            m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::SERVICE_COMPONENT_LABEL);
             break;
         }
         case Fig::FIG_01_TYPE::DATA_SERVICE_LABEL: {
             Fig_01_Ext_05 ext5(ficData);
             m_fig01_05dispatcher.invoke(ext5);
+            m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::DATA_SERVICE_LABEL);
             break;
         }
         case Fig::FIG_01_TYPE::XPAD_USERAPPLICATION_LABEL: {

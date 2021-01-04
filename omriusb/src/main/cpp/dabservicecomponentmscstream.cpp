@@ -19,3 +19,11 @@
  */
 
 #include "dabservicecomponentmscstream.h"
+
+DabServiceComponentMscStream::DabServiceComponentMscStream() {
+    m_componentType = SERVICECOMPONENTTYPE::MSC_PACKET_MODE_DATA;
+}
+
+void DabServiceComponentMscStream::flushBufferedData() {
+
+}

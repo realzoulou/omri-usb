@@ -34,6 +34,9 @@
 #include "registered_tables.h"
 #include "global_definitions.h"
 
+// uncomment to use original implementation of Fabian
+//#define USE_ORIG_SYNC_N_PROCESSDATA
+
 class DabPlusServiceComponentDecoder : public DabServiceComponentDecoder {
 
 public:
@@ -126,6 +129,14 @@ private:
 private:
     void processData();
     void synchronizeData(const std::vector<uint8_t>& unsyncData);
+
+#ifdef USE_ORIG_SYNC_N_PROCESSDATA
+    void processDataOrig();
+    void synchronizeDataOrig(const std::vector<uint8_t>& unsyncData);
+    DabSuperFrame m_currentSuperFrame;
+    bool m_isSync{false};
+    int m_dabSuperFrameCount{0};
+#endif // USE_ORIG_SYNC_N_PROCESSDATA
 
 private:
     static const uint16_t FIRECODE_TABLE[256];
