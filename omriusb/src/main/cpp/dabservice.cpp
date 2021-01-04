@@ -171,34 +171,34 @@ DabEnsemble* DabService::getDabEnsemble() const {
 bool DabService::checkSanity() const {
     bool isSane = true;
     std::stringstream logStr;
-    logStr << m_logTag << "check sanity SId=0x" << std::hex << +getServiceId() << std::dec << ":";
+    logStr << m_logTag << "check sanity SId=0x" << std::hex << +getServiceId() << std::dec << ": ";
 
     if (getServiceId() == SID_INVALID) {
-        logStr << " SID:invalid";
+        logStr << "SID:invalid";
         isSane = false;
     }
     else if (getEnsembleFrequency() == DabEnsemble::FREQ_INVALID) {
-        logStr << " EFreq:invalid";
+        logStr << "EFreq:invalid";
         isSane = false;
     }
     else if (getNumberServiceComponents() == 0) {
-        logStr << " numCmp:0";
+        logStr << "numCmp:0";
         isSane = false;
     }
     else if (getLabelCharset() == CHARSET_INVALID) {
-        logStr << " charset:invalid";
+        logStr << "charset:invalid";
         isSane = false;
     }
     else if (getServiceLabel().empty()) {
-        logStr << " label:empty";
+        logStr << "label:empty";
         isSane = false;
     }
     else if (getServiceShortLabel().empty()) {
-        logStr << " short label:empty";
+        logStr << "short label:empty";
         isSane = false;
     }
     else if (getServiceComponents().size() != getNumberServiceComponents()) {
-        logStr << " components != numCmp:" << +getServiceComponents().size() << "/" << +getNumberServiceComponents();
+        logStr << "components != numCmp:" << +getServiceComponents().size() << "/" << +getNumberServiceComponents();
         isSane = false;
     } else {
         for (const auto& srvCmp : getServiceComponents()) {
@@ -209,6 +209,33 @@ bool DabService::checkSanity() const {
                 isSane = false;
                 break;
             }
+        }
+    }
+    if (isSane && isProgrammeService()) {
+        bool hasDlsUserApp = false, hasMotSlsUserApp = false;
+        for (const auto &srvComp : getServiceComponents()) {
+            if (srvComp->getServiceComponentType() ==
+                DabServiceComponent::SERVICECOMPONENTTYPE::MSC_STREAM_AUDIO &&
+                (srvComp->isPrimary() || getNumberServiceComponents() == 1)) {
+                for (const auto &uApp : srvComp->getUserApplications()) {
+                    switch (uApp.getUserApplicationType()) {
+                        case registeredtables::USERAPPLICATIONTYPE::DYNAMIC_LABEL:
+                            hasDlsUserApp = true;
+                            break;
+                        case registeredtables::USERAPPLICATIONTYPE::MOT_SLIDESHOW:
+                            hasMotSlsUserApp = true;
+                            break;
+                        default: // don't care
+                            break;
+                    }
+                }
+            }
+        }
+        // Programme Service must have at least these two User Applications
+        // maybe dangerous to assume this? No DAB spec reference found
+        if (! (hasDlsUserApp && hasMotSlsUserApp)) {
+            logStr << "PS but DlsUserApp=" << std::boolalpha << hasDlsUserApp << ", MotSlsUserApp=" << hasMotSlsUserApp << std::noboolalpha;
+            isSane = false;
         }
     }
     if (!isSane && logStr.str().length() > 0) {
