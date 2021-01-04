@@ -36,11 +36,7 @@ extern "C" {
 DabPlusServiceComponentDecoder::DabPlusServiceComponentDecoder() {
     //std::cout << m_logTag << " Constructing" << std::endl;
     m_processThreadRunning = true;
-#ifdef USE_ORIG_SYNC_N_PROCESSDATA
-    m_processThread = std::thread(&DabPlusServiceComponentDecoder::processDataOrig, this);
-#else
     m_processThread = std::thread(&DabPlusServiceComponentDecoder::processData, this);
-#endif
 }
 
 DabPlusServiceComponentDecoder::~DabPlusServiceComponentDecoder() {
@@ -65,39 +61,20 @@ void DabPlusServiceComponentDecoder::setSubchannelBitrate(uint16_t bitrate) {
         // subchannel_index = MSC sub-channel size (kbps) ÷ 8
         // audio_super_frame_size (bytes) = subchannel_index × 110
         // Note: this is the size of the super frame AFTER the Read-Solomon decoder
-        uint16_t prevSuperFrameSize = m_superFrameSize;
         m_superFrameSize = static_cast<uint16_t>((m_subChanBitrate / 8) * 110);
-
-        if (m_superFrameSize != prevSuperFrameSize) {
-            std::cout << m_logTag << " SubChanId: " << +getSubChannelId() << " SuperFrameSize: " << +m_superFrameSize << " SubchanBitrate: "
-                      << +m_subChanBitrate << std::endl;
-
-            resetInSync();
-        }
     }
 }
 
-void DabPlusServiceComponentDecoder::resetInSync() {
-    std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    m_unsyncSync = false;
-    m_unsyncFrameCount = 0;
-    m_unsyncByteCount = 0;
-    m_unsyncDataBuffer.clear();
-}
-
 void DabPlusServiceComponentDecoder::componentDataInput(const std::vector<uint8_t> &frameData, bool synchronized) {
-    if(!m_processThreadRunning || m_superFrameSize == 0 || m_frameSize == 0) {
+    if(!m_processThreadRunning) {
         return;
     }
 
     if (synchronized) {
         m_conQueue.push(frameData);
     } else {
-#ifdef USE_ORIG_SYNC_N_PROCESSDATA
-        synchronizeDataOrig(frameData);
-#else
-        synchronizeData(frameData);
-#endif
+        if(m_frameSize > 0) {
+            synchronizeData(frameData);
     }
 }
 
@@ -203,72 +180,6 @@ void DabPlusServiceComponentDecoder::synchronizeData(const std::vector<uint8_t>&
 
     m_unsyncDataBuffer.insert(m_unsyncDataBuffer.begin(), unsyncIter, data.end());
 }
-
-#ifdef USE_ORIG_SYNC_N_PROCESSDATA
-void DabPlusServiceComponentDecoder::synchronizeDataOrig(const std::vector<uint8_t>& unsyncData) {
-    //TODO poor and inefficient
-    std::vector<uint8_t> data;
-    auto unsyncDataBufferSize = m_unsyncDataBuffer.size();
-    if(unsyncDataBufferSize > 0) {
-        data.insert(data.begin(), m_unsyncDataBuffer.begin(), m_unsyncDataBuffer.end());
-
-        // only for housekeeping
-        if (m_unsyncByteCount >= unsyncDataBufferSize) {
-            // don't calculate these bytes twice
-            m_unsyncByteCount -= unsyncDataBufferSize;
-        } // else: m_unsyncByteCount was reset to 0 from "outside"
-
-        m_unsyncDataBuffer.clear();
-    }
-
-    data.insert(data.end(), unsyncData.begin(), unsyncData.end());
-
-    auto unsyncIter = data.begin();
-    while(unsyncIter+m_frameSize < data.end()) {
-        if (m_unsyncSync) {
-            while (unsyncIter + m_frameSize < data.end()) {
-                m_conQueue.push(std::vector<uint8_t>(unsyncIter, unsyncIter + m_frameSize));
-                unsyncIter += m_frameSize;
-                ++m_unsyncFrameCount;
-                if (m_unsyncFrameCount == 5) {
-                    m_unsyncSync = false;
-                    m_unsyncFrameCount = 0;
-                    break;
-                }
-            }
-            continue;
-        }
-
-        std::vector<uint8_t> checkData(unsyncIter, unsyncIter + m_frameSize);
-
-        if(!(checkData[0] == 0x00 && checkData[1] == 0x00)) {
-            if (CHECK_FIRECODE(checkData.data(), checkData.size())) {
-                // Ideally, there is one super frame following the other with no single byte in between
-                if (m_unsyncByteCount > 0) {
-                    std::stringstream logStr;
-                    logStr << m_logTag << " SubChanId " << +getSubChannelId()
-                           << ": Start of super frame after "
-                           << +m_unsyncByteCount << " bytes";
-                    std::cout << logStr.str() << std::endl;
-                }
-                m_conQueue.push(checkData);
-                ++m_unsyncFrameCount;
-                m_unsyncSync = true;
-                unsyncIter += m_frameSize;
-                m_unsyncByteCount = 0;
-                continue;
-            }
-        } else {
-            std::cout << m_logTag << " FireCode: 0x" << std::hex << +checkData[0] << " 0x" << +checkData[1] << " 0x" << +checkData[2] << " 0x" << +checkData[3] << " 0x" << +checkData[4] << std::dec << std::endl;
-        }
-
-        unsyncIter++;
-        m_unsyncByteCount++;
-    }
-
-    m_unsyncDataBuffer.insert(m_unsyncDataBuffer.begin(), unsyncIter, data.end());
-}
-#endif // USE_ORIG_SYNC_N_PROCESSDATA
 
 std::shared_ptr<DabPlusServiceComponentDecoder::PAD_DATA_CALLBACK> DabPlusServiceComponentDecoder::registerPadDataCallback(DabPlusServiceComponentDecoder::PAD_DATA_CALLBACK cb) {
     return m_padDataDispatcher.add(cb);
@@ -654,6 +565,237 @@ void DabPlusServiceComponentDecoder::processDataOrig() {
                 if(m_dabSuperFrameCount == 5) {
 
                     m_rsDec.DecodeSuperFrame(m_currentSuperFrame.superFrameData.data(), m_currentSuperFrame.superFrameData.size());
+
+                    if(m_currentSuperFrame.superFrameData.size() >= m_superFrameSize) {
+                        auBuff.clear();
+                        for (int i = 0; i < m_currentSuperFrame.numAUs; i++) {
+
+                            if (!m_processThreadRunning) {
+                                goto stop_thread;
+                            }
+
+                            if (CRC_CCITT_CHECK(m_currentSuperFrame.superFrameData.data() +
+                                                m_currentSuperFrame.auStarts[i],
+                                                m_currentSuperFrame.auLengths[i])) {
+                                if (((static_cast<unsigned>(m_currentSuperFrame.superFrameData[m_currentSuperFrame.auStarts[i]])
+                                        >> 5u) & 0x07u) == 0x04u) {
+                                    uint8_t padDataStart = 2;
+                                    uint8_t padDataLen = m_currentSuperFrame.superFrameData[
+                                            m_currentSuperFrame.auStarts[i] + 1];
+                                    if (padDataLen == 0xFF) {
+                                        padDataLen += m_currentSuperFrame.superFrameData[
+                                                m_currentSuperFrame.auStarts[i] + 2];
+                                        ++padDataStart;
+                                    }
+
+                                    std::vector<uint8_t> padData(
+                                            m_currentSuperFrame.superFrameData.begin() +
+                                            m_currentSuperFrame.auStarts[i] + padDataStart,
+                                            m_currentSuperFrame.superFrameData.begin() +
+                                            m_currentSuperFrame.auStarts[i] + padDataStart +
+                                            padDataLen);
+
+                                    if (!m_processThreadRunning) {
+                                        goto stop_thread;
+                                    }
+                                    m_padDataDispatcher.invoke(padData);
+
+                                    //change the beginnings and lengths of the AU
+                                    m_currentSuperFrame.auStarts[i] += (padDataStart + padDataLen);
+                                    m_currentSuperFrame.auLengths[i] -= (padDataStart + padDataLen);
+                                }
+
+                                auBuff.insert(auBuff.cend(),
+                                              m_currentSuperFrame.superFrameData.begin() +
+                                              m_currentSuperFrame.auStarts[i],
+                                              m_currentSuperFrame.superFrameData.begin() +
+                                              m_currentSuperFrame.auStarts[i] +
+                                              m_currentSuperFrame.auLengths[i] -
+                                              2); // -2 of length to cut off CRC
+                            } else {
+                                std::cout << m_logTag << " SuperFrame AU[" << +i
+                                          << "] CRC failed, Bitrate: " << +m_subChanBitrate
+                                          << std::endl;
+                            }
+                        }
+                        if (!m_processThreadRunning) {
+                            goto stop_thread;
+                        }
+                        m_audioDataDispatcher.invoke(auBuff, 63, m_currentSuperFrame.channels, m_currentSuperFrame.samplingRate, m_currentSuperFrame.sbrUsed, m_currentSuperFrame.psUsed);
+                    }
+
+                    m_dabSuperFrameCount = 0;
+                    m_isSync = false;
+                }
+            }
+        }
+    }
+
+    //std::cout << m_logTag << " ProcessData thread stopped" << std::endl;
+    return;
+
+    stop_thread:
+    std::cout << m_logTag << " ProcessData thread stopped quickly" << std::endl;
+}
+#endif // USE_ORIG_SYNC_N_PROCESSDATA
+
+#ifdef USE_ORIG_SYNC_N_PROCESSDATA
+void DabPlusServiceComponentDecoder::processDataOrig() {
+    const char threadname[] = "DplusProcessData";
+    const int THREAD_PRIORITY_AUDIO = -16; // android.os.Process.THREAD_PRIORITY_AUDIO
+    pthread_setname_np(pthread_self(), threadname);
+    int newprio = nice(THREAD_PRIORITY_AUDIO);
+    if (newprio == -1) {
+        int lErrno = errno;
+        std::clog << m_logTag << "nice failed: " << strerror(lErrno) << std::endl;
+    } else {
+        //std::cout << m_logTag << "nice: " << +newprio << std::endl;
+    }
+    while(m_processThreadRunning) {
+        std::vector<uint8_t> frameData;
+        //For assembling all access units per superframe for always having 120 ms audio for feeding into decoder
+        std::vector<uint8_t> auBuff;
+
+        if(m_superFrameSize == 0) {
+            continue;
+        }
+
+        if(m_conQueue.tryPop(frameData, std::chrono::milliseconds(50))) {
+            if(m_dabSuperFrameCount == 0) {
+
+                if (CHECK_FIRECODE(frameData.data())) {
+                    m_currentSuperFrame.clear();
+
+                    //AAC CoreSamplingRate
+                    //16 kHz AAC core sampling rate with SBR enabled
+                    //24 kHz AAC core sampling rate with SBR enabled
+                    //32 kHz AAC core sampling rate
+                    //48 kHz AAC core sampling rate
+
+                    //2 byte firecode preceeding
+                    //bool rfa = (frameData[2] >> 7) & 0xFF;
+                    bool dacRate = static_cast<bool>((frameData[2] & 0x40u) >> 6u);      // dacRate ? samplingRate(48000) : samplingRate(32000)
+                    bool sbr = static_cast<bool>((frameData[2] & 0x20u) >> 5u);          // sbr ? sbrUsed : sbrNotUsed
+                    bool chanMode = static_cast<bool>((frameData[2] & 0x10u) >> 4u);     // chanMode ? aacStereo : aacMono
+                    bool ps = static_cast<bool>((frameData[2] & 0x08u) >> 3u);           // ps ? psUsed : psNotUsed
+                    auto mpgSurCfg = static_cast<uint8_t >(frameData[2] & 0x07u);
+
+                    m_currentSuperFrame.sbrUsed = sbr;
+                    m_currentSuperFrame.psUsed = ps;
+                    m_currentSuperFrame.channels = chanMode ? 2 : 1;
+                    m_currentSuperFrame.samplingRate = dacRate ? 48000 : 32000;
+
+                    if(!dacRate && sbr) m_currentSuperFrame.numAUs = 2;
+                    if(dacRate && sbr) m_currentSuperFrame.numAUs = 3;
+                    if(!dacRate && !sbr) m_currentSuperFrame.numAUs = 4;
+                    if(dacRate && !sbr) m_currentSuperFrame.numAUs = 6;
+
+                    //std::cout << m_logTag << " NumAUs: " << +m_currentSuperFrame.numAUs << " DAC: " << +dacRate << " : " << +m_currentSuperFrame.samplingRate << " SBR: " << +sbr << " CHAN: " << +chanMode << " : " << +m_currentSuperFrame.channels << " PS: " << +ps << " MPEG: " << +mpgSurCfg << std::endl;
+
+                    bool alignmentPresent = (!(dacRate && sbr));
+
+                    //First AU start position
+                    switch (m_currentSuperFrame.numAUs) {
+                        case 2: {
+                            //AAC CoreSamplingRate
+                            //16 kHz AAC core sampling rate with SBR enabled
+                            //AU contains audio samples for 60 ms
+                            m_currentSuperFrame.auStarts.push_back(5);
+                            break;
+                        }
+                        case 3: {
+                            //AAC CoreSamplingRate
+                            //24 kHz AAC core sampling rate with SBR enabled
+                            //AU contains audio samples for 40 ms
+                            m_currentSuperFrame.auStarts.push_back(6);
+                            break;
+                        }
+                        case 4: {
+                            //AAC CoreSamplingRate
+                            //32 kHz AAC core sampling rate
+                            //AU contains audio samples for 30 ms
+                            m_currentSuperFrame.auStarts.push_back(8);
+                            break;
+                        }
+                        case 6: {
+                            //AAC CoreSamplingRate
+                            //48 kHz AAC core sampling rate
+                            //AU contains audio samples for 20 ms
+                            m_currentSuperFrame.auStarts.push_back(11);
+                            break;
+                        }
+                        default:
+                            //Though shall not pass
+                            std::cout << m_logTag << " Bad NumAUs: " << +m_currentSuperFrame.numAUs << std::endl;
+                            break;
+                    }
+
+                    //other AU start positions
+                    auto frameIter = frameData.cbegin() + 3;
+                    //start at index 1. first Au start is already known
+                    bool badAuStart{false};
+                    for (uint8_t i = 1; i < m_currentSuperFrame.numAUs; i++) {
+                        if(!m_processThreadRunning) {
+                            goto stop_thread;
+                        }
+
+                        uint16_t auStart{0xFFFF};
+                        if (i % 2) {
+                            auStart = static_cast<uint16_t>((*frameIter++ & 0xFFu) << 4u | (*frameIter & 0xF0u) >> 4u);
+                        } else {
+                            auStart = static_cast<uint16_t>((*frameIter++ & 0x0Fu) << 8u | (*frameIter++ & 0xFFu));
+                        }
+
+                        //AU start sanity checks
+                        if(auStart > m_superFrameSize || auStart <= m_currentSuperFrame.auStarts[i-1]) {
+                            std::cout << m_logTag << " Bad AU-Start NumAUs " << +m_currentSuperFrame.numAUs << " : " << +i << std::endl;
+                            std::cout << m_logTag << " Bad AU-Start: " << +auStart << " : " << +m_superFrameSize << std::endl;
+                            std::cout << m_logTag << " Bad AU-Start: " << +auStart << " : " << +m_currentSuperFrame.auStarts[i-1] << std::endl;
+                            badAuStart = true;
+                            break;
+                        }
+
+                        m_currentSuperFrame.auStarts.push_back(auStart);
+                    }
+
+                    if(badAuStart) {
+                        //std::cout << m_logTag << " Bad AU-Start" << std::endl;
+                        continue;
+                    }
+
+                    //last auNum+1
+                    m_currentSuperFrame.auStarts.push_back(m_superFrameSize);
+
+                    for (int i = 0; i < m_currentSuperFrame.numAUs; i++) {
+                        m_currentSuperFrame.auLengths.push_back(m_currentSuperFrame.auStarts[i + 1] - m_currentSuperFrame.auStarts[i]);
+                    }
+
+                    m_currentSuperFrame.superFrameData.insert(m_currentSuperFrame.superFrameData.end(), frameData.begin(), frameData.end());
+
+                    ++m_dabSuperFrameCount;
+
+                    m_isSync = true;
+                    continue;
+                }
+            }
+
+            if(m_dabSuperFrameCount > 5) {
+                std::cout << m_logTag << " SuperFrame damaged" << std::endl;
+                m_isSync = false;
+                m_dabSuperFrameCount = 0;
+            }
+
+            if (!m_processThreadRunning) {
+                goto stop_thread;
+            }
+
+            if(m_isSync) {
+                m_currentSuperFrame.superFrameData.insert(m_currentSuperFrame.superFrameData.end(), frameData.begin(), frameData.end());
+                ++m_dabSuperFrameCount;
+
+                if(m_dabSuperFrameCount == 5) {
+
+                    m_rsDec.DecodeSuperframe(m_currentSuperFrame.superFrameData.data(), m_currentSuperFrame.superFrameData.size());
 
                     if(m_currentSuperFrame.superFrameData.size() >= m_superFrameSize) {
                         auBuff.clear();
