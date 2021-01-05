@@ -104,8 +104,11 @@ JUsbDevice::~JUsbDevice() {
     // close an open UsbDeviceConnection
     m_javaVm->GetEnv((void **)&env, JNI_VERSION_1_6);
     if (m_usbDeviceConnectionObject != nullptr && m_usbHelperClass != nullptr) {
-        env->CallVoidMethod(env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId),
-                m_usbHelperCloseDeviceConnectionMId, m_usbDeviceConnectionObject);
+        jobject usbHelper = env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId);
+        if (usbHelper != nullptr) {
+            env->CallVoidMethod(usbHelper,
+                                m_usbHelperCloseDeviceConnectionMId, m_usbDeviceConnectionObject);
+        }
         env->DeleteGlobalRef(m_usbDeviceConnectionObject);
     }
     env->DeleteGlobalRef(m_usbDeviceObject);
@@ -147,11 +150,11 @@ void JUsbDevice::permissionGranted(JNIEnv *env, bool granted) {
 
         m_usbDeviceConnectionObject = env->NewGlobalRef(env->CallObjectMethod(env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId), m_usbHelperOpenDeviceMId, m_usbDeviceObject));
 
-        jboolean claimed = env->CallBooleanMethod(m_usbDeviceConnectionObject, m_usbDeviceConnectionClaimInterfaceMId, env->CallObjectMethod(m_usbDeviceObject, m_usbDeviceGetInterfaceMId, m_interfaceNum), true);
+        jobject usbInterface = env->CallObjectMethod(m_usbDeviceObject, m_usbDeviceGetInterfaceMId, m_interfaceNum);
+
+        jboolean claimed = env->CallBooleanMethod(m_usbDeviceConnectionObject, m_usbDeviceConnectionClaimInterfaceMId, usbInterface, JNI_TRUE);
 
         std::cout << LOG_TAG << "Interface claimed: " << std::boolalpha << static_cast<bool>(claimed) << std::noboolalpha << std::endl;
-
-        jobject usbInterface = env->CallObjectMethod(m_usbDeviceObject, m_usbDeviceGetInterfaceMId, m_interfaceNum);
 
         jint endpointCnt = env->CallIntMethod(usbInterface, m_usbDeviceInterfaceGetEndpointCountMId);
         std::cout << LOG_TAG <<  "Endpoint count: " << +endpointCnt << std::endl;

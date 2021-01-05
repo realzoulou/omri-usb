@@ -228,6 +228,7 @@ Java_org_omri_radio_impl_UsbHelper_deviceDetached(JNIEnv *env, jobject thiz, jst
     std::cout << LOG_TAG << " device detached: " << detachedDeviceName << std::endl;
 
     std::string removedDev(detachedDeviceName);
+    env->ReleaseStringUTFChars(deviceName, detachedDeviceName);
 
     auto bla = m_dabInputs.begin();
     while (bla < m_dabInputs.end()) {
@@ -249,8 +250,6 @@ Java_org_omri_radio_impl_UsbHelper_deviceDetached(JNIEnv *env, jobject thiz, jst
         }
         ++devIter;
     }
-
-    env->ReleaseStringUTFChars(deviceName, detachedDeviceName);
 
     if (!JNI_DETACH(m_javaVm, wasDetached)) {
         std::cerr << LOG_TAG << "jniEnv thread failed to detach!" << std::endl;
