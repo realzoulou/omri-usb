@@ -37,5 +37,19 @@ void Fig_00_Ext_07::parseFigData(const std::vector<uint8_t> &figData) {
         uint16_t count = (*figIter++ & 0x03) << 8 | (*figIter++ & 0xFF);
 
         //std::cout << m_logTag << " NumServices: " << +services << " Count: " << +count << std::endl;
+
+        /** ETSI EN 300 401 V2.1.1, 6.4.2 Configuration information
+         * A receiver can use the Services field to determine if the complete MCI has been received.
+         * This is especially useful under weak signal conditions when FIBs with erroneous CRCs are detected.
+         *
+         * A receiver can use the Count field to verify if the configuration of an already known ensemble remains unchanged
+         * - if the received Count matches the stored Count then the configuration is the same.
+         * This can be used to speed up use cases like background scanning.
+         * The rest of the MCI need not be collected to judge if the stored configuration is still valid.
+         *
+         * TODO: Use this for a super fast start of a service
+         *
+         * NOTE: FIG 0/7 is *not* present in 300 401 V1.4.1
+         */
     }
 }
