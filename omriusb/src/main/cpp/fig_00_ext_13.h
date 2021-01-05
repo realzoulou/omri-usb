@@ -101,12 +101,13 @@ public:
         if(m_userAppDescriptions.size() != other.m_userAppDescriptions.size()) {
             return false;
         }
-        for(int i = 0; i < m_userAppDescriptions.size(); i++) {
-            if(m_userAppDescriptions[i] != other.m_userAppDescriptions[i]) {
+        // don't assume that the vectors have the same sorting
+        for (const auto & otherUserApp : other.m_userAppDescriptions) {
+            if (std::find(m_userAppDescriptions.begin(), m_userAppDescriptions.end(),
+                    otherUserApp) == m_userAppDescriptions.end()) {
                 return false;
             }
         }
-
         return true;
     }
     inline bool operator!=(const Fig_00_Ext_13& other) const { return !operator==(other); }

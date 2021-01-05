@@ -211,33 +211,6 @@ bool DabService::checkSanity() const {
             }
         }
     }
-    if (isSane && isProgrammeService()) {
-        bool hasDlsUserApp = false, hasMotSlsUserApp = false;
-        for (const auto &srvComp : getServiceComponents()) {
-            if (srvComp->getServiceComponentType() ==
-                DabServiceComponent::SERVICECOMPONENTTYPE::MSC_STREAM_AUDIO &&
-                (srvComp->isPrimary() || getNumberServiceComponents() == 1)) {
-                for (const auto &uApp : srvComp->getUserApplications()) {
-                    switch (uApp.getUserApplicationType()) {
-                        case registeredtables::USERAPPLICATIONTYPE::DYNAMIC_LABEL:
-                            hasDlsUserApp = true;
-                            break;
-                        case registeredtables::USERAPPLICATIONTYPE::MOT_SLIDESHOW:
-                            hasMotSlsUserApp = true;
-                            break;
-                        default: // don't care
-                            break;
-                    }
-                }
-            }
-        }
-        // Programme Service must have at least these two User Applications
-        // maybe dangerous to assume this? No DAB spec reference found
-        if (! (hasDlsUserApp && hasMotSlsUserApp)) {
-            logStr << "PS but DlsUserApp=" << std::boolalpha << hasDlsUserApp << ", MotSlsUserApp=" << hasMotSlsUserApp << std::noboolalpha;
-            isSane = false;
-        }
-    }
     if (!isSane && logStr.str().length() > 0) {
         std::cout << logStr.str() << std::endl;
     }

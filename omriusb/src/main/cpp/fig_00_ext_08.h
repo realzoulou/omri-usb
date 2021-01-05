@@ -66,12 +66,13 @@ public:
         if(m_globalDefinitions.size() != other.m_globalDefinitions.size()) {
             return false;
         }
-        for(int i = 0; i < m_globalDefinitions.size(); i++) {
-            if(m_globalDefinitions[i] != other.m_globalDefinitions[i]) {
+        // don't assume that the vectors have the same sorting
+        for (const auto & otherGlobalDefinition: other.m_globalDefinitions) {
+            if (std::find(m_globalDefinitions.begin(), m_globalDefinitions.end(),
+                          otherGlobalDefinition) == m_globalDefinitions.end()) {
                 return false;
             }
         }
-
         return true;
     }
     inline bool operator!=(const Fig_00_Ext_08& other) const { return !operator==(other); }

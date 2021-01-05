@@ -220,6 +220,11 @@ private:
     bool FIB_CRC_CHECK(const uint8_t* data) const;
 
 private:
+    // FIG 0/8 and 0/13 are signalled very slowly (at least every 1s)
+    std::vector<Fig_00_Ext_08> m_parsedFig0008;
+    std::vector<Fig_00_Ext_13> m_parsedFig0013;
+
+private:
     template<class T>
     bool contains(std::vector<T> a, T b) {
         for(const auto& fig : a) {

@@ -210,7 +210,17 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_GLOBAL_DEFINITION: {
             Fig_00_Ext_08 extEight(ficData);
             m_fig00_08dispatcher.invoke(extEight);
-            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::SERVICE_COMPONENT_GLOBAL_DEFINITION);
+
+            bool done{false};
+            if(!contains<Fig_00_Ext_08>(m_parsedFig0008, extEight)) {
+                m_parsedFig0008.push_back(extEight);
+            } else {
+                done = true;
+            }
+
+            if (done) {
+                m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::SERVICE_COMPONENT_GLOBAL_DEFINITION);
+            }
             break;
         }
         case Fig::FIG_00_TYPE::COUNTRY_LTO_INTERNATIONAL_TABLE: {
@@ -226,7 +236,17 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
         case Fig::FIG_00_TYPE::USERAPPLICATION_INFORMATION: {
             Fig_00_Ext_13 ext3Ten(ficData);
             m_fig00_13dispatcher.invoke(ext3Ten);
-            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::USERAPPLICATION_INFORMATION);
+
+            bool done{false};
+            if(!contains<Fig_00_Ext_13>(m_parsedFig0013, ext3Ten)) {
+                m_parsedFig0013.push_back(ext3Ten);
+            } else {
+                done = true;
+            }
+
+            if (done) {
+                m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::USERAPPLICATION_INFORMATION);
+            }
             break;
         }
         case Fig::FIG_00_TYPE::FEC_SUBCHANNEL_ORGANIZATION: {
