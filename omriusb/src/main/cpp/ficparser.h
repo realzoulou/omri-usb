@@ -175,8 +175,6 @@ private:
     std::thread m_fibProcessorThread;
     std::string m_ficProcessorThreadName{""};
 
-    std::vector<std::vector<uint8_t> > ficBuffer;
-
 private:
     void processFib();
     void parseFig_00(const std::vector<uint8_t>& ficData);

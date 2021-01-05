@@ -19,8 +19,7 @@
  */
 
 #include <iostream>
-#include <sstream>
-#include <iomanip>
+#include <unistd.h>
 
 #include "ficparser.h"
 
@@ -51,27 +50,32 @@ bool FicParser::FIB_CRC_CHECK(const uint8_t* data) const {
     return crc == crc2;
 }
 
-//calling inherited constructor with FIC_ID
 FicParser::FicParser() {
     std::cout << M_LOG_TAG << " Constructing" << std::endl;
 
-    m_fibProcessorThread = std::thread(&FicParser::processFib, this);
+    //m_fibProcessorThread = std::thread(&FicParser::processFib, this);
+    m_fibProcessThreadRunning = false;
 }
 
 FicParser::~FicParser() {
     std::cout << M_LOG_TAG << " Destructing" << std::endl;
-    m_fibDataQueue.clear();
+    reset();
     m_fibProcessThreadRunning = false;
 
     if(m_fibProcessorThread.joinable()) {
         std::cout << M_LOG_TAG << " Joining FIB processor thread " << getParserThreadName() << std::endl;
         m_fibProcessorThread.join();
+        std::cout << M_LOG_TAG << " Joined FIB processor thread " << getParserThreadName() << std::endl;
     }
 }
 
 void FicParser::call(const std::vector<uint8_t> &data) {
     auto ficIter = data.cbegin();
     int loop = 0;
+    if (!m_fibProcessThreadRunning) {
+        m_fibProcessThreadRunning = true;
+        m_fibProcessorThread = std::thread(&FicParser::processFib, this);
+    }
     while (ficIter < data.cend()) {
         loop++;
         long remainingBytes = std::distance(ficIter, data.cend());
@@ -81,6 +85,13 @@ void FicParser::call(const std::vector<uint8_t> &data) {
         std::vector<uint8_t> fib(ficIter, ficIter+FIB_SIZE);
         if(FIB_CRC_CHECK(fib.data())) {
             m_fibDataQueue.push(fib);
+            size_t sz = m_fibDataQueue.getSize();
+            if (sz % 20 == 0) {
+                std::clog << M_LOG_TAG << "FIBs pile up: " << +sz << ", fibThread running: "
+                          << std::boolalpha << m_fibProcessThreadRunning << std::noboolalpha
+                          << ", thisThread prio: " << +nice(0)
+                          << std::endl;
+            }
         } else {
             std::clog << M_LOG_TAG << "FIB " << +loop << " crc corrupted: " << Fig::toHexString(fib) << std::endl;
         }
@@ -99,11 +110,26 @@ void FicParser::processFib() {
     pthread_setname_np(pthread_self(), name); // crashes when passing self instead of pthread_self()
     m_ficProcessorThreadName = name;
 
-    std::cout << M_LOG_TAG << "FIB Processor thread started: " << m_ficProcessorThreadName << std::endl;
+    const int THREAD_PRIORITY_AUDIO = -16; // android.os.Process.THREAD_PRIORITY_AUDIO
+    int newprio = nice(THREAD_PRIORITY_AUDIO);
+    if (newprio == -1) {
+        int lErrno = errno;
+        std::clog << M_LOG_TAG << "nice failed: " << strerror(lErrno) << std::endl;
+    }
 
+    std::cout << M_LOG_TAG << "FIB processor thread started: " << m_ficProcessorThreadName
+        << " at prio " << +newprio << std::endl;
+
+    const auto timeout = std::chrono::milliseconds(24);
     while (m_fibProcessThreadRunning) {
         std::vector<uint8_t> fibData;
-        if(m_fibDataQueue.tryPop(fibData, std::chrono::milliseconds(24))) {
+        auto startMs = std::chrono::steady_clock::now();
+        if(m_fibDataQueue.tryPop(fibData, timeout)) {
+            auto endMs = std::chrono::steady_clock::now();
+            auto waitedForMs = std::chrono::duration_cast<std::chrono::milliseconds>(endMs - startMs);
+            if (waitedForMs > std::chrono::milliseconds(100)) {
+                std::cout << M_LOG_TAG << " tryPop tool " << +waitedForMs.count() << " ms" << std::endl;
+            }
             try {
                 auto figIter = fibData.begin();
                 auto remainingBytes = std::distance(figIter, fibData.end());
@@ -460,5 +486,34 @@ std::shared_ptr<FicParser::Fig_01_06_Callback> FicParser::registerFig_01_06_Call
 
 void FicParser::reset() {
     m_fibDataQueue.clear();
-    ficBuffer.clear();
+
+    m_fig00_00dispatcher.clear();
+    m_fig01DoneDispatcher.clear();
+    m_fig00_00dispatcher.clear();
+    m_fig00_01dispatcher.clear();
+    m_fig00_02dispatcher.clear();
+    m_fig00_03dispatcher.clear();
+    m_fig00_04dispatcher.clear();
+    m_fig00_05dispatcher.clear();
+    m_fig00_06dispatcher.clear();
+    m_fig00_07dispatcher.clear();
+    m_fig00_08dispatcher.clear();
+    m_fig00_09dispatcher.clear();
+    m_fig00_10dispatcher.clear();
+    m_fig00_13dispatcher.clear();
+    m_fig00_14dispatcher.clear();
+    m_fig00_17dispatcher.clear();
+    m_fig00_18dispatcher.clear();
+    m_fig00_19dispatcher.clear();
+    m_fig00_20dispatcher.clear();
+    m_fig00_21dispatcher.clear();
+    m_fig00_24dispatcher.clear();
+    m_fig00_25dispatcher.clear();
+    m_fig00_26dispatcher.clear();
+
+    m_fig01_00dispatcher.clear();
+    m_fig01_01dispatcher.clear();
+    m_fig01_04dispatcher.clear();
+    m_fig01_05dispatcher.clear();
+    m_fig01_06dispatcher.clear();
 }
