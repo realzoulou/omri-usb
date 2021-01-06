@@ -35,7 +35,7 @@
 #include "global_definitions.h"
 
 // uncomment to use original implementation of Fabian
-//#define USE_ORIG_SYNC_N_PROCESSDATA
+#define USE_ORIG_SYNC_N_PROCESSDATA
 
 class DabPlusServiceComponentDecoder : public DabServiceComponentDecoder {
 
