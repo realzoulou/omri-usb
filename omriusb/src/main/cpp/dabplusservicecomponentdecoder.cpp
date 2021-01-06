@@ -196,11 +196,8 @@ void DabPlusServiceComponentDecoder::synchronizeData(const std::vector<uint8_t>&
         unsyncIter++;
         m_unsyncByteCount++;
 
-        if (m_unsyncByteCount == 1224) {
-            std::cout << "bulb" << std::endl;
-        }
         if (m_unsyncByteCount % 8192 == 0) {
-            std::clog << "Warning: Searching Super frame for " << +m_unsyncByteCount << " bytes" << std::endl;
+            std::clog << "Searching Super frame for " << +m_unsyncByteCount << " bytes" << std::endl;
         }
     }
 
