@@ -31,77 +31,76 @@ template <typename T>
 class ConcurrentQueue {
 
 public:
+    // non-blocking get first queue element
+    // if queue empty, then a default constructed T is returned
+    T front() {
+        std::lock_guard<std::mutex> mlock(m_queue_mutex);
+        if (!m_queue.empty()) {
+            T item = m_queue.front();
+            m_queue.pop();
+            return item;
+        } else {
+            return T();
+        }
+    }
+
     T pop() {
-        std::unique_lock<std::mutex> mlock(m_mutex);
+        std::unique_lock<std::mutex> mlock(m_queue_mutex);
         //effective against spurious wakes
         while (m_queue.empty()) {
             m_cond.wait(mlock);
         }
 
-        auto item = m_queue.front();
+        auto item = std::move(m_queue.front());
         m_queue.pop();
         return item;
     }
 
-    void pop(T& item) {
-        std::unique_lock<std::mutex> mlock(m_mutex);
-        while (m_queue.empty()) {
-            m_cond.wait(mlock);
-        }
-
-        item = m_queue.front();
-        m_queue.pop();
-    }
-
     //tries to pop an element but unlocks after timeout
-    bool tryPop(T& item, std::chrono::milliseconds timeout) {
-        std::unique_lock<std::mutex> mlock(m_mutex);
-
-        //lambda inside for predicate
-        if(!m_cond.wait_for(mlock, timeout, [this] {return !m_queue.empty(); })) {
-            return false;
+    bool tryPop(T& item, const std::chrono::milliseconds timeout) {
+        std::unique_lock<std::mutex> mlock(m_queue_mutex);
+        auto start = std::chrono::steady_clock::now();
+        std::chrono::milliseconds lTimeout = timeout;
+        while(m_queue.empty()) {
+            if (m_cond.wait_for(mlock, lTimeout) == std::cv_status::timeout) {
+                return false; // timeout
+            } else {
+                // maybe a spurious wakeup, adjust the next lTimeout
+                auto now = std::chrono::steady_clock::now();
+                auto waitedForMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
+                if (lTimeout > waitedForMs) {
+                    lTimeout -= waitedForMs;
+                } else {
+                    return false; // timeout
+                }
+            }
         }
-
-        item = m_queue.front();
+       
+        item = std::move(m_queue.front());
         m_queue.pop();
         return true;
     }
 
     void push(const T& item) {
-        std::unique_lock<std::mutex> mlock(m_mutex);
-        m_queue.push(item);
-        //unlock manually before notifying
-        mlock.unlock();
-        m_cond.notify_one();
-    }
-
-    void push(T&& item) {
-        //the item will be std::moved to the queue
-        std::unique_lock<std::mutex> mlock(m_mutex);
+        std::unique_lock<std::mutex> mlock(m_queue_mutex);
         m_queue.push(std::move(item));
         //unlock manually before notifying
         mlock.unlock();
         m_cond.notify_one();
     }
 
-    int getSize() {
-        std::unique_lock<std::mutex> mlock(m_mutex);
+    size_t getSize() const {
+        std::lock_guard<std::mutex> mlock(m_queue_mutex);
         return m_queue.size();
     }
 
-    void getSize(int& size) {
-        std::unique_lock<std::mutex> mlock(m_mutex);
-        size = m_queue.size();
-        mlock.unlock();
-    }
-
-    bool isEmpty() {
-        std::unique_lock<std::mutex> mlock(m_mutex);
+    bool isEmpty() const {
+        std::lock_guard<std::mutex> mlock(m_queue_mutex);
         return m_queue.empty();
     }
 
     void clear() {
-        std::unique_lock<std::mutex> mlock(m_mutex);
+        std::unique_lock<std::mutex> mlock(m_queue_mutex);
         std::queue<T> empty;
         std::swap(m_queue, empty);
         mlock.unlock();
@@ -109,9 +108,9 @@ public:
         m_cond.notify_all();
     }
 
-public:
+private:
     std::queue<T> m_queue;
-    std::mutex m_mutex;
+    mutable std::mutex m_queue_mutex;
     std::condition_variable m_cond;
 };
 
