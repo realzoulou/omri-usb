@@ -37,18 +37,18 @@ Fig_00_Ext_21::~Fig_00_Ext_21() {
 void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
     auto figIter = figData.cbegin() +1;
     while(figIter < figData.cend()) {
-        uint16_t rfa = static_cast<uint16_t>(((*figIter++ & 0xFF) << 3) | (((*figIter & 0xE0) >> 5) & 0xFF));
-        uint8_t lenFiListBytes = static_cast<uint8_t>((*figIter++ & 0x1F) & 0xFF);
+        const auto rfa = static_cast<uint16_t>(((*figIter++ & 0xFF) << 3) | (((*figIter & 0xE0) >> 5) & 0xFF));
+        const auto lenFiListBytes = static_cast<uint8_t>((*figIter++ & 0x1F) & 0xFF);
 
         if (lenFiListBytes == 0) {
             return;
         }
         while (figIter < figData.cend()) {
 
-            auto idField = static_cast<uint16_t>(((*figIter++ & 0xFF) << 8) | (*figIter++ & 0xFF));
-            auto rangeModulation =  static_cast<uint8_t>((((*figIter & 0xF0) >> 4) & 0xFF));
-            bool contFlag = (((*figIter & 0x08) >> 3) & 0xFF) != 0;
-            auto frqListEntryLen = static_cast<uint8_t>(((*figIter++ & 0x07) & 0xFF));
+            const auto idField = static_cast<uint16_t>(((*figIter++ & 0xFF) << 8) | (*figIter++ & 0xFF));
+            const auto rangeModulation =  static_cast<uint8_t>((((*figIter & 0xF0) >> 4) & 0xFF));
+            const bool contFlag = (((*figIter & 0x08) >> 3) & 0xFF) != 0;
+            const auto frqListEntryLen = static_cast<uint8_t>(((*figIter++ & 0x07) & 0xFF));
 
             FrequencyInformation freqInfo;
             freqInfo.id = idField;
@@ -247,6 +247,7 @@ void Fig_00_Ext_21::parseFigData(const std::vector<uint8_t>& figData) {
 
                     // ignored
                     freqIsValid = false;
+                    figIter += frqListEntryLen;
                 }
 
                 if (freqIsValid) {
