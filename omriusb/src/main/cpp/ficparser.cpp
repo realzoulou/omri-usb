@@ -62,23 +62,39 @@ FicParser::~FicParser() {
 }
 
 void FicParser::start() {
-    if (!m_fibProcessThreadRunning) {
-        m_fibProcessorThread = std::thread(&FicParser::processFib, this);
-        m_fibProcessThreadRunning = true;
-    }
-}
+    std::lock_guard<std::mutex> lockGuard(m_fibThreadMutex);
 
-void FicParser::stop() {
-    if (m_fibProcessThreadRunning) {
-        m_fibProcessThreadRunning = false;
-        if(m_fibProcessorThread.joinable()) {
-            std::cout << M_LOG_TAG << " Joining FIB thread " << getParserThreadName() << std::endl;
-            m_fibProcessorThread.join();
-            std::cout << M_LOG_TAG << " Joined FIB thread " << getParserThreadName() << std::endl;
+    if (!m_fibProcessThreadRunning) {
+        m_fibProcessThreadRunning = true;
+        if (std::this_thread::get_id() != m_fibProcessorThread.get_id()) {
+            m_fibProcessorThread = std::thread(&FicParser::processFib, this);
+        } else {
+            // running on the thread that I should start ?!?
+            std::cout << M_LOG_TAG << "Continue FIB thread " << getParserThreadName() << std::endl;
+            m_fibDataQueue.push(std::vector<uint8_t>(0)); // trigger thread with empty data
         }
     }
 }
 
+void FicParser::stop() {
+    std::lock_guard<std::mutex> lockGuard(m_fibThreadMutex);
+
+    if (m_fibProcessThreadRunning) {
+        m_fibProcessThreadRunning = false;
+        if(m_fibProcessorThread.joinable()) {
+            if (std::this_thread::get_id() != m_fibProcessorThread.get_id()) {
+                std::cout << M_LOG_TAG << " Joining FIB thread " << getParserThreadName()
+                          << std::endl;
+                m_fibProcessorThread.join();
+                std::cout << M_LOG_TAG << " Joined FIB thread " << getParserThreadName()
+                          << std::endl;
+            } else {
+                // cannot join myself, trigger myself with empty data
+                m_fibDataQueue.push(std::vector<uint8_t>(0));
+            }
+        }
+    }
+}
 
 void FicParser::call(const std::vector<uint8_t> &data) {
     auto ficIter = data.cbegin();
@@ -107,8 +123,6 @@ void FicParser::call(const std::vector<uint8_t> &data) {
 }
 
 void FicParser::processFib() {
-    m_fibProcessThreadRunning = true;
-
     pid_t self = pthread_self();
     char name[13]; // 4 + 8 + '\0'
     snprintf(name, 12, "FIB-%08x", (int) self);
@@ -128,6 +142,7 @@ void FicParser::processFib() {
                 if (remainingBytes < 2) {
                     std::cout << M_LOG_TAG << "popped FIB too short: exp:2, rcv:" << +remainingBytes
                               << std::endl;
+                    continue;
                 }
                 while (figIter < fibData.end() - 2 && m_fibProcessThreadRunning) {
                     const auto figType = static_cast<uint8_t>((*figIter & 0xE0u) >> 5u);
@@ -174,8 +189,6 @@ void FicParser::processFib() {
         }
     }
     std::cout << M_LOG_TAG << "FIB Processor thread stopped: " << name << std::endl;
-    m_ficProcessorThreadName = "";
-    m_fibProcessThreadRunning = false;
 }
 
 void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {

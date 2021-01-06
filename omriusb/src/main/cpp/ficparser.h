@@ -178,7 +178,8 @@ private:
     CallbackDispatcher<Fig_01_Done_Callback> m_fig01DoneDispatcher;
 
     ConcurrentQueue<std::vector<uint8_t> > m_fibDataQueue;
-    std::atomic<bool> m_fibProcessThreadRunning{false};
+    mutable std::mutex m_fibThreadMutex;
+    bool m_fibProcessThreadRunning{false};
     std::thread m_fibProcessorThread;
     std::string m_ficProcessorThreadName{""};
 

@@ -1774,7 +1774,7 @@ void RaonTunerInput::readData() {
     }
 
     if(msc1Overrun || msc1Underrun) {
-        std::cout << LOG_TAG << "Clearing MSC memory for OverUnderRun, MSC0Int" << +msc0Int << ", MSC0Overrun: " << +msc0Overrun << ", MSC0Underrun: " << +msc0Underrun << std::endl;
+        std::cout << LOG_TAG << "Clearing MSC memory for OverUnderRun, MSC0Int: " << +msc0Int << ", MSC0Overrun: " << +msc0Overrun << ", MSC0Underrun: " << +msc0Underrun << std::endl;
 
         //ClearAndSetupMSCMemory
         switchPage(REGISTER_PAGE_DD);
