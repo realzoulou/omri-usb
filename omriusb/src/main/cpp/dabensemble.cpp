@@ -48,7 +48,10 @@ void DabEnsemble::reset() {
     m_ensembleCollectFinished = false;
 
     if (m_ficPtr != nullptr) {
+        m_ficPtr.get()->stop();
         m_ficPtr.get()->reset();
+        registerCbs();
+        m_ficPtr.get()->start();
     }
 
     m_ensembleId = EID_INVALID;
@@ -66,8 +69,6 @@ void DabEnsemble::reset() {
     m_streamComponentsMap.clear();
     m_packetComponentsMap.clear();
     m_servicesMap.clear();
-
-    registerCbs();
 
     m_resetting = false;
 }

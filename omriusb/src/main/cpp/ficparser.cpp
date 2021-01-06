@@ -52,30 +52,37 @@ bool FicParser::FIB_CRC_CHECK(const uint8_t* data) const {
 
 FicParser::FicParser() {
     std::cout << M_LOG_TAG << " Constructing" << std::endl;
-
-    //m_fibProcessorThread = std::thread(&FicParser::processFib, this);
-    m_fibProcessThreadRunning = false;
 }
 
 FicParser::~FicParser() {
     std::cout << M_LOG_TAG << " Destructing" << std::endl;
     reset();
-    m_fibProcessThreadRunning = false;
+    stop();
+    std::cout << M_LOG_TAG << " Destructed" << std::endl;
+}
 
-    if(m_fibProcessorThread.joinable()) {
-        std::cout << M_LOG_TAG << " Joining FIB processor thread " << getParserThreadName() << std::endl;
-        m_fibProcessorThread.join();
-        std::cout << M_LOG_TAG << " Joined FIB processor thread " << getParserThreadName() << std::endl;
+void FicParser::start() {
+    if (!m_fibProcessThreadRunning) {
+        m_fibProcessorThread = std::thread(&FicParser::processFib, this);
+        m_fibProcessThreadRunning = true;
     }
 }
+
+void FicParser::stop() {
+    if (m_fibProcessThreadRunning) {
+        m_fibProcessThreadRunning = false;
+        if(m_fibProcessorThread.joinable()) {
+            std::cout << M_LOG_TAG << " Joining FIB thread " << getParserThreadName() << std::endl;
+            m_fibProcessorThread.join();
+            std::cout << M_LOG_TAG << " Joined FIB thread " << getParserThreadName() << std::endl;
+        }
+    }
+}
+
 
 void FicParser::call(const std::vector<uint8_t> &data) {
     auto ficIter = data.cbegin();
     int loop = 0;
-    if (!m_fibProcessThreadRunning) {
-        m_fibProcessThreadRunning = true;
-        m_fibProcessorThread = std::thread(&FicParser::processFib, this);
-    }
     while (ficIter < data.cend()) {
         loop++;
         long remainingBytes = std::distance(ficIter, data.cend());
@@ -86,10 +93,9 @@ void FicParser::call(const std::vector<uint8_t> &data) {
         if(FIB_CRC_CHECK(fib.data())) {
             m_fibDataQueue.push(fib);
             size_t sz = m_fibDataQueue.getSize();
-            if (sz % 20 == 0) {
+            if ((sz > 0u) && (sz % 50u == 0u)) {
                 std::clog << M_LOG_TAG << "FIBs pile up: " << +sz << ", fibThread running: "
                           << std::boolalpha << m_fibProcessThreadRunning << std::noboolalpha
-                          << ", thisThread prio: " << +nice(0)
                           << std::endl;
             }
         } else {
@@ -110,26 +116,12 @@ void FicParser::processFib() {
     pthread_setname_np(pthread_self(), name); // crashes when passing self instead of pthread_self()
     m_ficProcessorThreadName = name;
 
-    const int THREAD_PRIORITY_AUDIO = -16; // android.os.Process.THREAD_PRIORITY_AUDIO
-    int newprio = nice(THREAD_PRIORITY_AUDIO);
-    if (newprio == -1) {
-        int lErrno = errno;
-        std::clog << M_LOG_TAG << "nice failed: " << strerror(lErrno) << std::endl;
-    }
-
-    std::cout << M_LOG_TAG << "FIB processor thread started: " << m_ficProcessorThreadName
-        << " at prio " << +newprio << std::endl;
+    std::cout << M_LOG_TAG << "FIB thread started: " << m_ficProcessorThreadName << std::endl;
 
     const auto timeout = std::chrono::milliseconds(24);
     while (m_fibProcessThreadRunning) {
         std::vector<uint8_t> fibData;
-        auto startMs = std::chrono::steady_clock::now();
         if(m_fibDataQueue.tryPop(fibData, timeout)) {
-            auto endMs = std::chrono::steady_clock::now();
-            auto waitedForMs = std::chrono::duration_cast<std::chrono::milliseconds>(endMs - startMs);
-            if (waitedForMs > std::chrono::milliseconds(100)) {
-                std::cout << M_LOG_TAG << " tryPop tool " << +waitedForMs.count() << " ms" << std::endl;
-            }
             try {
                 auto figIter = fibData.begin();
                 auto remainingBytes = std::distance(figIter, fibData.end());
@@ -138,8 +130,8 @@ void FicParser::processFib() {
                               << std::endl;
                 }
                 while (figIter < fibData.end() - 2 && m_fibProcessThreadRunning) {
-                    uint8_t figType = static_cast<uint8_t>((*figIter & 0xE0) >> 5);
-                    uint8_t figLength = static_cast<uint8_t>(*figIter & 0x1F);
+                    const auto figType = static_cast<uint8_t>((*figIter & 0xE0u) >> 5u);
+                    const auto figLength = static_cast<uint8_t>(*figIter & 0x1Fu);
 
                     ++figIter;
 

@@ -129,7 +129,14 @@ public:
     std::shared_ptr<Fig_01_05_Callback> registerFig_01_05_Callback(Fig_01_05_Callback cb);
     std::shared_ptr<Fig_01_06_Callback> registerFig_01_06_Callback(Fig_01_06_Callback cb);
 
+    /* start the FIB processing thread */
+    void start();
+
+    /* reset internal data structures */
     void reset();
+
+    /* stop the FIB processing thread */
+    void stop();
 
     const std::string getParserThreadName() const { return m_ficProcessorThreadName; }
 
