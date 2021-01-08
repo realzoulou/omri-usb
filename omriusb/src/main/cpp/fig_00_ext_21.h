@@ -159,8 +159,8 @@ public:
                    other.frequencyInformationType == frequencyInformationType &&
                    other.isOtherEnsemble == isOtherEnsemble &&
                    other.continuousOutput == continuousOutput &&
-                   other.isChangeEvent == other.isChangeEvent &&
-                   other.isContinuation == other.isContinuation &&
+                   other.isChangeEvent == isChangeEvent &&
+                   other.isContinuation == isContinuation &&
                    containsAllFreqs(other.frequencies);
         }
 
