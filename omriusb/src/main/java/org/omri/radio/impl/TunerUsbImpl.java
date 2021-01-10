@@ -244,29 +244,9 @@ public class TunerUsbImpl implements TunerUsb {
 							(RadioServiceDab) service);
 
 			if (linkedDabServices != null) {
-				// retrieve list of known DAB services
-				final List<RadioService> radioServices = getRadioServices();
-				// if linked DAB service is equal in ECC, EId, SId compared to a known service,
-				// then take the known service, otherwise the new linked DAB service
-				for (final RadioServiceDab linkedDabService : linkedDabServices) {
-					boolean foundRadioServiceInCurrentList = false;
-					for (final RadioService radioService : radioServices) {
-						if (radioService instanceof RadioServiceDab) {
-							final RadioServiceDab radioServiceDab = (RadioServiceDab) radioService;
-                            // strict check of ECC, SId, EId, Frequency
-							if (radioServiceDab.equals(linkedDabService)) {
-								// add the already known RadioServiceDab
-								retLinkedRadioServices.add(radioServiceDab);
-								foundRadioServiceInCurrentList = true;
-								break;
-							}
-						}
-					}
-					if (!foundRadioServiceInCurrentList) {
-						// not found in current service list, add the new service
-						retLinkedRadioServices.add(linkedDabService);
-					}
-				}
+				ArrayList<RadioService> linkedServices = new ArrayList<>(linkedDabServices.size());
+				linkedServices.addAll(linkedDabServices);
+				retLinkedRadioServices = ((RadioServiceImpl)service).replaceLinkedRadioServicesWithKnown(linkedServices);
 			}
 		}
 		return retLinkedRadioServices;

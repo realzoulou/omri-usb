@@ -2,6 +2,8 @@ package org.omri.radio.impl;
 
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import org.omri.radio.Radio;
 import org.omri.radioservice.RadioService;
 import org.omri.radioservice.RadioServiceAudiodataListener;
@@ -394,34 +396,40 @@ public abstract class RadioServiceImpl implements RadioService, Serializable {
 		}
 	}
 
+	@NonNull ArrayList<RadioService> replaceLinkedRadioServicesWithKnown(@NonNull ArrayList<RadioService> linkedServices) {
+		ArrayList<RadioService> retLinkedServices = new ArrayList<>();
+
+		// retrieve list of known services
+		final List<RadioService> radioServices = Radio.getInstance().getRadioServices();
+		for (final RadioService linkedService : linkedServices) {
+			boolean foundRadioServiceInCurrentList = false;
+			for (final RadioService radioService : radioServices) {
+				if (radioService instanceof RadioServiceDab && linkedService instanceof RadioServiceDab) {
+					// if linked service is equal in ECC, EId, SId compared to a known service,
+					// then take the known service, otherwise the new linked DAB service
+					final RadioServiceDab radioServiceDab = (RadioServiceDab) radioService;
+					final RadioServiceDab linkedServiceDab = (RadioServiceDab) linkedService;
+					// strict check of ECC, SId, EId, Frequency
+					if (radioServiceDab.equals(linkedServiceDab)) {
+						// add the already known RadioServiceDab at the front
+						retLinkedServices.add(0, radioServiceDab);
+						foundRadioServiceInCurrentList = true;
+						break;
+					}
+				}
+			}
+			if (!foundRadioServiceInCurrentList) {
+				// not found in current service list, add the new service
+				retLinkedServices.add(linkedService);
+			}
+		}
+		return retLinkedServices;
+	}
+
 	void serviceFollowingReceived(final ArrayList<RadioService> sfServices) {
 		final ArrayList<RadioService> sfRadioServices = new ArrayList<>(sfServices.size());
 		if (sfServices != null) {
-			// retrieve list of known DAB services
-			final List<RadioService> radioServices = Radio.getInstance().getRadioServices();
-			// if linked DAB service is equal in ECC, EId, SId compared to a known service,
-			// then take the known service, otherwise the new linked DAB service
-			for (final RadioService sfService : sfServices) {
-				boolean foundRadioServiceInCurrentList = false;
-				for (final RadioService radioService : radioServices) {
-					if (radioService instanceof RadioServiceDab
-							&& sfService instanceof RadioServiceDab) {
-						final RadioServiceDab radioServiceDab = (RadioServiceDab) radioService;
-						final RadioServiceDab linkedServiceDab = (RadioServiceDab) sfService;
-						// strict check of ECC, SId, EId, Frequency
-						if (radioServiceDab.equals(linkedServiceDab)) {
-							// add the already known RadioServiceDab
-							sfRadioServices.add(radioServiceDab);
-							foundRadioServiceInCurrentList = true;
-							break;
-						}
-					}
-				}
-				if (!foundRadioServiceInCurrentList) {
-					// not found in current service list, add the new service
-					sfRadioServices.add(sfService);
-				}
-			}
+			sfRadioServices.addAll(replaceLinkedRadioServicesWithKnown(sfServices));
 		}
 
 		synchronized (mSfListeners) {
