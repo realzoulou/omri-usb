@@ -28,6 +28,9 @@
 
 #include "concurrent_queue.h"
 
+// uncomment to use original implementation of Fabian
+//#define USE_ORIG_SYNC_N_PROCESSDATA
+
 class DabMpegServiceComponentDecoder : public DabServiceComponentDecoder {
 
 public:
@@ -58,6 +61,12 @@ private:
 private:
     void processData();
     void synchronizeData(const std::vector<uint8_t>& unsyncData);
+
+#ifdef USE_ORIG_SYNC_N_PROCESSDATA
+    bool m_frameSizeAdjusted{false};
+    void processDataOrig();
+    void synchronizeDataOrig(const std::vector<uint8_t>& unsyncData);
+#endif
 
 private:
     uint8_t m_noCiLastLength{0};
