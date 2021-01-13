@@ -26,6 +26,7 @@
 #include <sys/ioctl.h>
 #include <poll.h>
 #include <unistd.h>
+#include <sstream>
 
 #include "jusbdevice.h"
 
@@ -298,9 +299,10 @@ int JUsbDevice::writeBulkTransferDataDirect(uint8_t endPointAddress, const std::
 
         if (n < 0) {
             int lError = errno;
-            std::clog << LOG_TAG << "writeBulkTransferDataDirect len " << +len << "/"
-                      << +buffer.size() << " failed errno=" << +lError << " "
-                      << strerror(lError) << std::endl;
+            std::stringstream logStr;
+            logStr << LOG_TAG << "writeBulkTransferDataDirect len " << +len << "/"
+                   << +buffer.size() << " failed errno=" << +lError << " " << strerror(lError);
+            std::clog << logStr.str() << std::endl;
             return -1;
         } else {
             len -= n;
@@ -376,8 +378,10 @@ int JUsbDevice::readBulkTransferDataDirect(uint8_t endPointAddress, const std::v
         if (n < 0) {
             int lError = errno;
             if (lError != ETIMEDOUT) {
-                std::clog << LOG_TAG << "readBulkTransferDataDirect failed errno=" << +lError << " "
-                          << strerror(lError) << std::endl;
+                std::stringstream logStr;
+                logStr << LOG_TAG << "readBulkTransferDataDirect failed errno=" << +lError << " "
+                       << strerror(lError);
+                std::clog << logStr.str() << std::endl;
                 return -1;
             } else {
                 // timeout

@@ -415,7 +415,9 @@ bool RaonTunerInput::hasUsbIoErrors() {
                         JTunerUsbDevice::TUNER_CALLBACK_TYPE::TUNER_CALLBACK_FAILED);
             }
         }
-        usleep(50000); // slow down calling thread
+        // slow down calling thread by 5 ms because this is called on a high frequency
+        // In the error case producing a hell lot of log output
+        usleep(5000);
         return true;
     }
     return false;
@@ -514,22 +516,28 @@ void RaonTunerInput::switchPage(RaonTunerInput::REGISTER_PAGE regPage) {
     std::vector<uint8_t> switchData{0x21, 0x00, 0x00, 0x02, 0x03, static_cast<uint8_t >(regPage)};
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, switchData);
-        if (bytesTransfered == -1 || bytesTransfered < switchData.size()) {
-            std::clog << LOG_TAG << "switchPage 0x" << std::hex << +regPage << std::dec << ": write exp:" << +switchData.size() << ", rcv:" << +bytesTransfered << std::endl;
+        if (bytesTransfered < 0 || bytesTransfered < switchData.size()) {
+            std::stringstream logStr;
+            logStr << LOG_TAG << "switchPage 0x" << std::hex << +regPage << std::dec
+                   << ": write exp:" << +switchData.size() << ", rcv:" << +bytesTransfered;
+            std::clog << logStr.str() << std::endl;
             mUsbWriteFailure++;
         } else {
             mUsbWriteFailure = 0;
             auto response = std::vector<uint8_t>(1);
             bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, response);
-            if (bytesTransfered != 1) {
-                std::clog << LOG_TAG << "switchPage 0x" << std::hex << +regPage << std::dec
-                          << ": read exp:" << +response.size() << ", rcv:" << +bytesTransfered
-                          << std::endl;
+            if (bytesTransfered < 0 || bytesTransfered < response.size()) {
+                std::stringstream logStr;
+                logStr << LOG_TAG << "switchPage 0x" << std::hex << +regPage << std::dec
+                          << ": read exp:" << +response.size() << ", rcv:" << +bytesTransfered;
+                std::clog << logStr.str() << std::endl;
                 mUsbReadFailure++;
             } else {
                 if (response[0] != 0xA1) {
-                    std::clog << LOG_TAG << "switchPage 0x" << std::hex << +regPage << " : 0x"
-                              << +response[0] << std::dec << std::endl;
+                    std::stringstream logStr;
+                    logStr << LOG_TAG << "switchPage 0x" << std::hex << +regPage << " : 0x"
+                              << +response[0] << std::dec;
+                    std::clog << logStr.str() << std::endl;
                     mUsbReadFailure++;
                 } else {
                     mUsbReadFailure = 0;
@@ -545,24 +553,29 @@ void RaonTunerInput::setRegister(uint8_t reg, uint8_t val) {
     std::vector<uint8_t> setRegData{0x21, 0x00, 0x00, 0x02, reg, val};
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, setRegData);
-        if (bytesTransfered == -1 || bytesTransfered < setRegData.size()) {
-            std::clog << LOG_TAG << "setRegister 0x" << std::hex << +reg << "=0x" << +val
-                      << std::dec << ": write exp:" << +setRegData.size() << ", rcv:"
-                      << +bytesTransfered << std::endl;
+        if (bytesTransfered < 0 || bytesTransfered < setRegData.size()) {
+            std::stringstream logStr;
+            logStr << LOG_TAG << "setRegister 0x" << std::hex << +reg << "=0x" << +val
+                   << std::dec << ": write exp:" << +setRegData.size() << ", rcv:"
+                   << +bytesTransfered;
+            std::clog << logStr.str() << std::endl;
             mUsbWriteFailure++;
         } else {
             mUsbWriteFailure = 0;
             auto response = std::vector<uint8_t>(1);
             bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, response);
-            if (bytesTransfered != 1) {
-                std::clog << LOG_TAG << "setRegister 0x" << std::hex << +reg << std::dec
-                          << ": read exp:" << +response.size() << ", rcv:" << +bytesTransfered
-                          << std::endl;
+            if (bytesTransfered < 0 || bytesTransfered < response.size()) {
+                std::stringstream logStr;
+                logStr << LOG_TAG << "setRegister 0x" << std::hex << +reg << std::dec
+                       << ": read exp:" << +response.size() << ", rcv:" << +bytesTransfered;
+                std::clog << logStr.str() << std::endl;
                 mUsbReadFailure++;
             } else {
                 if (response[0] != 0xA1) {
-                    std::clog << LOG_TAG << "setRegister 0x" << std::hex << +reg << " : 0x"
-                              << +response[0] << std::dec << std::endl;
+                    std::stringstream logStr;
+                    logStr << LOG_TAG << "setRegister 0x" << std::hex << +reg << " : 0x"
+                           << +response[0] << std::dec;
+                    std::clog << logStr.str() << std::endl;
                     mUsbReadFailure++;
                 } else {
                     mUsbReadFailure = 0;
@@ -578,19 +591,22 @@ uint8_t RaonTunerInput::readRegister(uint8_t reg) {
     std::vector<uint8_t> xferbuff{0x22, 0x00, 0x01, 0x00, reg};
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, xferbuff);
-        if (bytesTransfered  == -1 || bytesTransfered < xferbuff.size()) {
-            std::clog << LOG_TAG << "readRegister 0x" << std::hex << +reg << std::dec
-                      << ": write exp:" << +xferbuff.size() << ", rcv:" << +bytesTransfered << std::endl;
+        if (bytesTransfered < 0 || bytesTransfered < xferbuff.size()) {
+            std::stringstream logStr;
+            logStr << LOG_TAG << "readRegister 0x" << std::hex << +reg << std::dec
+                   << ": write exp:" << +xferbuff.size() << ", rcv:" << +bytesTransfered;
+            std::clog << logStr.str() << std::endl;
             mUsbWriteFailure++;
         } else {
             mUsbWriteFailure = 0;
         }
 
         bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, xferbuff);
-        if (bytesTransfered == -1 || bytesTransfered < xferbuff.size()) {
-            std::clog << LOG_TAG << "readRegister 0x" << std::hex << +reg << std::dec
-                      << ": read exp:" << +xferbuff.size() << ", rcv:" << +bytesTransfered
-                      << std::endl;
+        if (bytesTransfered < 0 || bytesTransfered < xferbuff.size()) {
+            std::stringstream logStr;
+            logStr << LOG_TAG << "readRegister 0x" << std::hex << +reg << std::dec
+                   << ": read exp:" << +xferbuff.size() << ", rcv:" << +bytesTransfered;
+            std::clog << logStr.str() << std::endl;
             mUsbReadFailure++;
             return 0;
         } else {
@@ -598,13 +614,13 @@ uint8_t RaonTunerInput::readRegister(uint8_t reg) {
             return xferbuff[4];
         }
     } else {
-        std::cout << LOG_TAG << "readRegister: no USB device" << std::endl;
+        std::clog << LOG_TAG << "readRegister: no USB device" << std::endl;
         return 0;
     }
 }
 
 void RaonTunerInput::configurePowerType() {
-    const uint8_t LIBDAB_REG30 = 0xF4;
+    //const uint8_t LIBDAB_REG30 = 0xF4;
     uint8_t REG30 = 0xF2 & 0xF0; /*IOLDOCON__REG*/
 
     //DEFINE RTV_IO_1_8V
@@ -623,10 +639,10 @@ void RaonTunerInput::configurePowerType() {
 
     setRegister(0x54, REG54);
     setRegister(0x52, REG52);
-    //setRegister(0x30, REG30);
-    setRegister(0x30, LIBDAB_REG30);
-    //setRegister(0x2F, REG2F);
-    setRegister(0x2F, LIBDAB_REG2F);
+    setRegister(0x30, REG30);
+    //setRegister(0x30, LIBDAB_REG30);
+    setRegister(0x2F, REG2F);
+    //setRegister(0x2F, LIBDAB_REG2F);
 }
 
 void RaonTunerInput::configureAddClock() {
