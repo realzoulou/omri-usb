@@ -70,6 +70,7 @@ void DabMpegServiceComponentDecoder::componentDataInput(const std::vector<uint8_
 void DabMpegServiceComponentDecoder::synchronizeData(const std::vector<uint8_t>& unsyncData) {
     std::vector<uint8_t> data;
     if(!m_unsyncDataBuffer.empty()) {
+        // prepend any left over data from previous call
         data.insert(data.begin(), m_unsyncDataBuffer.begin(), m_unsyncDataBuffer.end());
         m_unsyncDataBuffer.clear();
     }
@@ -77,30 +78,31 @@ void DabMpegServiceComponentDecoder::synchronizeData(const std::vector<uint8_t>&
     data.insert(data.end(), unsyncData.begin(), unsyncData.end());
 
     auto unsyncIter = data.begin();
-    while(unsyncIter+m_frameSize < data.end()) {
-        if(*unsyncIter == 0xFF && ((*(unsyncIter+1)) & 0xF0) == 0xF0) {
-            //Test for ID bit (not very elegant)
-            if(!m_frameSizeAdjusted && ((*(unsyncIter+1)) & 0x08) != 0x08) {
-                //std::cout << m_logTag << "Adjusting framesize for 24 kHz samplerate" << std::endl;
-                m_frameSize *= 2;
-                m_frameSizeAdjusted = true;
+    auto frameStartIter = data.begin();
+    auto frameEndIter = data.begin();
+
+    while(unsyncIter < data.end()) {
+        if (*unsyncIter == 0xFF && ((*(unsyncIter+1)) & 0xF0u) == 0xF0) {
+            frameStartIter = unsyncIter;
+            unsyncIter += 2; // don't test the same 2 bytes again
+            frameEndIter = unsyncIter;
+            while (unsyncIter < data.end()) {
+                // test for MPEG sync word, but ignore occasional 0xFFF if frame is not yet long enough
+                auto frameLen = std::distance(frameStartIter, unsyncIter);
+                if (*unsyncIter == 0xFF && ((*(unsyncIter + 1)) & 0xF0u) == 0xF0 &&
+                    frameLen >= m_frameSize) {
+                    m_conQueue.push(std::vector<uint8_t>(frameStartIter, frameEndIter));
+                    frameStartIter = unsyncIter;
+                }
+                ++unsyncIter;
+                ++frameEndIter;
             }
-            //std::cout << m_logTag << "Syncing Inserting: " << +std::distance(data.begin(), unsyncIter) << " from: " << +data.size() << std::endl;
-            if(unsyncIter + m_frameSize < data.end()) {
-                m_conQueue.push(std::vector<uint8_t>(unsyncIter, unsyncIter+m_frameSize));
-                unsyncIter += m_frameSize;
-                //std::cout << m_logTag << "Syncing Next: " << std::hex << std::setfill('0') << std::setw(2) << +(*unsyncIter) << std::hex << std::setfill('0') << std::setw(2) << +(*(unsyncIter+1)) << std::dec << std::endl;
-                continue;
-            } else {
-                //std::cout << m_logTag << "Syncing Not enough data left: " << +unsyncData.size() << std::endl;
-                break;
-            }
+        } else {
+            ++unsyncIter;
         }
-        //std::cout << m_logTag << "Searching MPEG start" << std::endl;
-        ++unsyncIter;
     }
 
-    m_unsyncDataBuffer.insert(m_unsyncDataBuffer.begin(), unsyncIter, data.end());
+    m_unsyncDataBuffer.insert(m_unsyncDataBuffer.begin(), frameStartIter, data.end());
 }
 
 void DabMpegServiceComponentDecoder::processData() {
