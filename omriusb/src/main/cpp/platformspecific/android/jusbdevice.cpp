@@ -18,21 +18,17 @@
  *
  */
 
-
-#include <cerrno>
-#include <iostream>
-#include <linux/byteorder/little_endian.h>
-#include <linux/usbdevice_fs.h>
-#include <sys/ioctl.h>
-#include <poll.h>
-#include <unistd.h>
-#include <sstream>
-
 #include "jusbdevice.h"
 
-#ifdef POSIX_IOCTL_WRITE_ASYNC_BULKTRANSFER
-#include "usbhost.h"
-#endif
+#include "iostream"
+
+#include <linux/usbdevice_fs.h>
+#include <sys/ioctl.h>
+
+// POSIX_IOCTL_READ_WRITE_BULKTRANSFER
+// 0 : Use Android UsbDeviceConnection (with immense overhead for JNI)
+// 1 : Use POSIX ioctl() to read/write (no overhead, direct kernel communication)
+#define POSIX_IOCTL_READ_WRITE_BULKTRANSFER 1
 
 JUsbDevice::JUsbDevice(JavaVM* javaVm, JNIEnv *env, jobject usbDevice) {
     m_javaVm = javaVm;
@@ -105,11 +101,8 @@ JUsbDevice::~JUsbDevice() {
     // close an open UsbDeviceConnection
     m_javaVm->GetEnv((void **)&env, JNI_VERSION_1_6);
     if (m_usbDeviceConnectionObject != nullptr && m_usbHelperClass != nullptr) {
-        jobject usbHelper = env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId);
-        if (usbHelper != nullptr) {
-            env->CallVoidMethod(usbHelper,
-                                m_usbHelperCloseDeviceConnectionMId, m_usbDeviceConnectionObject);
-        }
+        env->CallVoidMethod(env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId),
+                m_usbHelperCloseDeviceConnectionMId, m_usbDeviceConnectionObject);
         env->DeleteGlobalRef(m_usbDeviceConnectionObject);
     }
     env->DeleteGlobalRef(m_usbDeviceObject);
@@ -151,17 +144,17 @@ void JUsbDevice::permissionGranted(JNIEnv *env, bool granted) {
 
         m_usbDeviceConnectionObject = env->NewGlobalRef(env->CallObjectMethod(env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId), m_usbHelperOpenDeviceMId, m_usbDeviceObject));
 
-        jobject usbInterface = env->CallObjectMethod(m_usbDeviceObject, m_usbDeviceGetInterfaceMId, m_interfaceNum);
-
-        jboolean claimed = env->CallBooleanMethod(m_usbDeviceConnectionObject, m_usbDeviceConnectionClaimInterfaceMId, usbInterface, JNI_TRUE);
+        jboolean claimed = env->CallBooleanMethod(m_usbDeviceConnectionObject, m_usbDeviceConnectionClaimInterfaceMId, env->CallObjectMethod(m_usbDeviceObject, m_usbDeviceGetInterfaceMId, m_interfaceNum), true);
 
         std::cout << LOG_TAG << "Interface claimed: " << std::boolalpha << static_cast<bool>(claimed) << std::noboolalpha << std::endl;
+
+        jobject usbInterface = env->CallObjectMethod(m_usbDeviceObject, m_usbDeviceGetInterfaceMId, m_interfaceNum);
 
         jint endpointCnt = env->CallIntMethod(usbInterface, m_usbDeviceInterfaceGetEndpointCountMId);
         std::cout << LOG_TAG <<  "Endpoint count: " << +endpointCnt << std::endl;
 
         m_fileDescriptor = env->CallIntMethod(m_usbDeviceConnectionObject, m_usbDeviceConnectionGetFileDescriptorMid);
-        std::cout << LOG_TAG << "FileDescriptor: " << +m_fileDescriptor << std::endl;
+        std::cout << LOG_TAG << "FileDescriptor: " << m_fileDescriptor << std::endl;
 
         for(int i = 0; i < endpointCnt; i++) {
             jobject endPoint = env->CallObjectMethod(usbInterface, m_usbDeviceInterfaceGetEndpointMId, i);
@@ -177,141 +170,17 @@ void JUsbDevice::permissionGranted(JNIEnv *env, bool granted) {
     m_permissionCallback(m_permissionGranted);
 }
 
-#if defined(POSIX_IOCTL_WRITE_ASYNC_BULKTRANSFER)
-int JUsbDevice::writeBulkTransferDataAsync(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs) {
-    struct usb_device dev{};
-    struct usb_endpoint_descriptor desc{};
-    struct usbdevfs_urb urb{};
-    struct usb_request request{};
-
-    memset(&dev, 0, sizeof(dev));
-    memset(&desc, 0, sizeof(desc));
-    memset(&urb, 0, sizeof(urb));
-    memset(&request, 0, sizeof(request));
-
-    dev.fd = m_fileDescriptor;
-    desc.bLength = USB_DT_ENDPOINT_SIZE;
-    desc.bDescriptorType = USB_DT_ENDPOINT;
-    desc.bEndpointAddress = endPointAddress;
-    desc.bmAttributes = 192; //  from a log, TODO take from real usb_endpoint_descriptor
-    desc.wMaxPacketSize = 64; //  from a log, TODO take from real usb_endpoint_descriptor
-    desc.bInterval = 0; //  from a log, TODO take from real usb_endpoint_descriptor
-
-    urb.type = USBDEVFS_URB_TYPE_BULK;
-    urb.endpoint = endPointAddress;
-    urb.status = -1; // filled with response
-    urb.flags = 0;
-    urb.buffer = (uint8_t*) buffer.data();
-    urb.buffer_length = buffer.size();
-    urb.actual_length = -1; // will contain length of response
-    urb.usercontext = &request;
-
-    request.dev = &dev;
-    request.max_packet_size = __le16_to_cpu(desc.wMaxPacketSize);
-    request.private_data = &urb;
-    request.endpoint = urb.endpoint;
-    request.buffer = urb.buffer;
-    request.buffer_length = urb.buffer_length;
-    request.client_data = nullptr; // could be used for waitRequest() to find this request
-    request.private_data = &urb;
-
-    int res;
-    res = TEMP_FAILURE_RETRY(ioctl(request.dev->fd, USBDEVFS_SUBMITURB, &urb));
-
-    if (res != 0) {
-        std::clog << LOG_TAG << "writeBulkTransferDataAsync: SUBMITURB failed: " << +res << std::endl;
-        return -1;
-    }
-
-    struct pollfd p{};
-    p.fd = dev.fd;
-    p.events = POLLOUT;
-    p.revents = 0;
-
-    // wait for response (with timeout)
-    while (true) {
-        res = poll(&p, 1, timeOutMs);
-        // check return code
-        if (res == 1) {
-            break; // success
-        } else if (res == 0) {
-            std::clog << LOG_TAG << "writeBulkTransferDataAsync: timeout" << std::endl;
-            return -1;
-        } else /* -1 */ {
-            int lerror = errno;
-            if (lerror != EAGAIN) {
-                std::clog << LOG_TAG << "writeBulkTransferDataAsync: poll failed: res=" << +res
-                          << " event=" << +p.revents << " error=" << +lerror << std::endl;
-                return -1;
-            }
-        }
-        // check returned event
-        if (p.revents != POLLOUT) {
-            int lerror = errno;
-            std::clog << LOG_TAG << "writeBulkTransferDataAsync: poll failed: res=" << +res
-                      << " event=" << +p.revents << " error=" << +lerror << std::endl;
-            return -1;
-        }
-    }
-
-    // read the response
-    struct usbdevfs_urb *urbResponse = nullptr;
-    res = TEMP_FAILURE_RETRY(ioctl(dev.fd,  USBDEVFS_REAPURBNDELAY, &urbResponse));  // TODO how does ioctl know about timeout value?
-    if (res < 0) {
-        int lerror = errno;
-        std::clog << LOG_TAG << "writeBulkTransferDataAsync: REAPURBNDELAY failed: res=" << +res
-                  << " error=" << +lerror << std::endl;
-        return -1;
-    } else {
-        if (urbResponse != nullptr) {
-            auto *reqResponse = (struct usb_request*) (urbResponse->usercontext);
-            if (reqResponse != nullptr) {
-                // note: reqResponse should be equal to &req :-)
-                reqResponse->actual_length = urbResponse->actual_length;
-                return reqResponse->actual_length;
-            } else {
-                std::clog << LOG_TAG << "writeBulkTransferDataAsync: reqResponse null" << std::endl;
-                return -1;
-            }
-        } else {
-            std::clog << LOG_TAG << "writeBulkTransferDataAsync: urbResponse null" << std::endl;
-            return -1;
-        }
-    }
-}
-#endif // defined(POSIX_IOCTL_WRITE_ASYNC_BULKTRANSFER)
-
 int JUsbDevice::writeBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs) {
-    struct usbdevfs_bulktransfer bt{};
-    auto len = buffer.size();
-    unsigned int timeout = (timeOutMs >= 0) ? (unsigned int) timeOutMs : 0U;
-    auto pData = (uint8_t *) buffer.data();
-    int count = 0;
+    // https://stackoverflow.com/questions/16963237/passing-usb-file-descriptor-to-android-ndk-program/17046674#17046674
 
-    do {
-        memset(&bt, 0, sizeof(bt));
-        bt.ep = endPointAddress;  /* endpoint */
-        bt.timeout = timeout;     /* timeout in ms */
-        bt.len = len;             /* length of data to be written */
-        bt.data = pData;          /* the data to write */
+    struct usbdevfs_bulktransfer bt;
+    bt.ep = endPointAddress;  /* endpoint */
+    bt.timeout = (unsigned int) timeOutMs; /* timeout in ms */
+    bt.len = buffer.size();              /* length of data to be written */
+    bt.data = (uint8_t*) buffer.data();  /* the data to write */
 
-        int n = TEMP_FAILURE_RETRY(ioctl(m_fileDescriptor, USBDEVFS_BULK, &bt));
-
-        if (n < 0) {
-            int lError = errno;
-            std::stringstream logStr;
-            logStr << LOG_TAG << "writeBulkTransferDataDirect len " << +len << "/"
-                   << +buffer.size() << " failed errno=" << +lError << " " << strerror(lError);
-            std::clog << logStr.str() << std::endl;
-            return -1;
-        } else {
-            len -= n;
-            pData += n;
-            count += n;
-        }
-    } while (len > 0);
-
-    return count;
+    int rtn = ioctl(m_fileDescriptor, USBDEVFS_BULK, &bt);
+    return rtn;
 }
 
 int JUsbDevice::writeBulkTransferData(uint8_t endPointAddress, const std::vector<uint8_t>& buffer, int timeOutMs) {
@@ -359,41 +228,17 @@ int JUsbDevice::writeBulkTransferData(uint8_t endPointAddress, const std::vector
 }
 
 int JUsbDevice::readBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs) {
-    struct usbdevfs_bulktransfer bt{};
-    auto len = buffer.size();
-    unsigned int timeout = (timeOutMs >= 0) ? (unsigned int) timeOutMs : 0U;
-    auto pData = (uint8_t *) buffer.data();
-    int count = 0;
+    // https://stackoverflow.com/questions/16963237/passing-usb-file-descriptor-to-android-ndk-program/17046674#17046674
 
-    while (len > 0) {
-        memset(&bt, 0, sizeof(bt));
-        bt.ep = endPointAddress;  /* endpoint */
-        bt.timeout = timeout;     /* timeout in ms */
-        bt.len = len;             /* length of expected data */
-        bt.data = pData;          /* for the received data */
+    struct usbdevfs_bulktransfer bt;
+    bt.ep = endPointAddress;  /* endpoint */
+    bt.timeout = (unsigned int) timeOutMs; /* timeout in ms */
+    bt.len = buffer.size();              /* length of receive buffer */
+    bt.data = (uint8_t*) buffer.data();  /* for the received data */
 
-        int n = TEMP_FAILURE_RETRY(ioctl(m_fileDescriptor, USBDEVFS_BULK, &bt));
+    int rtn = ioctl(m_fileDescriptor, USBDEVFS_BULK, &bt);
 
-
-        if (n < 0) {
-            int lError = errno;
-            if (lError != ETIMEDOUT) {
-                std::stringstream logStr;
-                logStr << LOG_TAG << "readBulkTransferDataDirect failed errno=" << +lError << " "
-                       << strerror(lError);
-                std::clog << logStr.str() << std::endl;
-                return -1;
-            } else {
-                // timeout
-                return count;
-            }
-        } else {
-            len -= n;
-            pData += n;
-            count += n;
-        }
-    }
-    return count;
+    return rtn;
 }
 
 int JUsbDevice::readBulkTransferData(uint8_t endPointAddress, std::vector<uint8_t> &buffer, int timeOutMs) {
