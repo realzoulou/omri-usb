@@ -28,9 +28,6 @@
 
 #include "concurrent_queue.h"
 
-// uncomment to use original implementation of Fabian
-//#define USE_ORIG_SYNC_N_PROCESSDATA
-
 class DabMpegServiceComponentDecoder : public DabServiceComponentDecoder {
 
 public:
@@ -46,8 +43,6 @@ public:
     using AUDIO_COMPONENT_DATA_CALLBACK = std::function<void(const std::vector<uint8_t>&, int, int, int, bool, bool)>;
     virtual std::shared_ptr<AUDIO_COMPONENT_DATA_CALLBACK> registerAudioDataCallback(AUDIO_COMPONENT_DATA_CALLBACK cb);
 
-    virtual void clearCallbacks() override;
-
 private:
     const std::string m_logTag{"[DabMpegServiceComponentDecoder] "};
 
@@ -58,21 +53,16 @@ private:
     CallbackDispatcher<std::function<void (const std::vector<uint8_t>&)>> m_padDataDispatcher;
     CallbackDispatcher<AUDIO_COMPONENT_DATA_CALLBACK> m_audioDataDispatcher;
 
+    bool m_frameSizeAdjusted{false};
+
 private:
     void processData();
     void synchronizeData(const std::vector<uint8_t>& unsyncData);
-
-#ifdef USE_ORIG_SYNC_N_PROCESSDATA
-    bool m_frameSizeAdjusted{false};
-    void processDataOrig();
-    void synchronizeDataOrig(const std::vector<uint8_t>& unsyncData);
-#endif
 
 private:
     uint8_t m_noCiLastLength{0};
 
     std::vector<uint8_t> m_unsyncDataBuffer;
-    unsigned m_unsyncByteCount{0};
 
     static constexpr uint8_t XPAD_SIZE[8] {
         4, 6, 8, 12, 16, 24, 32, 48
