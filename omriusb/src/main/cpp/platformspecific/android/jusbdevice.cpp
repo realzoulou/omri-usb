@@ -101,8 +101,11 @@ JUsbDevice::~JUsbDevice() {
     // close an open UsbDeviceConnection
     m_javaVm->GetEnv((void **)&env, JNI_VERSION_1_6);
     if (m_usbDeviceConnectionObject != nullptr && m_usbHelperClass != nullptr) {
-        env->CallVoidMethod(env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId),
+        jobject usbHelper = env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId);
+        if (usbHelper != nullptr) {
+            env->CallVoidMethod(usbHelper,
                 m_usbHelperCloseDeviceConnectionMId, m_usbDeviceConnectionObject);
+        }
         env->DeleteGlobalRef(m_usbDeviceConnectionObject);
     }
     env->DeleteGlobalRef(m_usbDeviceObject);
@@ -142,19 +145,24 @@ void JUsbDevice::permissionGranted(JNIEnv *env, bool granted) {
     if(granted) {
         m_permissionGranted = true;
 
-        m_usbDeviceConnectionObject = env->NewGlobalRef(env->CallObjectMethod(env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId), m_usbHelperOpenDeviceMId, m_usbDeviceObject));
+        jobject usbhelper = env->CallStaticObjectMethod(m_usbHelperClass, m_usbHelperGetInstanceMId);
+        if (usbhelper != nullptr) {
+            m_usbDeviceConnectionObject = env->NewGlobalRef(
+                    env->CallObjectMethod(usbhelper, m_usbHelperOpenDeviceMId, m_usbDeviceObject));
+        } else {
+            std::clog << LOG_TAG << "UsbHelper.getInstance failed" << std::endl;
+        }
+        jobject usbInterface = env->CallObjectMethod(m_usbDeviceObject, m_usbDeviceGetInterfaceMId, m_interfaceNum);
 
-        jboolean claimed = env->CallBooleanMethod(m_usbDeviceConnectionObject, m_usbDeviceConnectionClaimInterfaceMId, env->CallObjectMethod(m_usbDeviceObject, m_usbDeviceGetInterfaceMId, m_interfaceNum), true);
+        jboolean claimed = env->CallBooleanMethod(m_usbDeviceConnectionObject, m_usbDeviceConnectionClaimInterfaceMId, usbInterface, JNI_TRUE);
 
         std::cout << LOG_TAG << "Interface claimed: " << std::boolalpha << static_cast<bool>(claimed) << std::noboolalpha << std::endl;
-
-        jobject usbInterface = env->CallObjectMethod(m_usbDeviceObject, m_usbDeviceGetInterfaceMId, m_interfaceNum);
 
         jint endpointCnt = env->CallIntMethod(usbInterface, m_usbDeviceInterfaceGetEndpointCountMId);
         std::cout << LOG_TAG <<  "Endpoint count: " << +endpointCnt << std::endl;
 
         m_fileDescriptor = env->CallIntMethod(m_usbDeviceConnectionObject, m_usbDeviceConnectionGetFileDescriptorMid);
-        std::cout << LOG_TAG << "FileDescriptor: " << m_fileDescriptor << std::endl;
+        std::cout << LOG_TAG << "FileDescriptor: " << +m_fileDescriptor << std::endl;
 
         for(int i = 0; i < endpointCnt; i++) {
             jobject endPoint = env->CallObjectMethod(usbInterface, m_usbDeviceInterfaceGetEndpointMId, i);
@@ -162,18 +170,17 @@ void JUsbDevice::permissionGranted(JNIEnv *env, bool granted) {
             jint endpointAddress = env->CallIntMethod(endPoint, m_usbDeviceEndpointGetEndpointAddressMId);
             jint endpointDirection = env->CallIntMethod(endPoint, m_usbDeviceEndpointGetDirectionMId);
             std::cout << LOG_TAG << "Endpoint Number: " << +endpointNumber << " Address: " << +endpointAddress << " Direction: " << +endpointDirection << std::endl;
-
-            m_endpointsMap.insert(std::pair<uint8_t,jobject>(static_cast<uint8_t>(endpointAddress), env->NewGlobalRef(endPoint)));
         }
     }
 
     m_permissionCallback(m_permissionGranted);
 }
 
-int JUsbDevice::writeBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs) {
+int JUsbDevice::writeBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs) const {
     // https://stackoverflow.com/questions/16963237/passing-usb-file-descriptor-to-android-ndk-program/17046674#17046674
 
-    struct usbdevfs_bulktransfer bt;
+    struct usbdevfs_bulktransfer bt{};
+    memset(&bt, 0, sizeof(bt));
     bt.ep = endPointAddress;  /* endpoint */
     bt.timeout = (unsigned int) timeOutMs; /* timeout in ms */
     bt.len = buffer.size();              /* length of data to be written */
@@ -183,7 +190,7 @@ int JUsbDevice::writeBulkTransferDataDirect(uint8_t endPointAddress, const std::
     return rtn;
 }
 
-int JUsbDevice::writeBulkTransferData(uint8_t endPointAddress, const std::vector<uint8_t>& buffer, int timeOutMs) {
+int JUsbDevice::writeBulkTransferData(uint8_t endPointAddress, const std::vector<uint8_t>& buffer, int timeOutMs) const {
 
 #if POSIX_IOCTL_READ_WRITE_BULKTRANSFER
     return writeBulkTransferDataDirect(endPointAddress, buffer, timeOutMs);
@@ -227,10 +234,11 @@ int JUsbDevice::writeBulkTransferData(uint8_t endPointAddress, const std::vector
 #endif // POSIX_IOCTL_READ_WRITE_BULKTRANSFER
 }
 
-int JUsbDevice::readBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs) {
+int JUsbDevice::readBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs) const {
     // https://stackoverflow.com/questions/16963237/passing-usb-file-descriptor-to-android-ndk-program/17046674#17046674
 
-    struct usbdevfs_bulktransfer bt;
+    struct usbdevfs_bulktransfer bt{};
+    memset(&bt, 0, sizeof(bt));
     bt.ep = endPointAddress;  /* endpoint */
     bt.timeout = (unsigned int) timeOutMs; /* timeout in ms */
     bt.len = buffer.size();              /* length of receive buffer */
@@ -241,7 +249,7 @@ int JUsbDevice::readBulkTransferDataDirect(uint8_t endPointAddress, const std::v
     return rtn;
 }
 
-int JUsbDevice::readBulkTransferData(uint8_t endPointAddress, std::vector<uint8_t> &buffer, int timeOutMs) {
+int JUsbDevice::readBulkTransferData(uint8_t endPointAddress, std::vector<uint8_t> &buffer, int timeOutMs) const {
 
 #if POSIX_IOCTL_READ_WRITE_BULKTRANSFER
     return readBulkTransferDataDirect(endPointAddress, buffer, timeOutMs);

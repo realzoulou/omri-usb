@@ -44,10 +44,10 @@ public:
     using PermissionCallbackFunction = std::function<void(const bool permissionGranted)>;
     virtual void requestPermission(PermissionCallbackFunction permissionCallback);
 
-    virtual int writeBulkTransferData(uint8_t endPointAddress, const std::vector<uint8_t>& buffer, int timeOutMs = 5000);
-    virtual int writeBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 5000);
-    virtual int readBulkTransferData(uint8_t endPointAddress, std::vector<uint8_t>& buffer, int timeOutMs = 5000);
-    virtual int readBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 5000);
+    int writeBulkTransferData(uint8_t endPointAddress, const std::vector<uint8_t>& buffer, int timeOutMs = 5000) const;
+    int writeBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 5000) const;
+    int readBulkTransferData(uint8_t endPointAddress, std::vector<uint8_t>& buffer, int timeOutMs = 5000) const;
+    int readBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 5000) const;
 
 private:
     JavaVM* m_javaVm;
@@ -59,8 +59,6 @@ private:
     uint16_t m_vendorId{0xFFFF};
     uint16_t m_productId{0xFFFF};
     bool m_permissionGranted{false};
-
-    std::map<uint8_t, jobject> m_endpointsMap;
 
     PermissionCallbackFunction m_permissionCallback;
 
