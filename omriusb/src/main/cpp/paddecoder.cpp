@@ -38,8 +38,8 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
     auto padRiter = padData.rbegin();
     while (padRiter < padData.rend()) {
         //F-PAD
-        const bool ciPresent = (((*padRiter & 0x02) >> 1) & 0x01) != 0;
-        const bool z = (*padRiter & 0x01) != 0;
+        const bool ciPresent = (((*padRiter & 0x02u) >> 1u) & 0x01u) != 0;
+        const bool z = (*padRiter & 0x01u) != 0;
         if (z) {
             // Z: this bit shall be set to "0" for synchronization purposes in serial communication links
             std::cout << m_logTag << " Z-Field: " << std::boolalpha << z << std::noboolalpha
@@ -47,7 +47,7 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
         }
         padRiter++; //Byte L data field
 
-        const auto fPadType = static_cast<uint8_t>(((*padRiter & 0xC0) >> 6) & 0x03); //Byte L-1 data field
+        const auto fPadType = static_cast<uint8_t>(((*padRiter & 0xC0u) >> 6u) & 0x03u); //Byte L-1 data field
 
         /* Note on ETSI EN 300 401 V1.4.1 (2006-06):
          * Only F-PAD type "00" was carried over to V2.1.1.
@@ -55,7 +55,7 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
          * F-PAD type "10" and "11" were already RFU in 1.4.1
          */
 
-        const X_PAD_INDICATOR xPadIndicator = static_cast<X_PAD_INDICATOR>(((*padRiter++ & 0x30) >> 4) & 0x03);
+        const X_PAD_INDICATOR xPadIndicator = static_cast<X_PAD_INDICATOR>(((*padRiter++ & 0x30u) >> 4u) & 0x03u);
         //std::cout << m_logTag << " FPadType: " << +fPadType << " XPadInd: " << +xPadIndicator << " CI: " << std::boolalpha << ciPresent << " Z: " << z << std::noboolalpha << std::endl;
 
         std::vector<std::pair<uint8_t, PAD_APPLICATION_TYPE>> apps;
@@ -71,13 +71,13 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
                 uint8_t xpadAppType = 0;
                 if(ciPresent) {
                     //uint8_t rfu = (*padRiter & 0xE0) >> 5;
-                    m_noCiLastShortXpAdAppType = xpadAppType = static_cast<uint8_t>(*padRiter++ & 0x1f);
+                    m_noCiLastShortXpAdAppType = xpadAppType = static_cast<uint8_t>(*padRiter++ & 0x1fu);
                     xpadSize = 3;
                 } else {
                     xpadAppType = static_cast<uint8_t>(m_noCiLastShortXpAdAppType + 1);
                 }
 
-                apps.push_back(std::make_pair(xpadSize, static_cast<PAD_APPLICATION_TYPE>(xpadAppType)));
+                apps.emplace_back(xpadSize, static_cast<PAD_APPLICATION_TYPE>(xpadAppType));
             } else if (xPadIndicator == X_PAD_INDICATOR::VARIABLE_XPAD) {
                 //variable xpad
 
@@ -85,8 +85,8 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
                 if(ciPresent) {
                     //std::cout << m_logTag << " XPad CI present" << std::endl;
                     for(int i = 0; i < 4; i++) {
-                        uint8_t xpadLengthIndex = static_cast<uint8_t>((*padRiter & 0xE0) >> 5);
-                        uint8_t xpadAppType = static_cast<uint8_t>(*padRiter++ & 0x1f);
+                        auto xpadLengthIndex = static_cast<uint8_t>((*padRiter & 0xE0u) >> 5u);
+                        auto xpadAppType = static_cast<uint8_t>(*padRiter++ & 0x1fu);
 
                         if( (xpadAppType >= 4 && xpadAppType <= 11) || (xpadAppType >= 16 && xpadAppType <= 31) ) {
                             //std::cout << m_logTag << "[" << +i << "] XPadLength: " << +xpadLengthIndex << " : " << +XPAD_SIZE[xpadLengthIndex] << " AppType: " << +xpadAppType << std::endl;
@@ -108,7 +108,7 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
                         m_noCiLastLength = PadDecoder::XPAD_SIZE[xpadLengthIndex];
                         m_noCiLastXpAdAppType = xpadAppType;
 
-                        apps.push_back(std::make_pair(XPAD_SIZE[xpadLengthIndex], static_cast<PAD_APPLICATION_TYPE>(xpadAppType)));
+                        apps.emplace_back(XPAD_SIZE[xpadLengthIndex], static_cast<PAD_APPLICATION_TYPE>(xpadAppType));
                     }
                 } else {
                     if(m_noCiLastLength > 0 || m_noCiLastXpAdAppType != 0xFF) {
@@ -116,7 +116,7 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
                         if(!(m_noCiLastXpAdAppType%2)) {
                             ++m_noCiLastXpAdAppType;
                         }
-                        apps.push_back(std::make_pair(padData.size()-2, static_cast<PAD_APPLICATION_TYPE>(m_noCiLastXpAdAppType)));
+                        apps.emplace_back(padData.size()-2, static_cast<PAD_APPLICATION_TYPE>(m_noCiLastXpAdAppType));
                     }
                 }
             }
@@ -138,9 +138,10 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
                         }
 
                         m_currentDataGroup.clear();
-                        m_currentDataGroupLength = static_cast<uint16_t>((xpadDataSubfield[0] & 0x3F) << 8 | (xpadDataSubfield[1] & 0xFF));
+                        // TODO something is wrong with this
+                        m_currentDataGroupLength = static_cast<uint16_t>((xpadDataSubfield[0] & 0x3Fu) << 8u | (xpadDataSubfield[1] & 0xFFu));
                     } else {
-                        std::cout << m_logTag << " ############### MOT DG DATA_GROUP_LENGTH_INDICATOR CRC failed ###############" << std::endl;
+                        std::cout<< m_logTag << " MOT DG DATA_GROUP_LENGTH_INDICATOR CRC failed" << std::endl;
                         m_currentDataGroup.clear();
                         m_currentDataGroupLength = 0;
                     }
@@ -150,12 +151,13 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
                     app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_CONTINUATION) {
                     if (app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_CONTINUATION) {
                         //std::cout << m_logTag << " CurSize: " << +m_currentDataGroup.size() << ", GoalSize: " << +m_currentDataGroupLength << ", NextSize: " << +std::distance(xpadDataSubfield.begin(), xpadDataSubfield.end()) << std::endl;
-                        long dataSize = std::distance(xpadDataSubfield.begin(), xpadDataSubfield.end());
-                        long remainingData = m_currentDataGroupLength - m_currentDataGroup.size();
+                        auto dataSize = std::distance(xpadDataSubfield.begin(), xpadDataSubfield.end());
+                        auto remainingData = m_currentDataGroupLength - m_currentDataGroup.size();
                         if(dataSize <= remainingData) {
                             m_currentDataGroup.insert(m_currentDataGroup.end(), xpadDataSubfield.begin(), xpadDataSubfield.end());
                         } else {
-                            //std::cout << m_logTag << " Too much data: " << +dataSize << " : " << +remainingData << std::endl;
+                            // TODO: this is seen, typically followed by a CRC error
+                            std::cout << m_logTag << " MOT too much data: " << +dataSize << " : " << +remainingData << std::endl;
                             m_currentDataGroup.insert(m_currentDataGroup.end(), xpadDataSubfield.begin(), xpadDataSubfield.begin() + remainingData);
                         }
                     }
@@ -179,18 +181,24 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
 }
 
 void PadDecoder::addUserApplication(std::shared_ptr<DabUserApplication> uApp) {
-    std::cout << m_logTag << " +++++++++++ Adding UserApp: " << +uApp->getUserApplicationType() << std::endl;
+    //std::cout << m_logTag << " +++++++++++ Adding UserApp: " << +uApp->getUserApplicationType() << std::endl;
     m_userApps.insert(std::make_pair(uApp->getXpadAppType(), uApp));
 
 }
 
 void PadDecoder::addUserApplicationDecoder(std::shared_ptr<DabUserapplicationDecoder> uAppDecoder) {
     if(uAppDecoder != nullptr) {
-        std::cout << m_logTag << " +++++++++++ Adding UserAppDecoder: " << +uAppDecoder->getUserApplicationType() << std::endl;
-        m_userAppDecoders.insert(std::make_pair(uAppDecoder->getUserApplicationType(), uAppDecoder));
-        if(uAppDecoder->getUserApplicationType() == registeredtables::USERAPPLICATIONTYPE::MOT_SLIDESHOW || uAppDecoder->getUserApplicationType() == registeredtables::USERAPPLICATIONTYPE::MOT_BROADCAST_WEBSITE || uAppDecoder->getUserApplicationType() == registeredtables::USERAPPLICATIONTYPE::EPG) {
-            std::cout << m_logTag << " +++++++++++ Adding MotUserAppDecoder: " << +uAppDecoder->getUserApplicationType() << std::endl;
-            m_motDecoder.addUserapplicationDecoder(std::static_pointer_cast<DabMotUserapplicationDecoder>(uAppDecoder));
+        //std::cout << m_logTag << " +++++++++++ Adding UserAppDecoder: " << +uAppDecoder->getUserApplicationType() << std::endl;
+        m_userAppDecoders.insert(
+                std::make_pair(uAppDecoder->getUserApplicationType(), uAppDecoder));
+        if (uAppDecoder->getUserApplicationType() ==
+            registeredtables::USERAPPLICATIONTYPE::MOT_SLIDESHOW ||
+            uAppDecoder->getUserApplicationType() ==
+            registeredtables::USERAPPLICATIONTYPE::MOT_BROADCAST_WEBSITE ||
+            uAppDecoder->getUserApplicationType() == registeredtables::USERAPPLICATIONTYPE::EPG) {
+            //std::cout << m_logTag << " +++++++++++ Adding MotUserAppDecoder: " << +uAppDecoder->getUserApplicationType() << std::endl;
+            m_motDecoder.addUserapplicationDecoder(
+                    std::static_pointer_cast<DabMotUserapplicationDecoder>(uAppDecoder));
         }
     } else {
         std::cout << m_logTag << " +++++++++++ UserAppDecoder is null!" << std::endl;
