@@ -511,14 +511,3 @@ void DemoUsbTunerInput::inputStreamClose() {
         m_inFileStream.close();
     }
 }
-
-void DemoUsbTunerInput::checkServiceSanity(const uint32_t serviceId) {
-    std::shared_ptr<JDabService> &startedService = getStartedService();
-    if (startedService != nullptr) {
-        uint32_t sid = startedService->getServiceId();
-        std::cout << LOG_TAG << "call DabEnsemble checkServiceSanity 0x" << std::hex << +sid << std::dec << std::endl;
-        DabEnsemble::checkServiceSanity(sid);
-        return;
-    }
-    DabEnsemble::checkServiceSanity(serviceId);
-}

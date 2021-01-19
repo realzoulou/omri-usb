@@ -68,10 +68,6 @@ public:
 
     std::vector<std::shared_ptr<LinkedServiceDab>> getLinkedServices(const LinkedServiceDab &service) override;
 
-protected:
-    // from DabEnsemble
-    virtual void checkServiceSanity(const uint32_t serviceId) override;
-
 private:
     const std::string LOG_TAG{"[RaonUsbTuner] "};
     constexpr static uint8_t MAXIMUM_CONCURRENT_SUBCHANNELS{1};

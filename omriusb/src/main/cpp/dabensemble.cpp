@@ -936,7 +936,7 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
         }
         case Fig::FIG_00_TYPE::USERAPPLICATION_INFORMATION: {
             if (!m_fig013done) {
-                std::cout << m_logTag << " ServiceSanity FIC 00_08 Done!" << std::endl;
+                std::cout << m_logTag << " ServiceSanity FIC 00_13 Done!" << std::endl;
                 m_fig013done = true;
             }
             break;

@@ -60,10 +60,6 @@ public:
     void stopServiceScan() override;
     std::string getDeviceName() override;
 
-protected:
-    // from DabEnsemble
-    virtual void checkServiceSanity(const uint32_t serviceId) override;
-
 public:
     void setJavaClassDemoTuner(JNIEnv* env, jclass demoTunerClass);
     void setJavaClassRadioService(JNIEnv* env, jclass radioService);

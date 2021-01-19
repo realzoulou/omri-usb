@@ -197,19 +197,49 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
         case Fig::FIG_00_TYPE::ENSEMBLE_INFORMATION: {
             Fig_00_Ext_00 extZero(ficData);
             m_fig00_00dispatcher.invoke(extZero);
-            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::ENSEMBLE_INFORMATION);
+
+            bool done{false};
+            if(!contains<Fig_00_Ext_00>(m_parsedFig0000, extZero)) {
+                m_parsedFig0000.push_back(extZero);
+            } else {
+                done = true;
+            }
+
+            if (done) {
+                m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::ENSEMBLE_INFORMATION);
+            }
             break;
         }
         case Fig::FIG_00_TYPE::BASIC_SUBCHANNEL_ORGANIZATION: {
             Fig_00_Ext_01 extOne(ficData);
             m_fig00_01dispatcher.invoke(extOne);
-            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::BASIC_SUBCHANNEL_ORGANIZATION);
+
+            bool done{false};
+            if(!contains<Fig_00_Ext_01>(m_parsedFig0001, extOne)) {
+                m_parsedFig0001.push_back(extOne);
+            } else {
+                done = true;
+            }
+
+            if (done) {
+                m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::BASIC_SUBCHANNEL_ORGANIZATION);
+            }
             break;
         }
         case Fig::FIG_00_TYPE::BASIC_SERVICE_COMPONENT_DEFINITION: {
             Fig_00_Ext_02 extTwo(ficData);
             m_fig00_02dispatcher.invoke(extTwo);
-            m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::BASIC_SERVICE_COMPONENT_DEFINITION);
+
+            bool done{false};
+            if(!contains<Fig_00_Ext_02>(m_parsedFig0002, extTwo)) {
+                m_parsedFig0002.push_back(extTwo);
+            } else {
+                done = true;
+            }
+
+            if (done) {
+                m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::BASIC_SERVICE_COMPONENT_DEFINITION);
+            }
             break;
         }
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_PACKET_MODE: {
@@ -274,7 +304,6 @@ void FicParser::parseFig_00(const std::vector<uint8_t>& ficData) {
             } else {
                 done = true;
             }
-
             if (done) {
                 m_fig00DoneDispatcher.invoke(Fig::FIG_00_TYPE::USERAPPLICATION_INFORMATION);
             }
@@ -343,13 +372,33 @@ void FicParser::parseFig_01(const std::vector<uint8_t>& ficData) {
         case Fig::FIG_01_TYPE::ENSEMBLE_LABEL: {
             Fig_01_Ext_00 extZero(ficData);
             m_fig01_00dispatcher.invoke(extZero);
-            m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::ENSEMBLE_LABEL);
+
+            bool done{false};
+            if(!contains<Fig_01_Ext_00>(m_parsedFig0100, extZero)) {
+                m_parsedFig0100.push_back(extZero);
+            } else {
+                done = true;
+            }
+
+            if (done) {
+                m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::ENSEMBLE_LABEL);
+            }
             break;
         }
         case Fig::FIG_01_TYPE::PROGRAMME_SERVICE_LABEL: {
             Fig_01_Ext_01 extOne(ficData);
             m_fig01_01dispatcher.invoke(extOne);
-            m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::PROGRAMME_SERVICE_LABEL);
+
+            bool done{false};
+            if(!contains<Fig_01_Ext_01>(m_parsedFig0101, extOne)) {
+                m_parsedFig0101.push_back(extOne);
+            } else {
+                done = true;
+            }
+
+            if (done) {
+                m_fig01DoneDispatcher.invoke(Fig::FIG_01_TYPE::PROGRAMME_SERVICE_LABEL);
+            }
             break;
         }
         case Fig::FIG_01_TYPE::SERVICE_COMPONENT_LABEL: {
@@ -521,4 +570,12 @@ void FicParser::reset() {
     m_fig01_04dispatcher.clear();
     m_fig01_05dispatcher.clear();
     m_fig01_06dispatcher.clear();
+
+    m_parsedFig0000.clear();
+    m_parsedFig0001.clear();
+    m_parsedFig0002.clear();
+    m_parsedFig0008.clear();
+    m_parsedFig0013.clear();
+    m_parsedFig0100.clear();
+    m_parsedFig0101.clear();
 }

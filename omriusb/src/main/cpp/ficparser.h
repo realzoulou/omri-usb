@@ -226,9 +226,16 @@ private:
     bool FIB_CRC_CHECK(const uint8_t* data) const;
 
 private:
-    // FIG 0/8 and 0/13 are signalled very slowly (at least every 1s)
-    std::vector<Fig_00_Ext_08> m_parsedFig0008;
-    std::vector<Fig_00_Ext_13> m_parsedFig0013;
+    // essential FIGs which need to be analysed as long as they don't start
+    // to be repeated before an ensemble sanity check makes sense
+    // see DabEnsemble::fig_00/01_done_cb()
+    std::vector<Fig_00_Ext_00> m_parsedFig0000; // ENSEMBLE_INFORMATION
+    std::vector<Fig_00_Ext_01> m_parsedFig0001; // BASIC_SUBCHANNEL_ORGANIZATION
+    std::vector<Fig_00_Ext_02> m_parsedFig0002; // BASIC_SERVICE_COMPONENT_DEFINITION
+    std::vector<Fig_00_Ext_08> m_parsedFig0008; // SERVICE_COMPONENT_GLOBAL_DEFINITION
+    std::vector<Fig_00_Ext_13> m_parsedFig0013; // USERAPPLICATION_INFORMATION
+    std::vector<Fig_01_Ext_00> m_parsedFig0100; // ENSEMBLE_LABEL
+    std::vector<Fig_01_Ext_01> m_parsedFig0101; // PROGRAMME_SERVICE_LABEL
 
 private:
     template<class T>

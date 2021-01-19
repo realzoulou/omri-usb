@@ -191,20 +191,6 @@ std::shared_ptr<JDabService>& RaonTunerInput::getStartedService() {
     return m_startServiceLink;
 }
 
-void RaonTunerInput::checkServiceSanity(const uint32_t serviceId) {
-    if (!m_isScanning) {
-        std::shared_ptr<JDabService> &startedService = getStartedService();
-        if (startedService != nullptr) {
-            uint32_t sid = startedService->getServiceId();
-            //std::cout << LOG_TAG << "call DabEnsemble checkServiceSanity 0x" << std::hex << +sid << std::dec << std::endl;
-            DabEnsemble::checkServiceSanity(sid);
-            return;
-        }
-    }
-    DabEnsemble::checkServiceSanity(serviceId);
-}
-
-
 void RaonTunerInput::startServiceSync(const std::shared_ptr<JDabService>& serviceLink) {
     if(m_isScanning) {
         std::clog << LOG_TAG << "not while scanning: startServiceSync" << std::endl;

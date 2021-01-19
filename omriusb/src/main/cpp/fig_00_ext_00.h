@@ -91,6 +91,12 @@ public:
      */
     virtual uint8_t getOccurenceChange() const;
 
+public:
+    inline bool operator==(const Fig_00_Ext_00& other) const {
+        return (m_EnsembleId == other.m_EnsembleId); // only test for EId, NOT all attributes!
+    }
+    inline bool operator!=(const Fig_00_Ext_00& other) const { return !operator==(other); }
+
 private:
     void parseFigData(const std::vector<uint8_t>& figData);
 
