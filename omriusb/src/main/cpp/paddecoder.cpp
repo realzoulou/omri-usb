@@ -81,13 +81,11 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
             } else if (xPadIndicator == X_PAD_INDICATOR::VARIABLE_XPAD) {
                 //variable xpad
 
-                //std::vector<std::pair<uint8_t, PAD_APPLICATION_TYPE>> apps;
                 if(ciPresent) {
-                    //std::cout << m_logTag << " XPad CI present" << std::endl;
                     for(int i = 0; i < 4; i++) {
-                        auto xpadLengthIndex = static_cast<uint8_t>((*padRiter & 0xE0u) >> 5u);
+                        auto xpadLengthIndex = static_cast<uint8_t>(((*padRiter & 0xE0u) >> 5u) & 0x07u);
                         auto xpadAppType = static_cast<uint8_t>(*padRiter++ & 0x1fu);
-
+#if 0
                         if( (xpadAppType >= 4 && xpadAppType <= 11) || (xpadAppType >= 16 && xpadAppType <= 31) ) {
                             //std::cout << m_logTag << "[" << +i << "] XPadLength: " << +xpadLengthIndex << " : " << +XPAD_SIZE[xpadLengthIndex] << " AppType: " << +xpadAppType << std::endl;
                             auto uAppIter = m_userApps.find(xpadAppType);
@@ -101,22 +99,26 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
                                           << std::endl;
                             }
                         }
-                        if(xpadAppType == 0) {
+#endif
+                        if(xpadAppType == static_cast<uint8_t>(PAD_APPLICATION_TYPE::END_MARKER)) {
                             break;
                         }
 
                         m_noCiLastLength = PadDecoder::XPAD_SIZE[xpadLengthIndex];
                         m_noCiLastXpAdAppType = xpadAppType;
 
-                        apps.emplace_back(XPAD_SIZE[xpadLengthIndex], static_cast<PAD_APPLICATION_TYPE>(xpadAppType));
+                        apps.emplace_back(PadDecoder::XPAD_SIZE[xpadLengthIndex], static_cast<PAD_APPLICATION_TYPE>(xpadAppType));
+                        //std::cout << m_logTag << "X-PAD CI [" << +i << "]: AppTy=" << +xpadAppType << ", len=" << +(PadDecoder::XPAD_SIZE[xpadLengthIndex]) << std::endl;
                     }
                 } else {
                     if(m_noCiLastLength > 0 || m_noCiLastXpAdAppType != 0xFF) {
                         //if the last xpadapptype was not a continuation
                         if(!(m_noCiLastXpAdAppType%2)) {
                             ++m_noCiLastXpAdAppType;
+                            //std::cout << m_logTag << "X-PAD No CI: last AppTy=" << +m_noCiLastXpAdAppType << std::endl;
                         }
                         apps.emplace_back(padData.size()-2, static_cast<PAD_APPLICATION_TYPE>(m_noCiLastXpAdAppType));
+                        //std::cout << m_logTag << "X-PAD No CI: AppTy=" << +m_noCiLastXpAdAppType << ", len=" << +(padData.size()-2) << std::endl;
                     }
                 }
             }
@@ -126,43 +128,48 @@ void PadDecoder::padDataInput(const std::vector<uint8_t>& padData) {
                 padRiter += app.first;
 
                 if(app.second == PAD_APPLICATION_TYPE::DATA_GROUP_LENGTH_INDICATOR) {
+                    m_currentDataGroup.clear();
                     if(CRC_CCITT_CHECK(xpadDataSubfield.data(), static_cast<uint8_t>(xpadDataSubfield.size()))) {
-                        if(!m_currentDataGroup.empty()) {
-                            //last datagroup may be complete
-                            //std::cout << m_logTag << " MOT Datagroup complete, size: " << +m_currentDataGroup.size() << " : " << +m_currentDataGroupLength << std::endl;
-                            if(m_currentDataGroup.size() != m_currentDataGroupLength) {
-                                std::cout << m_logTag << " MOT Datagroup size mismatch, should be: " << +m_currentDataGroupLength << " and is: " << m_currentDataGroup.size() << std::endl;
-                            }
-
-                            m_motDecoder.motDataInput(m_currentDataGroup);
-                        }
-
-                        m_currentDataGroup.clear();
-                        // TODO something is wrong with this
                         m_currentDataGroupLength = static_cast<uint16_t>((xpadDataSubfield[0] & 0x3Fu) << 8u | (xpadDataSubfield[1] & 0xFFu));
+                        //std::cout<< m_logTag << "DATA_GROUP_LENGTH " << +m_currentDataGroupLength << std::endl;
                     } else {
-                        std::cout<< m_logTag << " MOT DG DATA_GROUP_LENGTH_INDICATOR CRC failed" << std::endl;
-                        m_currentDataGroup.clear();
+                        std::cout<< m_logTag << "DATA_GROUP_LENGTH_INDICATOR CRC failed" << std::endl;
                         m_currentDataGroupLength = 0;
                     }
                 }
 
-                if (app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_START ||
-                    app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_CONTINUATION) {
+                if ((app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_START ||
+                            app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_CONTINUATION)
+                        && (m_currentDataGroupLength > 0)) { // Note: START or CONTINUATION may come in, but no LENGTH_IND seen yet, avoid useless processing
+
+                    auto dataSize = xpadDataSubfield.size();
+                    /** ETSI EN 300 401, chap. 7.4.2.2 (V2.1.1 and V1.4.1 are the same)
+                     * If the final part of an X-PAD data group does not entirely fill the X-PAD data sub-field in which it is transported,
+                     * padding bits shall be used to fill the X-PAD sub-field. Padding bits shall be set to zero
+                     */
+
                     if (app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_CONTINUATION) {
-                        //std::cout << m_logTag << " CurSize: " << +m_currentDataGroup.size() << ", GoalSize: " << +m_currentDataGroupLength << ", NextSize: " << +std::distance(xpadDataSubfield.begin(), xpadDataSubfield.end()) << std::endl;
-                        auto dataSize = std::distance(xpadDataSubfield.begin(), xpadDataSubfield.end());
                         auto remainingData = m_currentDataGroupLength - m_currentDataGroup.size();
                         if(dataSize <= remainingData) {
                             m_currentDataGroup.insert(m_currentDataGroup.end(), xpadDataSubfield.begin(), xpadDataSubfield.end());
+
                         } else {
-                            // TODO: this is seen, typically followed by a CRC error
-                            std::cout << m_logTag << " MOT too much data: " << +dataSize << " : " << +remainingData << std::endl;
                             m_currentDataGroup.insert(m_currentDataGroup.end(), xpadDataSubfield.begin(), xpadDataSubfield.begin() + remainingData);
                         }
+                        //std::cout << m_logTag << "MOT_DATAGROUP_CONTINUATION " << +m_currentDataGroup.size() << "/" << +m_currentDataGroupLength << " bytes" << std::endl;
                     }
-                    if(app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_START) {
-                        m_currentDataGroup.insert(m_currentDataGroup.end(), xpadDataSubfield.begin(), xpadDataSubfield.end());
+                    else if(app.second == PAD_APPLICATION_TYPE::MOT_DATAGROUP_START) {
+                        if (dataSize <= m_currentDataGroupLength) {
+                            //std::cout << m_logTag << "MOT_DATAGROUP_START with " << +xpadDataSubfield.size() << std::endl;
+                            m_currentDataGroup.insert(m_currentDataGroup.end(), xpadDataSubfield.begin(),xpadDataSubfield.end());
+                        } else {
+                            //std::cout << m_logTag << "MOT_DATAGROUP_START with " << +xpadDataSubfield.size() << " bytes (only " << +m_currentDataGroupLength << " used)" << std::endl;
+                            m_currentDataGroup.insert(m_currentDataGroup.end(), xpadDataSubfield.begin(),xpadDataSubfield.begin() + m_currentDataGroupLength);
+                        }
+                    }
+                    // all MOT data group sub-fields collected?
+                    if (m_currentDataGroupLength == m_currentDataGroup.size()) {
+                        m_motDecoder.motDataInput(m_currentDataGroup);
                     }
                 }
 
