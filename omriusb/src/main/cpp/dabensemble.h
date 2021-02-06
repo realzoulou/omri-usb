@@ -158,6 +158,7 @@ private:
 private:
     bool m_isInitializing{false};
     std::atomic<bool> m_resetting{false};
+    std::chrono::steady_clock::time_point m_ensembleCollectStartTime;
 
     //FIG 0/1 information
     uint16_t m_ensembleId{EID_INVALID};

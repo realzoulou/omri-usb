@@ -54,6 +54,9 @@ void DabEnsemble::reset() {
         m_ficPtr.get()->start();
     }
 
+    // reset start time
+    m_ensembleCollectStartTime = std::chrono::steady_clock::time_point();
+
     m_ensembleId = EID_INVALID;
     m_cifCntHigh = 0x00;
     m_cifCntLow = 0x00;
@@ -246,6 +249,8 @@ void DabEnsemble::fig00_00_input(const Fig_00_Ext_00& fig00) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     if(m_ensembleId != fig00.getEnsembleId()) {
         m_isInitializing = true;
+        // remember time when EId was first assigned
+        m_ensembleCollectStartTime = std::chrono::steady_clock::now();
     }
 
     m_ensembleId = fig00.getEnsembleId();
@@ -839,7 +844,7 @@ void DabEnsemble::fig00_19_input(const Fig_00_Ext_19& fig19) {
 
 void DabEnsemble::fig01_00_input(const Fig_01_Ext_00& fig10) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << " ServiceSanity FIC 01_00: " << std::hex << +fig10.getEnsembleId() << std::dec
+    std::cout << m_logTag << " ServiceSanity FIG 1/0: " << std::hex << +fig10.getEnsembleId() << std::dec
               << " short: " << fig10.getEnsembleShortLabel()
               << " long: " << fig10.getEnsembleLabel() << std::endl;
     if(m_ensembleLabel.empty() && m_ensembleShortLabel.empty()) {
@@ -853,7 +858,7 @@ void DabEnsemble::fig01_00_input(const Fig_01_Ext_00& fig10) {
 
 void DabEnsemble::fig01_01_input(const Fig_01_Ext_01& fig11) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << " ServiceSanity FIC 01_01: " << std::hex << +fig11.getProgrammeServiceId() << std::dec << " : " << fig11.getProgrammeServiceLabel() << std::endl;
+    std::cout << m_logTag << " ServiceSanity FIG 1/1: " << std::hex << +fig11.getProgrammeServiceId() << std::dec << " : " << fig11.getProgrammeServiceLabel() << std::endl;
     auto serviceIter = m_servicesMap.find(fig11.getProgrammeServiceId());
     if(serviceIter != m_servicesMap.cend()) {
         serviceIter->second.setLabelCharset(fig11.getCharset());
@@ -864,7 +869,7 @@ void DabEnsemble::fig01_01_input(const Fig_01_Ext_01& fig11) {
 
 void DabEnsemble::fig01_04_input(const Fig_01_Ext_04& fig14) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << " ServiceSanity FIC 01_04: " << std::hex << +fig14.getServiceId() << std::dec << ", SCIdS: " << +fig14.getServiceComponentIdWithinService() << " : " << fig14.getServiceComponentLabel() << std::endl;
+    std::cout << m_logTag << " ServiceSanity FIG 1/4: " << std::hex << +fig14.getServiceId() << std::dec << ", SCIdS: " << +fig14.getServiceComponentIdWithinService() << " : " << fig14.getServiceComponentLabel() << std::endl;
     auto serviceIter = m_servicesMap.find(fig14.getServiceId());
     if(serviceIter != m_servicesMap.cend()) {
         for(auto& component : serviceIter->second.getServiceComponents()) {
@@ -879,7 +884,7 @@ void DabEnsemble::fig01_04_input(const Fig_01_Ext_04& fig14) {
 
 void DabEnsemble::fig01_05_input(const Fig_01_Ext_05& fig15) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << " ServiceSanity FIC 01_05: " << std::hex << +fig15.getDataServiceId() << std::dec << " : " << fig15.getDataServiceLabel() << std::endl;
+    std::cout << m_logTag << " ServiceSanity FIG 1/5: " << std::hex << +fig15.getDataServiceId() << std::dec << " : " << fig15.getDataServiceLabel() << std::endl;
     auto serviceIter = m_servicesMap.find(fig15.getDataServiceId());
     if(serviceIter != m_servicesMap.cend()) {
         serviceIter->second.setLabelCharset(fig15.getCharset());
@@ -898,66 +903,100 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     //std::cout << m_logTag << " FIG 00 Extension: " << +type << " done" << std::endl;
 
+    bool hasSthChanged = false;
+
     switch (type) {
         case Fig::FIG_00_TYPE::ENSEMBLE_INFORMATION: {
             if (!m_fig000done) {
-                std::cout << m_logTag << " ServiceSanity FIC 00_00 Done!" << std::endl;
+                std::cout << m_logTag << " ServiceSanity FIG 0/0 Done" << std::endl;
                 m_fig000done = true;
+                hasSthChanged = true;
             }
             break;
         }
         case Fig::FIG_00_TYPE::BASIC_SUBCHANNEL_ORGANIZATION: {
             if(!m_fig001done) {
-                std::cout << m_logTag << " ServiceSanity FIC 00_01 Done!" << std::endl;
+                std::cout << m_logTag << " ServiceSanity FIG 0/1 Done" << std::endl;
                 m_fig001done = true;
+                hasSthChanged = true;
             }
             break;
         }
         case Fig::FIG_00_TYPE::BASIC_SERVICE_COMPONENT_DEFINITION: {
             if(!m_fig002done) {
-                std::cout << m_logTag << " ServiceSanity FIC 00_02 Done!" << std::endl;
+                std::cout << m_logTag << " ServiceSanity FIG 0/2 Done" << std::endl;
                 m_fig002done = true;
+                hasSthChanged = true;
             }
             break;
         }
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_PACKET_MODE: {
             if(!m_fig003done) {
-                std::cout << m_logTag << " ServiceSanity FIC 00_03 Done!" << std::endl;
+                std::cout << m_logTag << " ServiceSanity FIG 0/3 Done" << std::endl;
                 m_fig003done = true;
+                hasSthChanged = true;
             }
             break;
         }
         case Fig::FIG_00_TYPE::SERVICE_COMPONENT_GLOBAL_DEFINITION: {
             if(!m_fig008done) {
-                std::cout << m_logTag << " ServiceSanity FIC 00_08 Done!" << std::endl;
+                std::cout << m_logTag << " ServiceSanity FIG 0/8 Done" << std::endl;
                 m_fig008done = true;
+                hasSthChanged = true;
             }
             break;
         }
         case Fig::FIG_00_TYPE::USERAPPLICATION_INFORMATION: {
             if (!m_fig013done) {
-                std::cout << m_logTag << " ServiceSanity FIC 00_13 Done!" << std::endl;
+                std::cout << m_logTag << " ServiceSanity FIG 0/13 Done" << std::endl;
                 m_fig013done = true;
+                hasSthChanged = true;
             }
             break;
         }
         case Fig::FIG_00_TYPE::FEC_SUBCHANNEL_ORGANIZATION: {
             if (!m_fig014done) {
-                std::cout << m_logTag << " ServiceSanity FIC 00_14 Done!" << std::endl;
+                std::cout << m_logTag << " ServiceSanity FIG 0/14 Done" << std::endl;
                 m_fig014done = true;
+                hasSthChanged = true;
             }
             break;
         }
         case Fig::FIG_00_TYPE::PROGRAMME_TYPE: {
-            if (m_fig017done) {
-                std::cout << m_logTag << " ServiceSanity FIC 00_14 Done!" << std::endl;
+            if (!m_fig017done) {
+                std::cout << m_logTag << " ServiceSanity FIG 0/17 Done" << std::endl;
                 m_fig017done = true;
+                hasSthChanged = true;
             }
             break;
         }
         default:
             break;
     }
+
+    /** ETSI EN 300 401 V2.1.1, 6.3 Service organization, 6.3.0 Service organization
+     * The service organization defines the services and service components carried in the ensemble.
+     * It is coded in the Extensions 2, 3, 4, 8 and 13 of FIG type 0
+     *
+     * Note v1.4.1: It is coded in the Extensions 2, 3, 4 and 8 of FIG type 0
+     *
+     * Implementation note:
+     * FIG 0/3 not needed (for packet mode only)
+     * FIG 0/4 not needed (no support for CA)
+     * FIG 1/0 needed for ensemble label
+     * FIG 1/1 needed for service label
+     */
+
+    // FIG 0/13 optional in DAB standard, transmitted once every second in DAB+
+    auto timeDiff = std::chrono::steady_clock::now() - m_ensembleCollectStartTime;
+    if (!m_fig013done) {
+        if (timeDiff >= std::chrono::seconds(3)) {
+            m_fig013done = true;
+            hasSthChanged = true;
+            std::cout << m_logTag << " Timeout FIG 0/13" << std::endl;
+        }
+    }
+
     std::stringstream logmsg;
     logmsg << m_logTag << " FIGs ";
     logmsg << "0/0:" << m_fig000done << ", ";
@@ -967,18 +1006,10 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
     logmsg << "0/13:" << m_fig013done << ", ";
     logmsg << "1/0:" << m_fig100done << ", ";
     logmsg << "1/1:" << m_fig101done;
-    std::cout << logmsg.str() << std::endl;
+    if (hasSthChanged) {
+        std::cout << logmsg.str() << std::endl;
+    }
 
-    /** ETSI EN 300 401 V2.1.1, 6.3 Service organization, 6.3.0 Service organization
-     * The service organization defines the services and service components carried in the ensemble.
-     * It is coded in the Extensions 2, 3, 4, 8 and 13 of FIG type 0
-     *
-     * Implementation note:
-     * FIG 0/3 not needed (for packet mode only)
-     * FIG 0/4 not needed (no support for CA)
-     * FIG 1/0 needed for ensemble label
-     * FIG 1/1 needed for service label
-     */
     if(m_fig000done && m_fig001done && m_fig002done && m_fig008done && m_fig013done) {
         m_fig0done = true;
         if (m_fig100done && m_fig101done) {
@@ -990,7 +1021,7 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
 
 void DabEnsemble::fig_01_done_cb(Fig::FIG_01_TYPE type) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
-    std::cout << m_logTag << " FIG 01 Extension: " << +type << " done" << std::endl;
+    //std::cout << m_logTag << " FIG 01 Extension: " << +type << " done" << std::endl;
     switch (type) {
         case Fig::FIG_01_TYPE::ENSEMBLE_LABEL: {
             m_fig100done = true;
@@ -1017,7 +1048,6 @@ void DabEnsemble::fig_01_done_cb(Fig::FIG_01_TYPE type) {
         }
     }
 
-    //TODO packetcomponent label not sent for MOT servicecomponent in own subchannel
     if(m_fig100done && m_fig101done) {
         m_fig1done = true;
     }
