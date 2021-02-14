@@ -42,6 +42,9 @@ constexpr uint8_t RaonTunerInput::g_aeAdcClkTypeTbl_DAB_B3[];
 constexpr int RaonTunerInput::g_atPllNF_DAB_BAND3[];
 constexpr uint_t RaonTunerInput::AntLvlTbl[DAB_MAX_NUM_ANTENNA_LEVEL];
 
+const int READ_MSC_TIMEOUT_MS = 200;
+const int READ_FIC_TIMEOUT_MS = 100;
+
 RaonTunerInput::RaonTunerInput(std::shared_ptr<JTunerUsbDevice>& usbDevice) : m_usbDevice{usbDevice} {
     std::cout << LOG_TAG << "Constructing...." << std::endl;
 
@@ -498,7 +501,8 @@ bool RaonTunerInput::tunerPowerUp() {
     return false;
 }
 
-void RaonTunerInput::switchPage(RaonTunerInput::REGISTER_PAGE regPage) {
+void RaonTunerInput::switchPage(const RaonTunerInput::REGISTER_PAGE regPage, const bool doRetry) {
+    bool anyFailure{false};
     std::vector<uint8_t> switchData{0x21, 0x00, 0x00, 0x02, 0x03, static_cast<uint8_t >(regPage)};
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, switchData);
@@ -508,6 +512,7 @@ void RaonTunerInput::switchPage(RaonTunerInput::REGISTER_PAGE regPage) {
                    << ": write exp:" << +switchData.size() << ", rcv:" << +bytesTransfered;
             std::clog << logStr.str() << std::endl;
             mUsbWriteFailure++;
+            anyFailure = true;
         } else {
             mUsbWriteFailure = 0;
             auto response = std::vector<uint8_t>(1);
@@ -518,6 +523,7 @@ void RaonTunerInput::switchPage(RaonTunerInput::REGISTER_PAGE regPage) {
                           << ": read exp:" << +response.size() << ", rcv:" << +bytesTransfered;
                 std::clog << logStr.str() << std::endl;
                 mUsbReadFailure++;
+                anyFailure = true;
             } else {
                 if (response[0] != 0xA1) {
                     std::stringstream logStr;
@@ -525,6 +531,7 @@ void RaonTunerInput::switchPage(RaonTunerInput::REGISTER_PAGE regPage) {
                               << +response[0] << std::dec;
                     std::clog << logStr.str() << std::endl;
                     mUsbReadFailure++;
+                    anyFailure = true;
                 } else {
                     mUsbReadFailure = 0;
                 }
@@ -533,9 +540,14 @@ void RaonTunerInput::switchPage(RaonTunerInput::REGISTER_PAGE regPage) {
     } else {
         std::clog << LOG_TAG << "switchPage: no USB device" << std::endl;
     }
+    if (anyFailure && doRetry) {
+        std::clog << LOG_TAG << "switchPage: retry" << std::endl;
+        switchPage(regPage, false);
+    }
 }
 
-void RaonTunerInput::setRegister(uint8_t reg, uint8_t val) {
+void RaonTunerInput::setRegister(const uint8_t reg, const uint8_t val, const bool doRetry) {
+    bool anyFailure{false};
     std::vector<uint8_t> setRegData{0x21, 0x00, 0x00, 0x02, reg, val};
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, setRegData);
@@ -546,6 +558,7 @@ void RaonTunerInput::setRegister(uint8_t reg, uint8_t val) {
                    << +bytesTransfered;
             std::clog << logStr.str() << std::endl;
             mUsbWriteFailure++;
+            anyFailure = true;
         } else {
             mUsbWriteFailure = 0;
             auto response = std::vector<uint8_t>(1);
@@ -556,6 +569,7 @@ void RaonTunerInput::setRegister(uint8_t reg, uint8_t val) {
                        << ": read exp:" << +response.size() << ", rcv:" << +bytesTransfered;
                 std::clog << logStr.str() << std::endl;
                 mUsbReadFailure++;
+                anyFailure = true;
             } else {
                 if (response[0] != 0xA1) {
                     std::stringstream logStr;
@@ -563,6 +577,7 @@ void RaonTunerInput::setRegister(uint8_t reg, uint8_t val) {
                            << +response[0] << std::dec;
                     std::clog << logStr.str() << std::endl;
                     mUsbReadFailure++;
+                    anyFailure = true;
                 } else {
                     mUsbReadFailure = 0;
                 }
@@ -571,9 +586,14 @@ void RaonTunerInput::setRegister(uint8_t reg, uint8_t val) {
     } else {
         std::clog << LOG_TAG << "setRegister: no USB device" << std::endl;
     }
+    if (anyFailure && doRetry) {
+        std::clog << LOG_TAG << "setRegister: retry" << std::endl;
+        setRegister(reg, val, false);
+    }
 }
 
-uint8_t RaonTunerInput::readRegister(uint8_t reg) {
+uint8_t RaonTunerInput::readRegister(const uint8_t reg, const bool doRetry) {
+    bool anyFailure{false};
     std::vector<uint8_t> xferbuff{0x22, 0x00, 0x01, 0x00, reg};
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, xferbuff);
@@ -583,6 +603,7 @@ uint8_t RaonTunerInput::readRegister(uint8_t reg) {
                    << ": write exp:" << +xferbuff.size() << ", rcv:" << +bytesTransfered;
             std::clog << logStr.str() << std::endl;
             mUsbWriteFailure++;
+            anyFailure = true;
         } else {
             mUsbWriteFailure = 0;
         }
@@ -594,15 +615,19 @@ uint8_t RaonTunerInput::readRegister(uint8_t reg) {
                    << ": read exp:" << +xferbuff.size() << ", rcv:" << +bytesTransfered;
             std::clog << logStr.str() << std::endl;
             mUsbReadFailure++;
-            return 0;
+            anyFailure = true;
         } else {
             mUsbReadFailure = 0;
             return xferbuff[4];
         }
     } else {
         std::clog << LOG_TAG << "readRegister: no USB device" << std::endl;
-        return 0;
     }
+    if (anyFailure && doRetry) {
+        std::clog << LOG_TAG << "readRegister: retry" << std::endl;
+        return readRegister(reg, false);
+    }
+    return 0;
 }
 
 void RaonTunerInput::configurePowerType() {
@@ -662,7 +687,7 @@ void RaonTunerInput::configureAddClock() {
     }
 }
 
-bool RaonTunerInput::changedAdcClock(uint8_t g_aeAdcClkTypeTbl_DAB_B3) {
+bool RaonTunerInput::changedAdcClock(uint8_t adcClkType) {
     uint8_t RD15;
 
     //raontv_rf.c line 659
@@ -676,13 +701,13 @@ bool RaonTunerInput::changedAdcClock(uint8_t g_aeAdcClkTypeTbl_DAB_B3) {
 
     switchPage(REGISTER_PAGE_RF);
 
-    setRegister(0xE8, (REGE8 | g_abAdcClkSynTbl[g_aeAdcClkTypeTbl_DAB_B3][0]));
-    setRegister(0xE9, (REGE9 | g_abAdcClkSynTbl[g_aeAdcClkTypeTbl_DAB_B3][1]));
-    setRegister(0xEA, (REGEA | g_abAdcClkSynTbl[g_aeAdcClkTypeTbl_DAB_B3][2]));
-    setRegister(0xEB, (REGEB | g_abAdcClkSynTbl[g_aeAdcClkTypeTbl_DAB_B3][3]));
-    setRegister(0xEC, (REGEC | g_abAdcClkSynTbl[g_aeAdcClkTypeTbl_DAB_B3][4]));
-    setRegister(0xED, (REGED | g_abAdcClkSynTbl[g_aeAdcClkTypeTbl_DAB_B3][5]));
-    setRegister(0xEE, (REGEE | g_abAdcClkSynTbl[g_aeAdcClkTypeTbl_DAB_B3][6]));
+    setRegister(0xE8, (REGE8 | g_abAdcClkSynTbl[adcClkType][0]));
+    setRegister(0xE9, (REGE9 | g_abAdcClkSynTbl[adcClkType][1]));
+    setRegister(0xEA, (REGEA | g_abAdcClkSynTbl[adcClkType][2]));
+    setRegister(0xEB, (REGEB | g_abAdcClkSynTbl[adcClkType][3]));
+    setRegister(0xEC, (REGEC | g_abAdcClkSynTbl[adcClkType][4]));
+    setRegister(0xED, (REGED | g_abAdcClkSynTbl[adcClkType][5]));
+    setRegister(0xEE, (REGEE | g_abAdcClkSynTbl[adcClkType][6]));
 
     int i{0};
     bool setOk{false};
@@ -695,7 +720,7 @@ bool RaonTunerInput::changedAdcClock(uint8_t g_aeAdcClkTypeTbl_DAB_B3) {
         }
     }
 
-    switch(g_aeAdcClkTypeTbl_DAB_B3) {
+    switch(adcClkType) {
         case RTV_ADC_CLK_FREQ_8_MHz: {
             switchPage(REGISTER_PAGE_COMM);
             setRegister(0x6A, 0x01);
@@ -1402,7 +1427,7 @@ void RaonTunerInput::readMsc() {
         std::vector<uint8_t> mscRecBuff(1536);
 
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, mscReqBuf);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff, 50);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff, READ_MSC_TIMEOUT_MS);
 
         if(m_startServiceLink != nullptr) {
             const std::vector<uint8_t> mscData(mscRecBuff.begin()+4, mscRecBuff.begin()+bytesTransfered);
@@ -1653,7 +1678,7 @@ void RaonTunerInput::readMscData() {
 
     if (m_usbDevice != nullptr) {
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, mscReqBuf);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff, 50);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff, READ_FIC_TIMEOUT_MS);
 
         //std::cout << LOG_TAG << "ReadData: " << +bytesTransfered << std::endl;
 
@@ -1684,7 +1709,7 @@ void RaonTunerInput::readFicData() {
             mUsbWriteFailure = 0;
         }
         std::vector<uint8_t> reFicRet(400);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, reFicRet, 50);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, reFicRet, READ_FIC_TIMEOUT_MS);
 
         switchPage(REGISTER_PAGE_DD);
         /* FIC interrupt status clear */
@@ -1806,7 +1831,7 @@ void RaonTunerInput::readData() {
         std::vector<uint8_t> mscRecBuff(4096);
 
         int bytesTransfered = m_usbDevice->writeBulkTransferData(RAON_ENDPOINT_OUT, mscReqBuf);
-        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff, 50);
+        bytesTransfered = m_usbDevice->readBulkTransferData(RAON_ENDPOINT_IN, mscRecBuff, READ_MSC_TIMEOUT_MS);
 
         //std::cout << LOG_TAG << "ReadData: " << +bytesTransfered << std::endl;
 

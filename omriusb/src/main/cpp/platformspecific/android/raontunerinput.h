@@ -307,14 +307,14 @@ private:
     };
 
     //TunerSpecific
-    void setRegister(uint8_t reg, uint8_t val);
-    uint8_t readRegister(uint8_t reg);
-    void switchPage(REGISTER_PAGE regPage);
+    void setRegister(const uint8_t reg, const uint8_t val, bool doRetry = false);
+    uint8_t readRegister(const uint8_t reg, bool doRetry = false);
+    void switchPage(const REGISTER_PAGE regPage, bool doRetry = true);
 
     bool tunerPowerUp();
     void configurePowerType();
     void configureAddClock();
-    bool changedAdcClock(uint8_t g_aeAdcClkTypeTbl_DAB_B3);
+    bool changedAdcClock(uint8_t adcClkType);
 
     void tdmbInitTop();
     void tdmbInitComm();

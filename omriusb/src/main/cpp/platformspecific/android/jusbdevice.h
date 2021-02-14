@@ -44,10 +44,10 @@ public:
     using PermissionCallbackFunction = std::function<void(const bool permissionGranted)>;
     virtual void requestPermission(PermissionCallbackFunction permissionCallback);
 
-    int writeBulkTransferData(uint8_t endPointAddress, const std::vector<uint8_t>& buffer, int timeOutMs = 5000) const;
-    int writeBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 5000) const;
-    int readBulkTransferData(uint8_t endPointAddress, std::vector<uint8_t>& buffer, int timeOutMs = 5000) const;
-    int readBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 5000) const;
+    int writeBulkTransferData(uint8_t endPointAddress, const std::vector<uint8_t>& buffer, int timeOutMs = 50) const;
+    int writeBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 50) const;
+    int readBulkTransferData(uint8_t endPointAddress, std::vector<uint8_t>& buffer, int timeOutMs = 500) const;
+    int readBulkTransferDataDirect(uint8_t endPointAddress, const std::vector<uint8_t> &buffer, int timeOutMs = 500) const;
 
 private:
     JavaVM* m_javaVm;
