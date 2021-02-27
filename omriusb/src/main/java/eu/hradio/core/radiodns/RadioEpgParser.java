@@ -75,10 +75,9 @@ abstract class RadioEpgParser
     static final String APPPRIO_ATTR = "applicationPriority";
     static final String APPSCOPE_TAG = "applicationScope";
     static final String SERVICESCOPE_TAG = "serviceScope";
-    String mDocumentLanguage;
+    String mDocumentLanguage = "en";
     
     RadioEpgParser() {
-        this.mDocumentLanguage = "en";
     }
     
     Name parseName(final XmlPullParser parser, final String nameTag, final NameType type) throws IOException, XmlPullParserException {
@@ -101,17 +100,19 @@ abstract class RadioEpgParser
             }
             final String name = parser.getName();
             if (name.equals(DESCRIPTION_SHORT_TAG) || name.equals(DESCRIPTION_LONG_TAG)) {
-                desc.addDescription(this.parseDescription(parser, name, DescriptionType.DESCRIPTION_SHORT));
+                Description description = this.parseDescription(parser, name, DescriptionType.DESCRIPTION_SHORT);
+                if (description != null) {
+                    desc.addDescription(description);
+                }
             }
             else {
                 if (!name.equals(MULTIMEDIA_TAG)) {
                     continue;
                 }
                 final Multimedia mm = this.parseMultimedia(parser);
-                if (mm == null) {
-                    continue;
+                if (mm != null) {
+                    desc.setMultimedia(mm);
                 }
-                desc.setMultimedia(mm);
             }
         }
         parser.require(XmlPullParser.END_TAG, RadioEpgParser.NAMESPACE, MEDIADESCRIPTION_TAG);
@@ -181,25 +182,28 @@ abstract class RadioEpgParser
                 continue;
             }
             final String name = parser.getName();
-            if (name.equals(GEOLOCATION_COUNTRY_TAG)) {
-                retLoc.addCountryString(this.readTagText(parser));
-            }
-            else if (name.equals(GEOLOCATION_POINT_TAG)) {
-                final GeoLocationPoint point = this.parseGeoLocationPoint(parser);
-                if (point == null) {
-                    continue;
-                }
-                retLoc.addLocationPoint(point);
-            }
-            else if (name.equals(GEOLOCATION_POLYGON_TAG)) {
-                final GeoLocationPolygon poly = this.parseGeoLocationPolygon(parser);
-                if (poly == null) {
-                    continue;
-                }
-                retLoc.addLocationPolygon(poly);
-            }
-            else {
-                this.skip(parser);
+            switch (name) {
+                case GEOLOCATION_COUNTRY_TAG:
+                    final String country = this.readTagText(parser);
+                    if (country != null) {
+                        retLoc.addCountryString(country);
+                    }
+                    break;
+                case GEOLOCATION_POINT_TAG:
+                    final GeoLocationPoint point = this.parseGeoLocationPoint(parser);
+                    if (point != null) {
+                        retLoc.addLocationPoint(point);
+                    }
+                    break;
+                case GEOLOCATION_POLYGON_TAG:
+                    final GeoLocationPolygon poly = this.parseGeoLocationPolygon(parser);
+                    if (poly != null) {
+                        retLoc.addLocationPolygon(poly);
+                    }
+                    break;
+                default:
+                    this.skip(parser);
+                    break;
             }
         }
         parser.require(XmlPullParser.END_TAG, RadioEpgParser.NAMESPACE, GEOLOCATION_TAG);
@@ -214,7 +218,17 @@ abstract class RadioEpgParser
         for (final String latLong : polySplit) {
             final String[] pointSplit = latLong.split("\\s+");
             if (pointSplit.length == 2) {
-                polyPoints.add(new GeoLocationPoint(Double.parseDouble(pointSplit[0].trim()), Double.parseDouble(pointSplit[1].trim())));
+                GeoLocationPoint geoLocationPoint = null;
+                try {
+                    geoLocationPoint = new GeoLocationPoint(Double.parseDouble(pointSplit[0].trim()), Double.parseDouble(pointSplit[1].trim()));
+                } catch (Exception e) {
+                    if (DEBUG) {
+                        Log.e(TAG, GEOLOCATION_POLYGON_TAG + ": invalid '" + polySplit + "'");
+                    }
+                }
+                if (geoLocationPoint != null) {
+                    polyPoints.add(geoLocationPoint);
+                }
             }
         }
         if (!polyPoints.isEmpty()) {
@@ -236,8 +250,7 @@ abstract class RadioEpgParser
                 retPoint = new GeoLocationPoint(Double.parseDouble(pointSplit[0].trim()), Double.parseDouble(pointSplit[1].trim()));
             } catch (Exception e) {
                 if(DEBUG) {
-                    Log.d(TAG, GEOLOCATION_POINT_TAG + ":'" + tag + "'");
-                    e.printStackTrace();
+                    Log.e(TAG, GEOLOCATION_POINT_TAG + ":'" + tag + "'");
                 }
             }
         }
@@ -263,7 +276,7 @@ abstract class RadioEpgParser
             }
             /** relax requirement ETSI TS 102 818, chap 5.8, Attribute mimeValue
              * Required except if the type is logo_colour_square or logo_colour_rectangle
-              */
+             */
             if (mmType == MultimediaType.MULTIMEDIA_LOGO_UNRESTRICTED && multimediaMime == null) {
                 if (DEBUG) Log.d(TAG, TYPE_ATTR + "=" + MultimediaType.LOGO_UNRESTRICTED + " missing " + MIMEVALUE_ATTR);
                 multimediaMime = "";
@@ -324,7 +337,7 @@ abstract class RadioEpgParser
             }
         }
         parser.next();
-        if (parser.getEventType() == 4) {
+        if (parser.getEventType() == XmlPullParser.TEXT) {
             this.readTagText(parser);
         }
         parser.require(XmlPullParser.END_TAG, RadioEpgParser.NAMESPACE, GENRE_TAG);
@@ -357,7 +370,7 @@ abstract class RadioEpgParser
     
     String readTagText(final XmlPullParser parser) throws IOException, XmlPullParserException {
         String redtext = "";
-        if (parser.next() == 4) {
+        if (parser.next() == XmlPullParser.TEXT) {
             redtext = parser.getText().trim();
             parser.nextTag();
         }
