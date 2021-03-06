@@ -123,14 +123,14 @@ void FicParser::call(const std::vector<uint8_t> &data) {
 }
 
 void FicParser::processFib() {
-    pid_t self = pthread_self();
+    pthread_t self = pthread_self();
     char name[13]; // 4 + 8 + '\0'
-    snprintf(name, 12, "FIB-%08x", (int) self);
+    snprintf(name, 12, "FIB-%08lx", (long) self);
     name[12] = '\0';
-    pthread_setname_np(pthread_self(), name); // crashes when passing self instead of pthread_self()
+    pthread_setname_np(self, name);
     m_ficProcessorThreadName = name;
 
-    std::cout << M_LOG_TAG << "FIB thread started: " << m_ficProcessorThreadName << std::endl;
+    std::cout << M_LOG_TAG << "FIB thread started: " << getParserThreadName() << std::endl;
 
     const auto timeout = std::chrono::milliseconds(24);
     while (m_fibProcessThreadRunning) {
