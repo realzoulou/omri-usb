@@ -96,6 +96,11 @@ void FicParser::stop() {
     }
 }
 
+bool FicParser::isStarted() const {
+    std::lock_guard<std::mutex> lockGuard(m_fibThreadMutex);
+    return m_fibProcessThreadRunning;
+}
+
 void FicParser::call(const std::vector<uint8_t> &data) {
     auto ficIter = data.cbegin();
     int loop = 0;

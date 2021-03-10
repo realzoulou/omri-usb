@@ -35,7 +35,7 @@ DabEnsemble::~DabEnsemble() {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     std::cout << m_logTag << " Destructing" << std::endl;
     if (m_ficPtr != nullptr) {
-        m_ficPtr.reset();
+        m_ficPtr->stop();
     }
     std::cout << m_logTag << " Destructed " << std::endl;
 }
@@ -48,10 +48,12 @@ void DabEnsemble::reset() {
     m_ensembleCollectFinished = false;
 
     if (m_ficPtr != nullptr) {
-        m_ficPtr.get()->stop();
-        m_ficPtr.get()->reset();
+        // m_ficPtr.get()->stop(); // causes crashes on Android 6
+        m_ficPtr->reset();
         registerCbs();
-        m_ficPtr.get()->start();
+        if (!m_ficPtr->isStarted()) {
+            m_ficPtr->start();
+        }
     }
 
     // reset start time

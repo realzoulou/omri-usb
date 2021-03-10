@@ -132,6 +132,9 @@ public:
     /* start the FIB processing thread */
     void start();
 
+    /* retrieve status of FIB processing thread */
+    bool isStarted() const;
+
     /* reset internal data structures */
     void reset();
 

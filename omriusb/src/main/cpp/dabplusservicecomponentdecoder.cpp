@@ -313,7 +313,7 @@ void DabPlusServiceComponentDecoder::processData() {
         }
     }
 
-    std::cout << m_logTag << " ProcessData thread stopped" << std::endl;
+    //std::cout << m_logTag << " ProcessData thread stopped" << std::endl;
 }
 
 const uint16_t DabPlusServiceComponentDecoder::FIRECODE_TABLE[256] = {
