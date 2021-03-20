@@ -43,7 +43,7 @@ import static org.omri.BuildConfig.DEBUG;
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  * @author Fabian Sattler, IRT GmbH
  */
 
@@ -414,6 +414,7 @@ public class TunerUsbImpl implements TunerUsb {
 	@Override
 	public void serviceStarted(RadioServiceDab startedService) {
 		if(DEBUG)Log.d(TAG, "DabService started: " + startedService.getServiceLabel());
+		mCurrentlyRunningService = startedService;
 		if(startedService != null) {
 			synchronized (mTunerlisteners) {
 				for (TunerListener listener : mTunerlisteners) {
@@ -421,11 +422,12 @@ public class TunerUsbImpl implements TunerUsb {
 				}
 			}
 		}
-		mCurrentlyRunningService = startedService;
 	}
 
 	@Override
 	public void serviceStopped(RadioServiceDab stoppedService) {
+		if(DEBUG)Log.d(TAG, "DabService stopped: " + stoppedService.getServiceLabel());
+		mCurrentlyRunningService = null;
 		// tell service that it was stoppped
 		((RadioServiceImpl) stoppedService).serviceStopped();
 		// inform tuner listeners
@@ -434,7 +436,6 @@ public class TunerUsbImpl implements TunerUsb {
 				listener.radioServiceStopped(this, stoppedService);
 			}
 		}
-		mCurrentlyRunningService = null;
 	}
 
 	@Override
