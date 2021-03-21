@@ -126,7 +126,6 @@ private:
     std::shared_ptr<DabUserapplicationDecoder::UserapplicationDataCallback> m_dlsCallback{nullptr};
     std::shared_ptr<DabUserapplicationDecoder::UserapplicationDataCallback> m_slsCallback{nullptr};
     std::shared_ptr<DabEnsemble::ServiceFollowingCallback> m_sfCallback{nullptr};
-    std::vector<std::shared_ptr<LinkedServiceDab>> m_lastSfServices;
 
     int m_ascty{-1};
     int m_audioSamplingRate{-1};

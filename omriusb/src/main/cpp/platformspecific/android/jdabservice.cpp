@@ -361,6 +361,7 @@ void JDabService::decodeAudio(bool decode) {
         if(m_lastSlideshow != nullptr) {
             callJavaSlideshowCallback(m_lastSlideshow);
         }
+        callJavaServiceFollowingDabServicesChanged();
     }
     if (!JNI_DETACH(m_javaVm, wasDetached)) {
         std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
@@ -536,7 +537,7 @@ uint16_t JDabService::getSubchanHandle() {
 void JDabService::callJavaServiceFollowingDabServicesChanged() {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     const auto & dabService = getLinkDabService();
-    if (dabService.get() != nullptr && dabService.get()->getDabEnsemble() != nullptr) {
+    if (dabService != nullptr && dabService->getDabEnsemble() != nullptr) {
         DabService* pService = dabService.get();
         DabEnsemble* pEnsemble = pService->getDabEnsemble();
         const auto eid = pEnsemble->getEnsembleId();
@@ -546,47 +547,36 @@ void JDabService::callJavaServiceFollowingDabServicesChanged() {
 
         LinkedServiceDab currentService(ecc, sid, eid, efreqKHz);
         const auto sfServices = pEnsemble->getLinkedDabServices(currentService);
-
-        bool different = (sfServices.size() != m_lastSfServices.size());
-        if (!different) { // vectors have same size, test each element
-            for (auto i=0; i<sfServices.size(); i++) {
-                different = (sfServices[i] == m_lastSfServices[i]);
-                if (different) break;
-            }
+        for (const auto & sfService : sfServices ) {
+            std::cout << m_logTag << sfService->to_string() << std::endl;
         }
-        if (different) {
-            m_lastSfServices = sfServices;
-            for (const auto & sfService : sfServices ) {
-                std::cout << m_logTag << sfService->to_string() << std::endl;
-            }
 
-            bool wasDetached;
-            if (!JNI_ATTACH(m_javaVm, wasDetached)) {
-                std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
-                return;
-            }
-            JNIEnv* enve;
-            m_javaVm->GetEnv((void**)&enve, JNI_VERSION_1_6);
-            if (enve != nullptr && m_linkedJavaDabServiceObject != nullptr) {
-                jobject arrayList = enve->NewObject(m_ArrayListClass, m_ArrayList_init_mId,
-                                                   static_cast<jint>(sfServices.size()));
-                for (const auto &s : sfServices) {
-                    jobject jLinkedServiceDab = enve->NewObject(m_javaDabServiceClass,
-                                                                m_javaDabSrvInitMId);
-                    enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetEnsembleEccMId,
-                                        static_cast<jint>(s.get()->getEnsembleEcc()));
-                    enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetEnsembleFrequencyMId,
-                                        static_cast<jint>(s.get()->getEnsembleFrequencyKHz() * 1000));
-                    enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetEnsembleIdMId,
-                                        static_cast<jint>(s.get()->getEnsembleId()));
-                    enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetServiceIdMId,
-                                        static_cast<jint>(s.get()->getServiceId()));
+        bool wasDetached;
+        if (!JNI_ATTACH(m_javaVm, wasDetached)) {
+            std::cerr << m_logTag << "jniEnv thread failed to attach!" << std::endl;
+            return;
+        }
+        JNIEnv* enve;
+        m_javaVm->GetEnv((void**)&enve, JNI_VERSION_1_6);
+        if (enve != nullptr && m_linkedJavaDabServiceObject != nullptr) {
+            jobject arrayList = enve->NewObject(m_ArrayListClass, m_ArrayList_init_mId,
+                                               static_cast<jint>(sfServices.size()));
+            for (const auto &s : sfServices) {
+                jobject jLinkedServiceDab = enve->NewObject(m_javaDabServiceClass,
+                                                            m_javaDabSrvInitMId);
+                enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetEnsembleEccMId,
+                                    static_cast<jint>(s.get()->getEnsembleEcc()));
+                enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetEnsembleFrequencyMId,
+                                    static_cast<jint>(s.get()->getEnsembleFrequencyKHz() * 1000));
+                enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetEnsembleIdMId,
+                                    static_cast<jint>(s.get()->getEnsembleId()));
+                enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetServiceIdMId,
+                                    static_cast<jint>(s.get()->getServiceId()));
 
-                    enve->CallBooleanMethod(arrayList, m_ArrayList_add_mId, jLinkedServiceDab);
-                }
-                enve->CallVoidMethod(m_linkedJavaDabServiceObject,
-                                     m_javaDabSrvServiceFollowingReceived, arrayList);
+                enve->CallBooleanMethod(arrayList, m_ArrayList_add_mId, jLinkedServiceDab);
             }
+            enve->CallVoidMethod(m_linkedJavaDabServiceObject,
+                                 m_javaDabSrvServiceFollowingReceived, arrayList);
         }
     }
 
