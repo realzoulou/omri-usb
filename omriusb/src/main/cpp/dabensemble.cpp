@@ -412,7 +412,6 @@ void DabEnsemble::fig00_03_input(const Fig_00_Ext_03& fig03) {
 void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     //std::cout << m_logTag << " LinkDB Received SLI" << std::endl;
-    bool hasChanged = false;
     for(const auto& linkInfo : fig06.getServiceLinkingInformations()) {
         auto linkDbIter = m_serviceLinkDb.find(linkInfo.linkDbKey);
         if(linkDbIter != m_serviceLinkDb.cend()) {
@@ -422,7 +421,6 @@ void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
                     for(const auto& srvLink : linkInfo.serviceLinks) {
                         if(!(*linkDbIter).second.containsServiceLinkList(srvLink)) {
                             (*linkDbIter).second.serviceLinks.push_back(srvLink);
-                            hasChanged = true;
                             /*std::cout << m_logTag << " LinkDB update " << (linkInfo.isSoftLink ? "SoftLink " : "HardLink ") << "LinkageSetNumber: 0x" << std::hex << +linkInfo.linkageSetNumber << " with KeyServiceID: 0x" << +(*linkDbIter).second.keyServiceId << std::dec <<
                                 " links to " << "\n\t";
                                 for(const auto& sll : (*linkDbIter).second.serviceLinks) {
@@ -458,16 +456,13 @@ void DabEnsemble::fig00_06_input(const Fig_00_Ext_06& fig06) {
             if(!linkInfo.isContinuation && !linkInfo.isChangeEvent) {
                 //std::cout << m_logTag << " LinkDB adding new linkageSet with LinkDbKey: 0x" << std::hex << +linkInfo.linkDbKey << " and LinkageNumber: 0x" << +linkInfo.linkageSetNumber << " KeySeviceID: 0x" << +linkInfo.keyServiceId << std::dec << std::endl;
                 m_serviceLinkDb.insert(std::make_pair(linkInfo.linkDbKey, linkInfo));
-                hasChanged = true;
                 std::cout << m_logTag << " LinkDB adding " << (linkInfo.isSoftLink ? "SoftLink" : "HardLink")
                     << " LinkageSetNumber: 0x" << std::hex << +linkInfo.linkageSetNumber << " KeyServiceID: 0x"
                     << +linkInfo.keyServiceId << " linkDbKey: 0x" << +linkInfo.linkDbKey << std::dec << std::endl;
             }
         }
     }
-    if (hasChanged) {
-        m_serviceFollowingDispatcher.invoke();
-    }
+    m_serviceFollowingDispatcher.invoke();
 }
 
 void DabEnsemble::dumpServiceLinkDb() const {
@@ -515,7 +510,6 @@ void DabEnsemble::dumpServiceLinkDb() const {
 void DabEnsemble::fig00_21_input(const Fig_00_Ext_21& fig21) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     //std::cout << m_logTag << " FreqInfoDB received FrequencyInformation for OE: " << std::boolalpha << fig21.isOtherEnsemble() << std::noboolalpha << std::endl;
-    bool hasChanged = false;
     for(const auto& freqInfo : fig21.getFrequencyInformations()) {
         auto freqInfoDbIter = m_frequencyInformationDb.find(freqInfo.freqDbKey);
         if(freqInfoDbIter != m_frequencyInformationDb.cend()) {
@@ -526,7 +520,6 @@ void DabEnsemble::fig00_21_input(const Fig_00_Ext_21& fig21) {
                                   freqInfo) == (*freqInfoDbIter).second.end()) {
                         //std::cout << m_logTag << " FreqInfoDB adding FreqInfo entry for ID: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
                         (*freqInfoDbIter).second.push_back(freqInfo);
-                        hasChanged = true;
                     } else {
                         //std::cout << m_logTag << " FreqInfoDB already contains entry for ID: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
                     }
@@ -543,7 +536,6 @@ void DabEnsemble::fig00_21_input(const Fig_00_Ext_21& fig21) {
                  */
                 std::cout << m_logTag << " FreqInfoDB deleted FreqInfo entry for ID: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
                 m_frequencyInformationDb.erase(freqInfoDbIter);
-                hasChanged = true;
             }
         } else {
             // not yet in map
@@ -551,7 +543,6 @@ void DabEnsemble::fig00_21_input(const Fig_00_Ext_21& fig21) {
                 //add new entry to db
                 //std::cout << m_logTag << " FreqInfoDB adding new entry for ID: 0x" << std::hex << +freqInfo.id << std::dec << std::endl;
                 m_frequencyInformationDb.insert(std::make_pair(freqInfo.freqDbKey,std::vector<Fig_00_Ext_21::FrequencyInformation>{freqInfo}));
-                hasChanged = true;
             } else {
                 /*std::cout << m_logTag << " FreqInfoDB not adding ID: 0x" << std::hex << +freqInfo.id << std::dec
                     << " isContinuation:" << std::boolalpha << freqInfo.isContinuation << ", isChangeEvent:" << freqInfo.isChangeEvent << std::noboolalpha
@@ -559,9 +550,7 @@ void DabEnsemble::fig00_21_input(const Fig_00_Ext_21& fig21) {
             }
         }
     }
-    if (hasChanged) {
-        m_serviceFollowingDispatcher.invoke();
-    }
+    m_serviceFollowingDispatcher.invoke();
 }
 
 void DabEnsemble::dumpFrequencyDb() const {
@@ -632,7 +621,6 @@ void DabEnsemble::dumpFrequencyDb() const {
 void DabEnsemble::fig00_24_input(const Fig_00_Ext_24& fig24) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     //std::cout << m_logTag << " OtherEnsembleSrvDb received OeServiceInformation" << std::endl;
-    bool hasChanged = false;
     for(const auto& oeInfo : fig24.getOtherEnsembleServiceInformations()) {
         auto oeInfoDbIter = m_oeSrvInfoDb.find(oeInfo.oeDbKey);
         if (oeInfoDbIter != m_oeSrvInfoDb.cend()) {
@@ -642,7 +630,6 @@ void DabEnsemble::fig00_24_input(const Fig_00_Ext_24& fig24) {
                         oeInfo) == (*oeInfoDbIter).second.cend()) {
                     //std::cout << m_logTag << " OeSrvInfoDb adding entry for ID: 0x" << std::hex << +oeInfo.serviceId << std::dec << std::endl;
                     (*oeInfoDbIter).second.push_back(oeInfo);
-                    hasChanged = true;
                 } else {
                     //std::cout << m_logTag << " OeSrvInfoDb already contains entry for ID: 0x" << std::hex << +oeInfo.serviceId << std::dec << std::endl;
                 }
@@ -658,7 +645,6 @@ void DabEnsemble::fig00_24_input(const Fig_00_Ext_24& fig24) {
                  */
                 std::cout << m_logTag << " OeSrvInfoDb deleting entry for ID: 0x" << std::hex << +oeInfo.serviceId << std::dec << std::endl;
                 m_oeSrvInfoDb.erase(oeInfoDbIter);
-                hasChanged = true;
             }
         } else {
             // not yet in map
@@ -667,13 +653,10 @@ void DabEnsemble::fig00_24_input(const Fig_00_Ext_24& fig24) {
                 //std::cout << m_logTag << " OeSrvInfoDb adding new entry for ID: 0x" << std::hex
                 //          << +oeInfo.serviceId << std::dec << std::endl;
                 m_oeSrvInfoDb.insert(std::make_pair(oeInfo.oeDbKey, std::vector<Fig_00_Ext_24::OtherEnsembleServiceInformation>{oeInfo}));
-                hasChanged = true;
             }
         }
     }
-    if (hasChanged) {
-        m_serviceFollowingDispatcher.invoke();
-    }
+    m_serviceFollowingDispatcher.invoke();
 }
 
 void DabEnsemble::dumpOeSrvInfoDb() const {
@@ -682,8 +665,9 @@ void DabEnsemble::dumpOeSrvInfoDb() const {
     for (const auto & iter : m_oeSrvInfoDb) {
         std::stringstream logString;
         unsigned cnt2 = 0;
+        cnt++;
         for (auto const & v : iter.second) {
-            cnt++;
+            cnt2++;
             logString << m_logTag << " " << +cnt << ":" << +cnt2
                 << "|oeDbKey:0x" << std::hex << +v.oeDbKey << std::dec
                 << ",SId:0x" << std::hex << +v.serviceId << std::dec
@@ -1163,7 +1147,7 @@ void DabEnsemble::lookupEIdOnOtherFrequency(
     std::cout << m_logTag << " Lookup EId 0x" << std::hex << +targetEId << std::dec
               << " on another frequency, frequencyInformationDb (size "
               << +m_frequencyInformationDb.size() << ")" << std::endl;
-
+    std::stringstream logNoMatchStr;
     for (const auto &freqInfoDbEntry : m_frequencyInformationDb) {
         for (const auto &freqInfo : freqInfoDbEntry.second) {
             if (freqInfo.frequencyInformationType == Fig_00_Ext_21::DAB_ENSEMBLE &&
@@ -1207,10 +1191,13 @@ void DabEnsemble::lookupEIdOnOtherFrequency(
                     }
                 }
             } else {
-                std::cout << m_logTag << "   no match: 0x" << std::hex << +freqInfo.id << std::dec
-                          << " type " << +freqInfo.frequencyInformationType << std::endl;
+                logNoMatchStr << "0x" << std::hex << +freqInfo.id << std::dec
+                              << " type " << +freqInfo.frequencyInformationType << "; ";
             }
         }
+    }
+    if (!logNoMatchStr.str().empty()) {
+        std::cout << m_logTag << "   no match: " << logNoMatchStr.str() << std::endl;
     }
 }
 
@@ -1230,7 +1217,7 @@ void DabEnsemble::lookupOtherEnsembleSameService(
      */
     std::cout << m_logTag << "Lookup other ensembles carrying sid 0x" << std::hex << +targetSId << std::dec
               << " oeSrvInfoDb (size " << +m_oeSrvInfoDb.size() << ")" << std::endl;
-
+    std::stringstream logNoMatchStr;
     for (const auto & oeSrvInfo : m_oeSrvInfoDb) {
         for (const auto & oe : oeSrvInfo.second) {
             if (oe.serviceId == targetSId) {
@@ -1263,9 +1250,12 @@ void DabEnsemble::lookupOtherEnsembleSameService(
                     }
                 }
             } else {
-                std::cout << m_logTag << "   no match: SId 0x" << std::hex << +oe.serviceId << std::dec << std::endl;
+                logNoMatchStr << "SId 0x" << std::hex << +oe.serviceId << std::dec << "; ";
             }
         }
+    }
+    if (!logNoMatchStr.str().empty()) {
+        std::cout << m_logTag << "   no match: " << logNoMatchStr.str() << std::endl;
     }
 }
 
