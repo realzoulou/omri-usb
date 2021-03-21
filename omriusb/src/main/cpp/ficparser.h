@@ -58,7 +58,7 @@
 #include "callbackhandle.h"
 
 class DabEnsemble;
-class FicParser : public Callback {
+class FicParser {
 
 public:
     using Fig_00_00_Callback = std::function<void(const Fig_00_Ext_00&)>;
@@ -97,7 +97,7 @@ public:
     explicit FicParser();
     virtual ~FicParser();
 
-    virtual void call(const std::vector<uint8_t>& data) override;
+    virtual void call(const std::vector<uint8_t>& data, bool rfLock = true);
 
     std::shared_ptr<Fig_00_Done_Callback> registerFig_00_Done_Callback(Fig_00_Done_Callback cb);
     std::shared_ptr<Fig_01_Done_Callback> registerFig_01_Done_Callback(Fig_01_Done_Callback cb);

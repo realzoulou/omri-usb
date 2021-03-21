@@ -108,9 +108,9 @@ private:
     std::atomic<bool> m_commandThreadRunning{false};
     std::thread m_commandThread;
 
-    //int m_antLvlCnt{100};
-    int m_antLvlCnt{10};
+    int m_antLvlCnt{1};
     uint8_t m_prevAntennaLvl{0};
+    uint8_t m_lastRfLockState{0};
 
     // recording raw data to file
     std::string m_recordPath{""};
@@ -346,7 +346,7 @@ private:
 
     /* ** */
     void readMscData();
-    void readFicData();
+    void readFicData(bool rfLock);
     void clearMscBuffer();
     /* ** */
 

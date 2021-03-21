@@ -190,7 +190,8 @@ void DabEnsemble::unregisterCbsAfterEnsembleCollect() {
     m_15Ptr.reset(); m_15Ptr = nullptr;
     m_16Ptr.reset(); m_16Ptr = nullptr;
 }
-void DabEnsemble::dataInput(const std::vector<uint8_t>& data, uint8_t subChId, bool synchronized) {
+
+void DabEnsemble::dataInput(const std::vector<uint8_t>& data, uint8_t subChId, bool synchronized, bool rfLock) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
     if(!m_resetting) {
         if(subChId != 0x64) {
@@ -207,7 +208,7 @@ void DabEnsemble::dataInput(const std::vector<uint8_t>& data, uint8_t subChId, b
                 }
             }
         } else {
-            m_ficPtr->call(data);
+            m_ficPtr->call(data, rfLock);
         }
     }
 }

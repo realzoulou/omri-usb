@@ -101,7 +101,7 @@ bool FicParser::isStarted() const {
     return m_fibProcessThreadRunning;
 }
 
-void FicParser::call(const std::vector<uint8_t> &data) {
+void FicParser::call(const std::vector<uint8_t> &data, bool rfLock) {
     auto ficIter = data.cbegin();
     int loop = 0;
     while (ficIter < data.cend()) {
@@ -120,7 +120,10 @@ void FicParser::call(const std::vector<uint8_t> &data) {
                           << std::endl;
             }
         } else {
-            std::clog << M_LOG_TAG << "FIB " << +loop << " crc corrupted: " << Fig::toHexString(fib) << std::endl;
+            if (rfLock) {
+                std::clog << M_LOG_TAG << "FIB " << +loop << " crc corrupted: "
+                          << Fig::toHexString(fib) << std::endl;
+            }
         }
 
         ficIter += FIB_SIZE;

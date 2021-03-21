@@ -1349,7 +1349,7 @@ void RaonTunerInput::readFic() {
 
     if(ficInt) {
 
-        readFicData();
+        readFicData(RTV_DAB_CHANNEL_LOCK_OK == lockStatus);
 
         --m_ficCollectionWaitLoops;
         std::cout << LOG_TAG << "FicRetries: " << +m_ficCollectionWaitLoops << std::endl;
@@ -1695,7 +1695,7 @@ void RaonTunerInput::readMscData() {
     setRegister(INT_E_UCLRL, 0x04);
 }
 
-void RaonTunerInput::readFicData() {
+void RaonTunerInput::readFicData(bool rfLock) {
     if (m_usbDevice != nullptr) {
 
         switchPage(REGISTER_PAGE_FIC);
@@ -1728,7 +1728,7 @@ void RaonTunerInput::readFicData() {
             }
             const std::vector<uint8_t> ficData(it, it + payloadLen);
             rawRecordFicWrite(ficData);
-            dataInput(ficData, 0x64, false);
+            dataInput(ficData, 0x64, false, rfLock);
         } else {
             std::clog << LOG_TAG << "readFicData read exp:4, rcvd:" << +bytesTransfered << std::endl;
             mUsbReadFailure++;
@@ -1789,7 +1789,7 @@ void RaonTunerInput::readData() {
               std::noboolalpha << std::endl;
 
     if(ficInt) {
-        readFicData();
+        readFicData(RTV_DAB_CHANNEL_LOCK_OK == m_lastRfLockState);
     }
 
     if(msc1Overrun) {
@@ -1861,17 +1861,17 @@ uint8_t RaonTunerInput::getLockStatus() {
     uint8_t lockState = readRegister(0x37);
     uint8_t lockSt{0};
 
-    if(lockState & 0x01) {
+    if(lockState & 0x01u) {
         lockSt = RTV_DAB_OFDM_LOCK_MASK;
     }
 
     lockState = readRegister(0xFB);
-    if((lockState & 0x03) == 0x03) {
+    if((lockState & 0x03u) == 0x03u) {
         lockSt |= RTV_DAB_FEC_LOCK_MASK;
     }
 
     //std::cout << LOG_TAG << "LockState at: " << +m_currentFrequency << " : " << +lockSt << std::endl;
-
+    m_lastRfLockState = lockSt;
     return lockSt;
 }
 

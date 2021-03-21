@@ -72,7 +72,7 @@ public:
     virtual std::shared_ptr<DabEnsemble::ServiceFollowingCallback> registerServiceFollowingCallback(DabEnsemble::ServiceFollowingCallback cb);
 
 protected:
-    virtual void dataInput(const std::vector<uint8_t>& data, uint8_t subChId, bool synchronized);
+    virtual void dataInput(const std::vector<uint8_t>& data, uint8_t subChId, bool synchronized, bool rfLock = true);
     virtual void flushBufferedComponentData(uint8_t subChId);
     virtual void flushAllBufferedComponentData();
 
