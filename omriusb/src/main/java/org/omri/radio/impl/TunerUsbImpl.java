@@ -182,8 +182,6 @@ public class TunerUsbImpl implements TunerUsb {
 	@Override
 	public void startRadioServiceScan() {
 		UsbHelper.getInstance().startEnsembleScan(mUsbDevice.getDeviceName());
-		//TODO scanning without deleting old services
-		//mServices.clear();
 		synchronized (mScannedServices) {
 			mScannedServices.clear();
 		}
@@ -230,7 +228,6 @@ public class TunerUsbImpl implements TunerUsb {
 		return mCurrentlyRunningService;
 	}
 
-	// TODO use Radio.getFollowingServices()
 	@Override
 	public @NonNull ArrayList<RadioService> getLinkedRadioServices(@NonNull RadioService service) {
 		ArrayList<RadioService> retLinkedRadioServices = new ArrayList<>();
