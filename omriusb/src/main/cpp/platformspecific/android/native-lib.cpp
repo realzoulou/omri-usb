@@ -500,7 +500,7 @@ Java_org_omri_radio_impl_UsbHelper_getLinkedServices(JNIEnv *env, jobject thiz, 
     while (devIter != m_dabInputs.cend()) {
         if (devIter->get() != nullptr && devIter->get()->getDeviceName() == devName) {
 
-            // convert Java input dabService via JDabService to a LinkedServiceDab
+            // convert Java input RadioServiceDab dabService via JDabService to a LinkedServiceDab
             JDabService jDabService(m_javaVm, env, m_radioServiceDabImplClass, m_dynamicLabelClass,
                                     m_dynamicLabelPlusItemClass, m_slideshowClass, dabService);
             // Wrong clang-tidy warning:

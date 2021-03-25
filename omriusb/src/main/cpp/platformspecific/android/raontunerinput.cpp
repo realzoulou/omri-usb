@@ -473,10 +473,10 @@ void RaonTunerInput::setService() {
 void RaonTunerInput::ensembleCollectFinished() {
     std::cout << LOG_TAG << "Ensemble collect finished" << std::endl;
 
+    if (m_usbDevice != nullptr) {
+        m_usbDevice->ensembleReady(const_cast<DabEnsemble &>(getEnsemble()));
+    }
     if(m_isScanning) {
-        if (m_usbDevice != nullptr) {
-            m_usbDevice->ensembleReady(const_cast<DabEnsemble &>(getEnsemble()));
-        }
         m_scanCommandQueue.push(std::bind(&RaonTunerInput::scanNext, this));
     }
 
