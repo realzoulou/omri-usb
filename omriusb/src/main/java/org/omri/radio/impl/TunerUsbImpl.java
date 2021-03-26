@@ -390,13 +390,14 @@ public class TunerUsbImpl implements TunerUsb {
 			Log.d(TAG, "serviceFound: " + service.toString());
 		}
 
+		// add with scheduled serialization
+		RadioServiceManager.getInstance().addRadioService(service);
+
 		synchronized (mTunerlisteners) {
 			for (TunerListener listener : mTunerlisteners) {
 				listener.tunerScanServiceFound(this, service);
 			}
 		}
-		// add with scheduled serialization
-		RadioServiceManager.getInstance().addRadioService(service);
 	}
 
 	@Override
