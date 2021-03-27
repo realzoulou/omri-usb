@@ -138,6 +138,9 @@ private:
     std::shared_ptr<DabSlideshow> m_lastSlideshow{nullptr};
     std::shared_ptr<DabDynamicLabel> m_lastDynamicLabel{nullptr};
 
+    std::vector<std::shared_ptr<LinkedServiceDab>> m_sfServices;
+    std::chrono::steady_clock::time_point m_sfServicesLastTime;
+
 private:
     void audioDataInput(const std::vector<uint8_t>& audioData, int ascty, int channels, int sampleRate, bool sbrUsed, bool psUsed);
     void dynamicLabelInput(std::shared_ptr<void> label);

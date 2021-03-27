@@ -102,6 +102,8 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
     m_ensembleId = static_cast<uint16_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetEnsembleIdMId));
     m_serviceId = static_cast<uint32_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetServiceIdMId));
 
+    m_sfServicesLastTime = std::chrono::steady_clock::now();
+
     std::cout << m_logTag << "Constructed SId " << std::hex << m_serviceId << std::dec << std::endl;
 }
 
@@ -361,7 +363,6 @@ void JDabService::decodeAudio(bool decode) {
         if(m_lastSlideshow != nullptr) {
             callJavaSlideshowCallback(m_lastSlideshow);
         }
-        callJavaServiceFollowingDabServicesChanged();
     }
     if (!JNI_DETACH(m_javaVm, wasDetached)) {
         std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
@@ -547,8 +548,34 @@ void JDabService::callJavaServiceFollowingDabServicesChanged() {
 
         LinkedServiceDab currentService(ecc, sid, eid, efreqKHz);
         const auto sfServices = pEnsemble->getLinkedDabServices(currentService);
-        for (const auto & sfService : sfServices ) {
-            std::cout << m_logTag << sfService->to_string() << std::endl;
+
+        bool isEqual = (sfServices.size() == m_sfServices.size());
+        if (isEqual) {
+            for (int i = 0; i < sfServices.size(); i++) {
+                const LinkedServiceDab & cmp1 = *(sfServices[i].get());
+                const LinkedServiceDab & cmp2 = *(m_sfServices[i].get());
+                if (cmp1 != cmp2) {
+                    isEqual = false;
+                    break;
+                }
+            }
+        }
+        bool isSteady;
+        if (!isEqual) {
+            // still different
+            isSteady = false;
+            m_sfServicesLastTime = std::chrono::steady_clock::now();
+            m_sfServices = sfServices;
+        } else {
+            // equal, but steady?
+            auto timeDiff = std::chrono::steady_clock::now() - m_sfServicesLastTime;
+            // consider steady if no more changes after 1 minute
+            // ETSI TS 103 176 V2.4.1 defines max 2 minutes for FIG 0/6, FIG 0/21, FIG 0/24
+            // but typically updates are faster
+            isSteady = (timeDiff >= std::chrono::minutes(1));
+        }
+        if (!isSteady) {
+            return;
         }
 
         bool wasDetached;
