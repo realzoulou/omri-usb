@@ -50,7 +50,7 @@ import static org.omri.BuildConfig.DEBUG;
 
 public abstract class RadioServiceImpl implements RadioService, Serializable {
 
-	private static final long serialVersionUID = 1823267026268112744L;
+	private static final long serialVersionUID = 952156510217072036L;
 
 	private final String TAG = "RadioServiceImpl";
 
@@ -453,11 +453,11 @@ public abstract class RadioServiceImpl implements RadioService, Serializable {
 			if (!prevList.equals(sfRadioServices)) {
 				// only real changes, no repetition of the same information
 				setFollowingServices(sfRadioServices);
-		synchronized (mSfListeners) {
-			for (RadioServiceFollowingListener sfListener : mSfListeners) {
-				sfListener.newServiceFollowingRadioServices(sfRadioServices);
-			}
-		}
+				synchronized (mSfListeners) {
+					for (RadioServiceFollowingListener sfListener : mSfListeners) {
+						sfListener.newServiceFollowingRadioServices(sfRadioServices);
+					}
+				}
 				RadioServiceManager.getInstance().scheduleSaveServices(getRadioServiceType());
 			}
 		}
