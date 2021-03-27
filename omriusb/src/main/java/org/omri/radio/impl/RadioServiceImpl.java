@@ -494,6 +494,10 @@ public abstract class RadioServiceImpl implements RadioService, Serializable {
 		}
 	}
 
+	void serviceStarted() {
+		if(DEBUG)Log.d(TAG, "Service '" + getServiceLabel() + "' started");
+	}
+
 	void serviceStopped() {
 		if(DEBUG)Log.d(TAG, "Service '" + getServiceLabel() + "' stopped");
 

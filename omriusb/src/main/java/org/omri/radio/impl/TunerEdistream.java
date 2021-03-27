@@ -403,6 +403,8 @@ public class TunerEdistream implements Tuner, IpServiceScanner.IpScannerListener
 	private void serviceStarted(RadioServiceDabEdi startedService) {
 		if(DEBUG)Log.d(TAG + "_" + this, "DabEdiService started: " + startedService.getServiceLabel() + " TunerStatus: " + mTunerStatus.toString());
 		if(mTunerStatus != TUNER_STATUS_SCANNING) {
+			// tell service that it was started
+			((RadioServiceImpl) startedService).serviceStarted();
 			mConRetries = 5;
 			if(DEBUG)Log.d(TAG + "_" + this, "Calling " + mTunerlisteners + " Subscribed listeners for serviceStarted");
 			for (TunerListener listener : mTunerlisteners) {

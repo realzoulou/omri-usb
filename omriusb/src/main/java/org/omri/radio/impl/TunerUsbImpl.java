@@ -405,6 +405,8 @@ public class TunerUsbImpl implements TunerUsb {
 		if(DEBUG)Log.d(TAG, "DabService started: " + startedService.getServiceLabel());
 		mCurrentlyRunningService = startedService;
 		if(startedService != null) {
+			// // tell service that it was started
+			((RadioServiceImpl) startedService).serviceStarted();
 			synchronized (mTunerlisteners) {
 				for (TunerListener listener : mTunerlisteners) {
 					listener.radioServiceStarted(this, startedService);

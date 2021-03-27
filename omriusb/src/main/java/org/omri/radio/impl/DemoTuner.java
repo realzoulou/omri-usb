@@ -206,6 +206,8 @@ public class DemoTuner implements Tuner {
 
 	/* callbacks from native code --------- */
 	public void serviceStarted(RadioService radioService) {
+		// tell service that it was started
+		((RadioServiceImpl) radioService).serviceStarted();
 		for (TunerListener listener : mTunerlisteners) {
 			listener.radioServiceStarted(this, radioService);
 		}
