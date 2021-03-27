@@ -62,6 +62,7 @@ public abstract class RadioServiceImpl implements RadioService, Serializable {
 	private List<Location> mLocationList = new ArrayList<Location>();
 	private List<String> mKeywordsList = new ArrayList<String>();
 	private List<Group> mGroupsList = new ArrayList<Group>();
+	private final List<RadioService> mSfServices = Collections.synchronizedList(new ArrayList<>());
 
 	final transient List<VisualMetadataListener> mSlideshowListeners = Collections.synchronizedList(new ArrayList<>());
 	final transient List<TextualMetadataListener> mLabelListeners = Collections.synchronizedList(new ArrayList<>());
@@ -360,6 +361,15 @@ public abstract class RadioServiceImpl implements RadioService, Serializable {
 		}
 	}
 
+	@Override
+	public ArrayList<RadioService> getFollowingServices() {
+		ArrayList<RadioService> ret = new ArrayList<>(mSfServices.size());
+		synchronized (mSfServices) {
+			ret.addAll(mSfServices);
+		}
+		return ret;
+	}
+
 	//callbacks from the tuner
 	void slideshowReceived(VisualDabSlideShow slideShow) {
 		for(VisualMetadataListener slsListener : mSlideshowListeners) {
@@ -426,15 +436,29 @@ public abstract class RadioServiceImpl implements RadioService, Serializable {
 		return retLinkedServices;
 	}
 
-	void serviceFollowingReceived(final ArrayList<RadioService> sfServices) {
-		final ArrayList<RadioService> sfRadioServices = new ArrayList<>(sfServices.size());
-		if (sfServices != null) {
-			sfRadioServices.addAll(replaceLinkedRadioServicesWithKnown(sfServices));
+	void setFollowingServices(@NonNull ArrayList<RadioService> sfServices) {
+		synchronized (mSfServices) {
+			mSfServices.clear();
+			mSfServices.addAll(sfServices);
 		}
+	}
 
+	void serviceFollowingReceived(ArrayList<RadioService> sfServices) {
+		if (sfServices != null) {
+			if(DEBUG) Log.d(TAG, "serviceFollowingReceived " + getServiceLabel() + " sz=" + sfServices.size());
+			ArrayList<RadioService> sfRadioServices = new ArrayList<>(sfServices.size());
+			sfRadioServices.addAll(replaceLinkedRadioServicesWithKnown(sfServices));
+
+			ArrayList<RadioService> prevList = getFollowingServices();
+			if (!prevList.equals(sfRadioServices)) {
+				// only real changes, no repetition of the same information
+				setFollowingServices(sfRadioServices);
 		synchronized (mSfListeners) {
 			for (RadioServiceFollowingListener sfListener : mSfListeners) {
 				sfListener.newServiceFollowingRadioServices(sfRadioServices);
+			}
+		}
+				RadioServiceManager.getInstance().scheduleSaveServices(getRadioServiceType());
 			}
 		}
 	}
