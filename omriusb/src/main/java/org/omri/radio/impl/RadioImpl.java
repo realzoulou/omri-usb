@@ -610,15 +610,7 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 		ArrayList<RadioService> followingServices = new ArrayList<>();
 
 		if (followSrv != null) {
-			List<Tuner> tuners = getAvailableTuners();
-			for (Tuner tuner : tuners) {
-				if (tuner != null && tuner.getTunerStatus() == TunerStatus.TUNER_STATUS_INITIALIZED) {
-					List<RadioService> tunerLinkedRadioServices = tuner.getLinkedRadioServices(followSrv);
-					if (tunerLinkedRadioServices != null) {
-						followingServices.addAll(tunerLinkedRadioServices);
-					}
-				}
-			}
+			followingServices.addAll(followSrv.getFollowingServices());
 		}
 		return followingServices;
 	}
