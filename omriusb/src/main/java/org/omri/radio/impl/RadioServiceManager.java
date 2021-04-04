@@ -583,6 +583,7 @@ class RadioServiceManager implements org.omri.radio.RadioServiceManager {
 				srvObj.put("ensembleFrequency", srvDab.getEnsembleFrequency());
 				srvObj.put("ensembleId", srvDab.getEnsembleId());
 				srvObj.put("serviceId", srvDab.getServiceId());
+				srvObj.put("isProgrammeService", srvDab.isProgrammeService());
 			}
 			sfServicesArr.put(srvObj);
 		}
@@ -753,6 +754,7 @@ class RadioServiceManager implements org.omri.radio.RadioServiceManager {
 					srvDab.setEnsembleFrequency(dabSrvObj.getInt("ensembleFrequency"));
 					srvDab.setEnsembleId(dabSrvObj.getInt("ensembleId"));
 					srvDab.setServiceId(dabSrvObj.getInt("serviceId"));
+					srvDab.setIsProgrammeService(dabSrvObj.getBoolean("isProgrammeService"));
 					tempSfArray.add(srvDab);
 				}
 			}

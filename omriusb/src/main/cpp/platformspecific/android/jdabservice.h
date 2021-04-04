@@ -76,6 +76,7 @@ private:
     jmethodID m_javaDabSrvSetEnsembleFrequencyMId;
     jmethodID m_javaDabSrvSetEnsembleIdMId;
     jmethodID m_javaDabSrvSetServiceIdMId;
+    jmethodID m_javaDabSrvSetIsProgrammeServiceMId;
 
     jmethodID m_javaDabSrvAudioDataCallbackMId;
     jmethodID m_javaDabSrvAudioformatChangedCallbackMId;

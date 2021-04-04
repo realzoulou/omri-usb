@@ -34,7 +34,7 @@ import java.util.Objects;
 
 public class RadioServiceDabImpl extends RadioServiceImpl implements RadioServiceDab, Serializable {
 
-	private static final long serialVersionUID = 6561664196086864931L;
+	private static final long serialVersionUID = 4382868398713243924L;
 	
 	private int mEnsembleEcc = 0;
 	private int mEnsembleId= 0;

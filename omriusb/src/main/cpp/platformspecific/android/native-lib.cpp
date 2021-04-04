@@ -509,10 +509,17 @@ Java_org_omri_radio_impl_UsbHelper_getLinkedServices(JNIEnv *env, jobject thiz, 
             // NOLINTNEXTLINE
             auto inputServiceLabel = (jstring) env->CallObjectMethod(dabService, m_radioServiceDabImpl_getServiceLabel_mId);
 
+            bool isProgrammeService = false;
+            const auto & service = jDabService.getLinkDabService();
+            if (service != nullptr) {
+                isProgrammeService = service->isProgrammeService();
+            }
+
             LinkedServiceDab inputService(jDabService.getEnsembleEcc(),
                                           jDabService.getServiceId(),
                                           jDabService.getEnsembleId(),
-                                          jDabService.getEnsembleFrequency() / 1000);
+                                          jDabService.getEnsembleFrequency() / 1000,
+                                          isProgrammeService);
             // retrieve data
             auto retServices = devIter->get()->getLinkedServices(inputService);
 
@@ -532,9 +539,8 @@ Java_org_omri_radio_impl_UsbHelper_getLinkedServices(JNIEnv *env, jobject thiz, 
                                     static_cast<jint>(s.get()->getEnsembleId()));
                 env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setServiceId_mId,
                                     static_cast<jint>(s.get()->getServiceId()));
-                // assume that all such services are Programme Services
                 env->CallVoidMethod(jLinkedServiceDab, m_radioServiceDabImpl_setIsProgrammeService_mId,
-                                    JNI_TRUE);
+                                    static_cast<jboolean>(s.get()->getIsProgrammeService()));
                 // assume that all such services have the same Service Label as the requested service
                 if (inputServiceLabel != nullptr) {
                     env->CallVoidMethod(jLinkedServiceDab,

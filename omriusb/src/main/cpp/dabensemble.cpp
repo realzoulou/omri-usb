@@ -1162,6 +1162,7 @@ void DabEnsemble::lookupEIdOnOtherFrequency(
                         servicePtr->setEnsembleId(targetEId);
                         servicePtr->setEnsembleFrequencyKHz(fli.frequencyKHz);
                         servicePtr->setServiceId(targetSId);
+                        servicePtr->setIsProgrammeService(true); // Service Following is meant for Programme Services only
 
                         std::cout << m_logTag << "   match: 0x" << std::hex << +freqInfo.id
                                   << std::dec

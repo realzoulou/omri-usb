@@ -60,6 +60,7 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
     m_javaDabSrvSetEnsembleFrequencyMId = env->GetMethodID(m_javaDabServiceClass, "setEnsembleFrequency", "(I)V");
     m_javaDabSrvSetEnsembleIdMId = env->GetMethodID(m_javaDabServiceClass, "setEnsembleId", "(I)V");
     m_javaDabSrvSetServiceIdMId = env->GetMethodID(m_javaDabServiceClass, "setServiceId", "(I)V");
+    m_javaDabSrvSetIsProgrammeServiceMId = env->GetMethodID(m_javaDabServiceClass, "setIsProgrammeService", "(Z)V");
 
     //Audio data callback
     m_javaDabSrvAudioDataCallbackMId = env->GetMethodID(m_javaDabServiceClass, "audioData", "([BII)V");
@@ -545,8 +546,9 @@ void JDabService::callJavaServiceFollowingDabServicesChanged() {
         const auto ecc = pEnsemble->getEnsembleEcc();
         const auto efreqKHz = pService->getEnsembleFrequency() / 1000;
         const auto sid = pService->getServiceId();
+        const auto isPS = pService->isProgrammeService();
 
-        LinkedServiceDab currentService(ecc, sid, eid, efreqKHz);
+        LinkedServiceDab currentService(ecc, sid, eid, efreqKHz, isPS);
         const auto sfServices = pEnsemble->getLinkedDabServices(currentService);
 
         bool isEqual = (sfServices.size() == m_sfServices.size());
@@ -599,6 +601,8 @@ void JDabService::callJavaServiceFollowingDabServicesChanged() {
                                     static_cast<jint>(s.get()->getEnsembleId()));
                 enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetServiceIdMId,
                                     static_cast<jint>(s.get()->getServiceId()));
+                enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetIsProgrammeServiceMId,
+                                     static_cast<jboolean>(s.get()->getIsProgrammeService()));
 
                 enve->CallBooleanMethod(arrayList, m_ArrayList_add_mId, jLinkedServiceDab);
             }
