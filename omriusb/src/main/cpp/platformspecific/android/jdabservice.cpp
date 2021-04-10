@@ -567,6 +567,7 @@ void JDabService::callJavaServiceFollowingDabServicesChanged() {
         if (!isEqual) {
             // still different
             isSteady = false;
+            m_sfServicesSteady = false; // in case it was steady previously
             m_sfServicesLastTime = std::chrono::steady_clock::now();
             m_sfServices = sfServices;
         } else {
@@ -574,11 +575,17 @@ void JDabService::callJavaServiceFollowingDabServicesChanged() {
             auto timeDiff = std::chrono::steady_clock::now() - m_sfServicesLastTime;
             // consider steady if no more changes after 1 minute
             // ETSI TS 103 176 V2.4.1 defines max 2 minutes for FIG 0/6, FIG 0/21, FIG 0/24
-            // but typically updates are faster
+            // but typically updates are faster, thus use 1 min
             isSteady = (timeDiff >= std::chrono::minutes(1));
         }
         if (!isSteady) {
             return;
+        } else {
+            if (m_sfServicesSteady) {
+                return; // nothing new, equal AND steady
+            } else {
+                m_sfServicesSteady = true; // last report
+            }
         }
 
         bool wasDetached;
