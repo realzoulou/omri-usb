@@ -17,6 +17,8 @@ import org.omri.radioservice.RadioServiceIpStream;
 import org.omri.radioservice.RadioServiceMimeType;
 import org.omri.radioservice.RadioServiceType;
 import org.omri.radioservice.metadata.TermId;
+import org.omri.tuner.Tuner;
+import org.omri.tuner.TunerType;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -61,8 +63,8 @@ class RadioServiceManager implements org.omri.radio.RadioServiceManager {
 
 	private static RadioServiceManager INSTANCE = null;
 
-	private ConcurrentHashMap<RadioServiceType, CopyOnWriteArrayList<RadioService>> mServicesMap = new ConcurrentHashMap<>();
-	private ConcurrentHashMap<RadioServiceType, Boolean> mServicesDeSerializingInProgress = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<RadioServiceType, CopyOnWriteArrayList<RadioService>> mServicesMap = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<RadioServiceType, Boolean> mServicesDeSerializingInProgress = new ConcurrentHashMap<>();
 
 	private final String SERVICES_DIR;
 	private final String SERVICES_JSON_DAB;
@@ -924,6 +926,39 @@ class RadioServiceManager implements org.omri.radio.RadioServiceManager {
 				}
 			}
 		}, 5000);
+	}
+
+	void updateAllServiceFollowingServices(RadioService radioService) {
+		if (DEBUG) Log.d(TAG, "updateAllServiceFollowingServices from " + radioService.toString());
+		// implemented for DAB only
+		if (radioService instanceof RadioServiceDab) {
+			boolean shouldSave = false;
+			// for all services with from same ensemble as radioService, query LinkedRadioServices and store
+			final CopyOnWriteArrayList<RadioService> services = mServicesMap.get(RadioServiceType.RADIOSERVICE_TYPE_DAB);
+			final List<Tuner> tuners = Radio.getInstance().getAvailableTuners(TunerType.TUNER_TYPE_DAB);
+			if (services != null && !services.isEmpty() && tuners != null && !tuners.isEmpty()) {
+				for (RadioService service : services) {
+					RadioServiceDab serviceDab = (RadioServiceDab) service;
+					// same EId, then query Linked services for this programme service ...
+					if (serviceDab.getEnsembleId() == ((RadioServiceDab) radioService).getEnsembleId()
+							&& serviceDab.isProgrammeService() ) {
+						// ... on all DAB tuners
+						for (Tuner tuner : tuners) {
+							ArrayList<RadioService> sfServices = tuner.getLinkedRadioServices(serviceDab);
+							boolean hasChanged =
+									((RadioServiceImpl) service).setServiceFollowingServices(sfServices);
+							if (hasChanged) {
+								shouldSave = true;
+							}
+						}
+					}
+				}
+			}
+			if (shouldSave) {
+				// save
+				RadioServiceManager.getInstance().scheduleSaveServices(RadioServiceType.RADIOSERVICE_TYPE_DAB);
+			}
+		}
 	}
 
 	/* RadioServiceManager interface implementation */
