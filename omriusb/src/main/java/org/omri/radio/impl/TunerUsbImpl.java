@@ -332,13 +332,17 @@ public class TunerUsbImpl implements TunerUsb {
 				break;
 			}
 			case SERVICELIST_READY: {
+				boolean reportInitialized = false;
+				if (mTunerStatus != TunerStatus.TUNER_STATUS_INITIALIZED) {
+					mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
+					reportInitialized = true;
+				}
 				synchronized (mTunerlisteners) {
-					if (mTunerStatus !=  TunerStatus.TUNER_STATUS_INITIALIZED) {
-						mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
-						for (TunerListener listener : mTunerlisteners) {
+					for (TunerListener listener : mTunerlisteners) {
+						if (reportInitialized) {
 							listener.tunerStatusChanged(this, TunerStatus.TUNER_STATUS_INITIALIZED);
-							listener.tunerStatusChanged(this, TunerStatus.SERVICES_LIST_READY);
 						}
+						listener.tunerStatusChanged(this, TunerStatus.SERVICES_LIST_READY);
 					}
 				}
 				break;

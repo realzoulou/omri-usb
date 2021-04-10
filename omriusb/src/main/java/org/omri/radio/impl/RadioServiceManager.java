@@ -18,6 +18,7 @@ import org.omri.radioservice.RadioServiceMimeType;
 import org.omri.radioservice.RadioServiceType;
 import org.omri.radioservice.metadata.TermId;
 import org.omri.tuner.Tuner;
+import org.omri.tuner.TunerStatus;
 import org.omri.tuner.TunerType;
 
 import java.io.BufferedReader;
@@ -942,13 +943,20 @@ class RadioServiceManager implements org.omri.radio.RadioServiceManager {
 					// same EId, then query Linked services for this programme service ...
 					if (serviceDab.getEnsembleId() == ((RadioServiceDab) radioService).getEnsembleId()
 							&& serviceDab.isProgrammeService() ) {
-						// ... on all DAB tuners
+						// ... on all initialized (or scanning) DAB tuners
 						for (Tuner tuner : tuners) {
-							ArrayList<RadioService> sfServices = tuner.getLinkedRadioServices(serviceDab);
-							boolean hasChanged =
-									((RadioServiceImpl) service).setServiceFollowingServices(sfServices);
-							if (hasChanged) {
-								shouldSave = true;
+							TunerStatus tunerStatus = tuner.getTunerStatus();
+							if (tunerStatus == TunerStatus.TUNER_STATUS_INITIALIZED
+									|| tunerStatus == TunerStatus.TUNER_STATUS_SCANNING) {
+								ArrayList<RadioService> sfServices = tuner.getLinkedRadioServices(serviceDab);
+								boolean hasChanged =
+										((RadioServiceImpl) service).setServiceFollowingServices(sfServices);
+								if (hasChanged) {
+									if (tuner instanceof TunerUsbImpl) {
+										((TunerUsbImpl) tuner).callBack(TunerUsbCallbackTypes.SERVICELIST_READY.getIntValue());
+									}
+									shouldSave = true;
+								}
 							}
 						}
 					}
