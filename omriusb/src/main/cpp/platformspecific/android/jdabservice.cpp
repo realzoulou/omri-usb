@@ -549,8 +549,9 @@ void JDabService::callJavaServiceFollowingDabServicesChanged() {
         const auto isPS = pService->isProgrammeService();
 
         LinkedServiceDab currentService(ecc, sid, eid, efreqKHz, isPS);
-        const auto sfServices = pEnsemble->getLinkedDabServices(currentService);
+        const auto & sfServices = pEnsemble->getLinkedDabServices(currentService);
 
+        // find out if sfServices is stable, or if the ensemble is still collecting them
         bool isEqual = (sfServices.size() == m_sfServices.size());
         if (isEqual) {
             for (int i = 0; i < sfServices.size(); i++) {
@@ -605,9 +606,11 @@ void JDabService::callJavaServiceFollowingDabServicesChanged() {
                                      static_cast<jboolean>(s.get()->getIsProgrammeService()));
 
                 enve->CallBooleanMethod(arrayList, m_ArrayList_add_mId, jLinkedServiceDab);
+                enve->DeleteLocalRef(jLinkedServiceDab);
             }
             enve->CallVoidMethod(m_linkedJavaDabServiceObject,
                                  m_javaDabSrvServiceFollowingReceived, arrayList);
+            enve->DeleteLocalRef(arrayList);
         }
     }
 
