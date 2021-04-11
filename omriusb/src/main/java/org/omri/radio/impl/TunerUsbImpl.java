@@ -13,10 +13,7 @@ import androidx.annotation.Nullable;
 import org.omri.radio.Radio;
 import org.omri.radioservice.RadioService;
 import org.omri.radioservice.RadioServiceDab;
-import org.omri.radioservice.RadioServiceDabComponent;
-import org.omri.radioservice.RadioServiceDabUserApplication;
 import org.omri.radioservice.RadioServiceType;
-import org.omri.radioservice.metadata.TermId;
 import org.omri.tuner.ReceptionQuality;
 import org.omri.tuner.Tuner;
 import org.omri.tuner.TunerListener;
@@ -185,8 +182,6 @@ public class TunerUsbImpl implements TunerUsb {
 	@Override
 	public void startRadioServiceScan() {
 		UsbHelper.getInstance().startEnsembleScan(mUsbDevice.getDeviceName());
-		//TODO scanning without deleting old services
-		//mServices.clear();
 		synchronized (mScannedServices) {
 			mScannedServices.clear();
 		}
@@ -337,13 +332,17 @@ public class TunerUsbImpl implements TunerUsb {
 				break;
 			}
 			case SERVICELIST_READY: {
+				boolean reportInitialized = false;
+				if (mTunerStatus != TunerStatus.TUNER_STATUS_INITIALIZED) {
+					mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
+					reportInitialized = true;
+				}
 				synchronized (mTunerlisteners) {
-					if (mTunerStatus !=  TunerStatus.TUNER_STATUS_INITIALIZED) {
-						mTunerStatus = TunerStatus.TUNER_STATUS_INITIALIZED;
-						for (TunerListener listener : mTunerlisteners) {
+					for (TunerListener listener : mTunerlisteners) {
+						if (reportInitialized) {
 							listener.tunerStatusChanged(this, TunerStatus.TUNER_STATUS_INITIALIZED);
-							listener.tunerStatusChanged(this, TunerStatus.SERVICES_LIST_READY);
 						}
+						listener.tunerStatusChanged(this, TunerStatus.SERVICES_LIST_READY);
 					}
 				}
 				break;
@@ -374,41 +373,35 @@ public class TunerUsbImpl implements TunerUsb {
 
 	@Override
 	public void serviceFound(RadioServiceDab service) {
-		if(DEBUG) {
-			Log.d(TAG, "Scan New Service found Ensemble Freq: " + service.getEnsembleFrequency());
-			Log.d(TAG, "Scan New Service found EnsembleId: " + Integer.toHexString(service.getEnsembleId()));
-			Log.d(TAG, "Scan New Service found Ensemblelabel: " + service.getEnsembleLabel() + " : " + service.getEnsembleShortLabel());
-			Log.d(TAG, "Scan New Service found EnsembleECC: " + ("0x" + Integer.toHexString(service.getEnsembleEcc()).toUpperCase()));
-			Log.d(TAG, "Scan New Service found ServiceID: " + ("0x" + Integer.toHexString(service.getServiceId())));
-			Log.d(TAG, "Scan New Service found ServiceLabel: " + service.getServiceLabel() + " : " + service.getShortLabel());
-			Log.d(TAG, "Scan New Service found isProgramme: " + service.isProgrammeService());
-			Log.d(TAG, "Scan New Service Num Components: " + service.getServiceComponents().size());
-			for (RadioServiceDabComponent comp : service.getServiceComponents()) {
-				Log.d(TAG, "Scan New Service Component SubChanID: " + ("0x" + Integer.toHexString(comp.getSubchannelId())));
-				Log.d(TAG, "Scan New Service Component SCIdS: " + ("0x" + Integer.toHexString(comp.getServiceComponentIdWithinService())));
-				Log.d(TAG, "Scan New Service Component Type: " + comp.getServiceComponentType());
-				Log.d(TAG, "Scan New Service Component Bitrate: " + comp.getBitrate());
-				Log.d(TAG, "Scan New Service Component TMID: " + comp.getTmId());
-				Log.d(TAG, "Scan New Service Component PacketAddress: " + comp.getPacketAddress());
-
-				for (RadioServiceDabUserApplication uApp : comp.getUserApplications()) {
-					Log.d(TAG, "Scan New Service Component UApp Type: " + uApp.getType().getType() + " : " + uApp.getType().getName());
-					Log.d(TAG, "Scan New Service Component UApp DSCTy: " + uApp.getDataServiceComponentType().getType() + " : " + uApp.getDataServiceComponentType().getName());
-					Log.d(TAG, "Scan New Service Component UApp isXPAD: " + uApp.isXpadApptype() + ", DGUsed: " + uApp.isDatagroupTransportUsed());
+		if (service != null) {
+			final List<RadioService> currentServices = getRadioServices();
+			try {
+				if (currentServices != null) {
+					for (RadioService currentService : currentServices) {
+						if (service.equals(currentService)) {
+							if (DEBUG) {
+								Log.d(TAG, "serviceFound already known: " + service.toString());
+							}
+							return;
+						}
+					}
 				}
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
-			for (TermId tid : service.getGenres()) {
-				Log.d(TAG, "Scan New Service Genre: " + tid.getText());
-			}
-			Log.d(TAG, "----------------- Scan New Service found -----------------");
 		}
+		if(DEBUG) {
+			Log.d(TAG, "serviceFound: " + service.toString());
+		}
+
+		// add with scheduled serialization
+		RadioServiceManager.getInstance().addRadioService(service);
 
 		synchronized (mTunerlisteners) {
 			for (TunerListener listener : mTunerlisteners) {
 				listener.tunerScanServiceFound(this, service);
 			}
 		}
-		RadioServiceManager.getInstance().addService(service);
 	}
 
 	@Override
@@ -416,6 +409,8 @@ public class TunerUsbImpl implements TunerUsb {
 		if(DEBUG)Log.d(TAG, "DabService started: " + startedService.getServiceLabel());
 		mCurrentlyRunningService = startedService;
 		if(startedService != null) {
+			// // tell service that it was started
+			((RadioServiceImpl) startedService).serviceStarted();
 			synchronized (mTunerlisteners) {
 				for (TunerListener listener : mTunerlisteners) {
 					listener.radioServiceStarted(this, startedService);

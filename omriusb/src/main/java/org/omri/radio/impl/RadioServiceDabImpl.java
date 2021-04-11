@@ -2,6 +2,8 @@ package org.omri.radio.impl;
 
 import android.os.Build;
 
+import androidx.annotation.NonNull;
+
 import org.omri.radioservice.RadioService;
 import org.omri.radioservice.RadioServiceDab;
 import org.omri.radioservice.RadioServiceDabComponent;
@@ -32,7 +34,7 @@ import java.util.Objects;
 
 public class RadioServiceDabImpl extends RadioServiceImpl implements RadioServiceDab, Serializable {
 
-	private static final long serialVersionUID = 6561664196086864931L;
+	private static final long serialVersionUID = 4382868398713243924L;
 	
 	private int mEnsembleEcc = 0;
 	private int mEnsembleId= 0;
@@ -171,6 +173,7 @@ public class RadioServiceDabImpl extends RadioServiceImpl implements RadioServic
 		if(obj != null) {
 			if(obj instanceof RadioServiceDab) {
 				//A DAB service is uniquely identified by its Service Identifier (SId) and in conjunction with the Extended Country Code unique world-wide
+				//but EId and EnsembleFrequency are needed, too
 				RadioServiceDab compSrv = (RadioServiceDab) obj;
 				return ((compSrv.getEnsembleId() == mEnsembleId) && (compSrv.getEnsembleFrequency() == mEnsembleFrequency) && (compSrv.getServiceId() == mServiceId) && (compSrv.getEnsembleEcc() == mEnsembleEcc));
 			}
@@ -198,9 +201,7 @@ public class RadioServiceDabImpl extends RadioServiceImpl implements RadioServic
 	public boolean equalsRadioService(RadioService otherSrv) {
 		if(otherSrv != null) {
 			if(otherSrv instanceof RadioServiceDab) {
-				//A DAB service is uniquely identified by its Service Identifier (SId) and in conjunction with the Extended Country Code unique world-wide
-				RadioServiceDab compSrv = (RadioServiceDab) otherSrv;
-				return (compSrv.getServiceId() == this.mServiceId) && (compSrv.getEnsembleEcc() == this.mEnsembleEcc);
+				return equals((RadioServiceDab) otherSrv);
 			} else if(otherSrv instanceof RadioServiceIpImpl) {
 				RadioServiceIpImpl ipSrv = (RadioServiceIpImpl) otherSrv;
 				for(RadioDnsEpgBearer bearer : ipSrv.getBearers()) {
@@ -213,7 +214,18 @@ public class RadioServiceDabImpl extends RadioServiceImpl implements RadioServic
 				}
 			}
 		}
-
 		return false;
+	}
+
+	@NonNull
+	@Override
+	public String toString() {
+		return "RadioServiceDab {" +
+				" label='" + mServiceLabel + "'" +
+				" SId=0x" + Integer.toHexString(mServiceId) +
+				" EId=0x" + Integer.toHexString(mEnsembleId) +
+				" ECC=0x" + Integer.toHexString(mEnsembleEcc) +
+				" freqKHz=" + mEnsembleFrequency / 1000 +
+				" }";
 	}
 }

@@ -76,6 +76,7 @@ private:
     jmethodID m_javaDabSrvSetEnsembleFrequencyMId;
     jmethodID m_javaDabSrvSetEnsembleIdMId;
     jmethodID m_javaDabSrvSetServiceIdMId;
+    jmethodID m_javaDabSrvSetIsProgrammeServiceMId;
 
     jmethodID m_javaDabSrvAudioDataCallbackMId;
     jmethodID m_javaDabSrvAudioformatChangedCallbackMId;
@@ -137,6 +138,10 @@ private:
 
     std::shared_ptr<DabSlideshow> m_lastSlideshow{nullptr};
     std::shared_ptr<DabDynamicLabel> m_lastDynamicLabel{nullptr};
+
+    std::vector<std::shared_ptr<LinkedServiceDab>> m_sfServices;
+    std::chrono::steady_clock::time_point m_sfServicesLastTime;
+    bool m_sfServicesSteady{false};
 
 private:
     void audioDataInput(const std::vector<uint8_t>& audioData, int ascty, int channels, int sampleRate, bool sbrUsed, bool psUsed);

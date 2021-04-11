@@ -3,12 +3,15 @@ package org.omri.radio;
 import android.content.Context;
 import android.os.Bundle;
 
+import androidx.annotation.NonNull;
+
 import org.omri.radio.impl.RadioImpl;
 import org.omri.radioservice.RadioService;
 import org.omri.tuner.Tuner;
 import org.omri.tuner.TunerListener;
 import org.omri.tuner.TunerType;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -178,4 +181,16 @@ public abstract class Radio {
 	public abstract boolean addRadioService(RadioService addSrv);
 
 	public abstract boolean removeRadioService(RadioService remSrv);
+
+	/**
+	 * Retrieve {@link RadioService}s for following the given service using any of the tuners, which
+	 * are currently initialized.
+	 * @param followSrv the {@link RadioService} to be followed
+	 * @return An array list of {@link RadioService}s or an empty list. The array list is sorted by
+	 * a) affordance, and b) likelyhood that the returned service matches with the given service.
+	 * The term 'affordance' here relates to the waiting time for the user for continuing to listen
+	 * to the service again once the system decides to start the returned service.
+	 */
+	@NonNull
+	public abstract ArrayList<RadioService> getFollowingServices(RadioService followSrv);
 }

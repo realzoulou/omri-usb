@@ -9,6 +9,8 @@ import android.preference.PreferenceManager;
 import android.util.Log;
 import android.util.Pair;
 
+import androidx.annotation.NonNull;
+
 import org.omri.radio.Radio;
 import org.omri.radio.RadioErrorCode;
 import org.omri.radio.RadioStatus;
@@ -602,15 +604,14 @@ public class RadioImpl extends Radio implements TunerListener, UsbHelper.UsbHelp
 		return delSuccess;
 	}
 
-	public final List<RadioService> getFollowingServices(RadioService followSrv) {
+	@Override
+	@NonNull
+	public ArrayList<RadioService> getFollowingServices(RadioService followSrv) {
 		ArrayList<RadioService> followingServices = new ArrayList<>();
 
-		for(RadioService srv : getRadioServices()) {
-			if(srv.equalsRadioService(followSrv) && !srv.equals(followSrv)) {
-				followingServices.add(srv);
-			}
+		if (followSrv != null) {
+			followingServices.addAll(followSrv.getFollowingServices());
 		}
-
 		return followingServices;
 	}
 

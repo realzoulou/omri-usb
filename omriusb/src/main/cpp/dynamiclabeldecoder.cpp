@@ -266,8 +266,8 @@ void DynamiclabelDecoder::parseDlsData() {
                                     std::cout << m_logTag << " DLPLUS: " << DynamiclabelDecoder::DL_PLUS_CONTENT_TYPE_STRING[dlItem.contentType] << " : " << dlItem.dlPlusTagText << std::endl;
 #endif // VERBOSE
                                 } else {
-                                    std::clog << m_logTag << " DLPLUS ContentType: Start " << startMarker << " Length " << lengthMarker
-                                              << " exceeds dlsFullData size " << m_dlsFullData.size() << std::endl;
+                                    std::clog << m_logTag << " DLPLUS ContentType: Start " << +startMarker << " Length " << +lengthMarker
+                                              << " exceeds dlsFullData size " << +m_dlsFullData.size() << std::endl;
                                 }
                             }
 

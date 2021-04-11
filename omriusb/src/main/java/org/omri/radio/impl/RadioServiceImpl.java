@@ -50,7 +50,7 @@ import static org.omri.BuildConfig.DEBUG;
 
 public abstract class RadioServiceImpl implements RadioService, Serializable {
 
-	private static final long serialVersionUID = 1823267026268112744L;
+	private static final long serialVersionUID = 952156510217072036L;
 
 	private final String TAG = "RadioServiceImpl";
 
@@ -62,6 +62,7 @@ public abstract class RadioServiceImpl implements RadioService, Serializable {
 	private List<Location> mLocationList = new ArrayList<Location>();
 	private List<String> mKeywordsList = new ArrayList<String>();
 	private List<Group> mGroupsList = new ArrayList<Group>();
+	private final List<RadioService> mSfServices = Collections.synchronizedList(new ArrayList<>());
 
 	final transient List<VisualMetadataListener> mSlideshowListeners = Collections.synchronizedList(new ArrayList<>());
 	final transient List<TextualMetadataListener> mLabelListeners = Collections.synchronizedList(new ArrayList<>());
@@ -360,6 +361,15 @@ public abstract class RadioServiceImpl implements RadioService, Serializable {
 		}
 	}
 
+	@Override
+	public ArrayList<RadioService> getFollowingServices() {
+		ArrayList<RadioService> ret = new ArrayList<>(mSfServices.size());
+		synchronized (mSfServices) {
+			ret.addAll(mSfServices);
+		}
+		return ret;
+	}
+
 	//callbacks from the tuner
 	void slideshowReceived(VisualDabSlideShow slideShow) {
 		for(VisualMetadataListener slsListener : mSlideshowListeners) {
@@ -398,9 +408,8 @@ public abstract class RadioServiceImpl implements RadioService, Serializable {
 
 	@NonNull ArrayList<RadioService> replaceLinkedRadioServicesWithKnown(@NonNull ArrayList<RadioService> linkedServices) {
 		ArrayList<RadioService> retLinkedServices = new ArrayList<>();
-
 		// retrieve list of known services
-		final List<RadioService> radioServices = Radio.getInstance().getRadioServices();
+		final List<RadioService> radioServices = RadioServiceManager.getInstance().getRadioServices(this.getRadioServiceType());
 		for (final RadioService linkedService : linkedServices) {
 			boolean foundRadioServiceInCurrentList = false;
 			for (final RadioService radioService : radioServices) {
@@ -426,17 +435,50 @@ public abstract class RadioServiceImpl implements RadioService, Serializable {
 		return retLinkedServices;
 	}
 
-	void serviceFollowingReceived(final ArrayList<RadioService> sfServices) {
-		final ArrayList<RadioService> sfRadioServices = new ArrayList<>(sfServices.size());
-		if (sfServices != null) {
-			sfRadioServices.addAll(replaceLinkedRadioServicesWithKnown(sfServices));
+	void setFollowingServices(@NonNull ArrayList<RadioService> sfServices) {
+		if(DEBUG) Log.d(TAG, "setFollowingServices sz=" + sfServices.size() + " for " +
+				this.toString());
+		synchronized (mSfServices) {
+			mSfServices.clear();
+			mSfServices.addAll(sfServices);
 		}
-
 		synchronized (mSfListeners) {
 			for (RadioServiceFollowingListener sfListener : mSfListeners) {
-				sfListener.newServiceFollowingRadioServices(sfRadioServices);
+				sfListener.newServiceFollowingRadioServices(sfServices);
 			}
 		}
+	}
+
+	// called from JNI
+	void serviceFollowingReceived(ArrayList<RadioService> sfServices) {
+		if (sfServices != null) {
+			if(DEBUG) Log.d(TAG, "serviceFollowingReceived sz=" + sfServices.size() + " for " +
+					this.toString());
+			// execute following on a thread because this may be a lengthy job
+			final RadioService radioService = this;
+			new Thread(() ->
+					RadioServiceManager.getInstance().updateAllServiceFollowingServices(radioService),
+					"sfUpdAll")
+					.start();
+		}
+	}
+
+	// returns true if the given sfServices are different to what was available before
+	boolean setServiceFollowingServices(ArrayList<RadioService> sfServices) {
+		boolean hasChanged = false;
+		if (sfServices != null && sfServices.size() > 0) {
+			// enhance ServiceFollowing services with already known information
+			ArrayList<RadioService> sfRadioServices = new ArrayList<>(sfServices.size());
+			sfRadioServices.addAll(replaceLinkedRadioServicesWithKnown(sfServices));
+
+			ArrayList<RadioService> prevList = getFollowingServices();
+			if (!prevList.equals(sfRadioServices) && sfRadioServices.size() > 0) {
+				// only real changes, no repetition of the same information
+				hasChanged = true;
+				setFollowingServices(sfRadioServices);
+			}
+		}
+		return hasChanged;
 	}
 
 	private transient DabAudioDecoder mAudioDec = null;
@@ -492,6 +534,10 @@ public abstract class RadioServiceImpl implements RadioService, Serializable {
 		} else {
 			Radio.getInstance().stopRadioService(this);
 		}
+	}
+
+	void serviceStarted() {
+		if(DEBUG)Log.d(TAG, "Service '" + getServiceLabel() + "' started");
 	}
 
 	void serviceStopped() {

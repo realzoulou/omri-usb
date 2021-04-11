@@ -1162,6 +1162,7 @@ void DabEnsemble::lookupEIdOnOtherFrequency(
                         servicePtr->setEnsembleId(targetEId);
                         servicePtr->setEnsembleFrequencyKHz(fli.frequencyKHz);
                         servicePtr->setServiceId(targetSId);
+                        servicePtr->setIsProgrammeService(true); // Service Following is meant for Programme Services only
 
                         std::cout << m_logTag << "   match: 0x" << std::hex << +freqInfo.id
                                   << std::dec
@@ -1425,7 +1426,11 @@ std::vector<std::shared_ptr<LinkedServiceDab>> DabEnsemble::getLinkedDabServices
      *   ===> is not implemented and no plan to do so
      */
 
-    std::cout << m_logTag << "collected " << collectedServices.size() << " linked services" << std::endl;
+    std::stringstream logStr;
+    logStr << m_logTag << +collectedServices.size() << " SF svcs for SId 0x"
+        << std::hex << +targetSId << std::dec << ",EId 0x" << std::hex << +targetEId << std::dec
+        << ",ECC 0x" << std::hex << +targetECC << std::dec << ",freq " << +targetFreqKHz << " kHz";
+    std::cout << logStr.str() << std::endl;
     return collectedServices;
 }
 

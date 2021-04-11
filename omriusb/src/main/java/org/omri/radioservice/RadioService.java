@@ -1,11 +1,12 @@
 package org.omri.radioservice;
 
-import java.util.List;
-
 import org.omri.radioservice.metadata.Group;
 import org.omri.radioservice.metadata.Location;
 import org.omri.radioservice.metadata.TermId;
 import org.omri.radioservice.metadata.Visual;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Copyright (C) 2016 Open Mobile Radio Interface (OMRI) Group
@@ -106,4 +107,11 @@ public interface RadioService {
 	 * @return {@code true} if otherSrv is the same {@link RadioService} as this {@link RadioService}.
 	 */
 	public boolean equalsRadioService(RadioService otherSrv);
+
+	/**
+	 * Returns a list of Following services associated with this {@link RadioService}
+	 * @return a list of Following services associated with this {@link RadioService}
+	 */
+	public ArrayList<RadioService> getFollowingServices();
+
 }

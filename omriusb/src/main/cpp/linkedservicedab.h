@@ -27,8 +27,9 @@ class LinkedServiceDab {
 
 public:
     explicit LinkedServiceDab() = default;
-    explicit LinkedServiceDab(uint8_t ecc, uint32_t sid, uint32_t eid, uint32_t efreqKHz) :
-        m_ecc(ecc), m_sid(sid), m_eid(eid), m_efreq(efreqKHz) {}
+    explicit LinkedServiceDab(uint8_t ecc, uint32_t sid, uint32_t eid, uint32_t efreqKHz,
+                              bool isProgrammeService) :
+        m_ecc(ecc), m_sid(sid), m_eid(eid), m_efreq(efreqKHz), m_isProgrammeService(isProgrammeService) {}
 
     virtual ~LinkedServiceDab() = default;
 
@@ -44,15 +45,20 @@ public:
     void setServiceId(uint32_t sid) { m_sid = sid; }
     uint32_t getServiceId() const { return m_sid; }
 
+    void setIsProgrammeService(bool isPS) { m_isProgrammeService = isPS; }
+    bool getIsProgrammeService() const { return m_isProgrammeService; }
+
     inline bool operator==(const LinkedServiceDab & other) const {
-        return other.m_ecc == m_ecc && other.m_eid == m_eid && other.m_sid == m_sid && other.m_efreq == m_efreq;
+        return other.m_ecc == m_ecc && other.m_eid == m_eid && other.m_sid == m_sid
+            && other.m_efreq == m_efreq && other.m_isProgrammeService == m_isProgrammeService;
     }
     inline bool operator!=(const LinkedServiceDab & other) const { return !operator==(other); }
 
     inline std::string to_string() const {
         std::stringstream str;
         str << "ecc 0x" << std::hex << +m_ecc << ",sid 0x" << +m_sid << ",eid 0x" << +m_eid
-            << std::dec << "," << +m_efreq << " kHz";
+            << std::dec << "," << +m_efreq << " kHz, ps " << std::boolalpha << m_isProgrammeService
+            << std::noboolalpha;
         return str.str();
     }
 
@@ -61,6 +67,7 @@ private:
     uint32_t m_sid{0};
     uint16_t m_eid{0};
     uint32_t m_efreq{0}; // kHz
+    bool m_isProgrammeService{false};
 };
 
 #endif // LINKEDSERVICEDAB_H

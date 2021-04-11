@@ -60,6 +60,7 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
     m_javaDabSrvSetEnsembleFrequencyMId = env->GetMethodID(m_javaDabServiceClass, "setEnsembleFrequency", "(I)V");
     m_javaDabSrvSetEnsembleIdMId = env->GetMethodID(m_javaDabServiceClass, "setEnsembleId", "(I)V");
     m_javaDabSrvSetServiceIdMId = env->GetMethodID(m_javaDabServiceClass, "setServiceId", "(I)V");
+    m_javaDabSrvSetIsProgrammeServiceMId = env->GetMethodID(m_javaDabServiceClass, "setIsProgrammeService", "(Z)V");
 
     //Audio data callback
     m_javaDabSrvAudioDataCallbackMId = env->GetMethodID(m_javaDabServiceClass, "audioData", "([BII)V");
@@ -101,6 +102,8 @@ JDabService::JDabService(JavaVM* javaVm, JNIEnv* env, jclass dabserviceClass, jc
     m_ensembleEcc = static_cast<uint8_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetEnsembleEccMId));
     m_ensembleId = static_cast<uint16_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetEnsembleIdMId));
     m_serviceId = static_cast<uint32_t >(env->CallIntMethod(m_linkedJavaDabServiceObject, m_javaDabSrvGetServiceIdMId));
+
+    m_sfServicesLastTime = std::chrono::steady_clock::now();
 
     std::cout << m_logTag << "Constructed SId " << std::hex << m_serviceId << std::dec << std::endl;
 }
@@ -361,7 +364,6 @@ void JDabService::decodeAudio(bool decode) {
         if(m_lastSlideshow != nullptr) {
             callJavaSlideshowCallback(m_lastSlideshow);
         }
-        callJavaServiceFollowingDabServicesChanged();
     }
     if (!JNI_DETACH(m_javaVm, wasDetached)) {
         std::cerr << m_logTag << "jniEnv thread failed to detach!" << std::endl;
@@ -544,11 +546,46 @@ void JDabService::callJavaServiceFollowingDabServicesChanged() {
         const auto ecc = pEnsemble->getEnsembleEcc();
         const auto efreqKHz = pService->getEnsembleFrequency() / 1000;
         const auto sid = pService->getServiceId();
+        const auto isPS = pService->isProgrammeService();
 
-        LinkedServiceDab currentService(ecc, sid, eid, efreqKHz);
-        const auto sfServices = pEnsemble->getLinkedDabServices(currentService);
-        for (const auto & sfService : sfServices ) {
-            std::cout << m_logTag << sfService->to_string() << std::endl;
+        LinkedServiceDab currentService(ecc, sid, eid, efreqKHz, isPS);
+        const auto & sfServices = pEnsemble->getLinkedDabServices(currentService);
+
+        // find out if sfServices is stable, or if the ensemble is still collecting them
+        bool isEqual = (sfServices.size() == m_sfServices.size());
+        if (isEqual) {
+            for (int i = 0; i < sfServices.size(); i++) {
+                const LinkedServiceDab & cmp1 = *(sfServices[i].get());
+                const LinkedServiceDab & cmp2 = *(m_sfServices[i].get());
+                if (cmp1 != cmp2) {
+                    isEqual = false;
+                    break;
+                }
+            }
+        }
+        bool isSteady;
+        if (!isEqual) {
+            // still different
+            isSteady = false;
+            m_sfServicesSteady = false; // in case it was steady previously
+            m_sfServicesLastTime = std::chrono::steady_clock::now();
+            m_sfServices = sfServices;
+        } else {
+            // equal, but steady?
+            auto timeDiff = std::chrono::steady_clock::now() - m_sfServicesLastTime;
+            // consider steady if no more changes after 1 minute
+            // ETSI TS 103 176 V2.4.1 defines max 2 minutes for FIG 0/6, FIG 0/21, FIG 0/24
+            // but typically updates are faster, thus use 1 min
+            isSteady = (timeDiff >= std::chrono::minutes(1));
+        }
+        if (!isSteady) {
+            return;
+        } else {
+            if (m_sfServicesSteady) {
+                return; // nothing new, equal AND steady
+            } else {
+                m_sfServicesSteady = true; // last report
+            }
         }
 
         bool wasDetached;
@@ -572,11 +609,15 @@ void JDabService::callJavaServiceFollowingDabServicesChanged() {
                                     static_cast<jint>(s.get()->getEnsembleId()));
                 enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetServiceIdMId,
                                     static_cast<jint>(s.get()->getServiceId()));
+                enve->CallVoidMethod(jLinkedServiceDab, m_javaDabSrvSetIsProgrammeServiceMId,
+                                     static_cast<jboolean>(s.get()->getIsProgrammeService()));
 
                 enve->CallBooleanMethod(arrayList, m_ArrayList_add_mId, jLinkedServiceDab);
+                enve->DeleteLocalRef(jLinkedServiceDab);
             }
             enve->CallVoidMethod(m_linkedJavaDabServiceObject,
                                  m_javaDabSrvServiceFollowingReceived, arrayList);
+            enve->DeleteLocalRef(arrayList);
         }
     }
 
