@@ -497,11 +497,11 @@ bool RaonTunerInput::tunerPowerUp() {
         }
     }
 
-    std::cout << LOG_TAG << " PowerUp failed!" << std::endl;
+    std::clog << LOG_TAG << " PowerUp failed!" << std::endl;
     return false;
 }
 
-void RaonTunerInput::switchPage(const RaonTunerInput::REGISTER_PAGE regPage, const bool doRetry) {
+void RaonTunerInput::switchPage(const RaonTunerInput::REGISTER_PAGE regPage, const uint8_t retryNum) {
     bool anyFailure{false};
     std::vector<uint8_t> switchData{0x21, 0x00, 0x00, 0x02, 0x03, static_cast<uint8_t >(regPage)};
     if (m_usbDevice != nullptr) {
@@ -540,13 +540,15 @@ void RaonTunerInput::switchPage(const RaonTunerInput::REGISTER_PAGE regPage, con
     } else {
         std::clog << LOG_TAG << "switchPage: no USB device" << std::endl;
     }
-    if (anyFailure && doRetry) {
-        std::clog << LOG_TAG << "switchPage: retry" << std::endl;
-        switchPage(regPage, false);
+    uint8_t lRetries = retryNum + 1;
+    if (anyFailure && (MAX_RETRY_SWITCH_PAGE <= lRetries)) {
+        std::clog << LOG_TAG << "switchPage: retry #" << +lRetries << std::endl;
+        usleep(USLEEP_BEFORE_RETRY);
+        switchPage(regPage, lRetries);
     }
 }
 
-void RaonTunerInput::setRegister(const uint8_t reg, const uint8_t val, const bool doRetry) {
+void RaonTunerInput::setRegister(const uint8_t reg, const uint8_t val, const uint8_t retryNum) {
     bool anyFailure{false};
     std::vector<uint8_t> setRegData{0x21, 0x00, 0x00, 0x02, reg, val};
     if (m_usbDevice != nullptr) {
@@ -586,13 +588,15 @@ void RaonTunerInput::setRegister(const uint8_t reg, const uint8_t val, const boo
     } else {
         std::clog << LOG_TAG << "setRegister: no USB device" << std::endl;
     }
-    if (anyFailure && doRetry) {
-        std::clog << LOG_TAG << "setRegister: retry" << std::endl;
-        setRegister(reg, val, false);
+    uint8_t lRetries = retryNum + 1;
+    if (anyFailure && (MAX_RETRY_SET_REGISTER <= lRetries)) {
+        std::clog << LOG_TAG << "setRegister: retry #" << +lRetries << std::endl;
+        usleep(USLEEP_BEFORE_RETRY);
+        setRegister(reg, val, lRetries);
     }
 }
 
-uint8_t RaonTunerInput::readRegister(const uint8_t reg, const bool doRetry) {
+uint8_t RaonTunerInput::readRegister(const uint8_t reg, const uint8_t retryNum) {
     bool anyFailure{false};
     std::vector<uint8_t> xferbuff{0x22, 0x00, 0x01, 0x00, reg};
     if (m_usbDevice != nullptr) {
@@ -623,9 +627,12 @@ uint8_t RaonTunerInput::readRegister(const uint8_t reg, const bool doRetry) {
     } else {
         std::clog << LOG_TAG << "readRegister: no USB device" << std::endl;
     }
-    if (anyFailure && doRetry) {
-        std::clog << LOG_TAG << "readRegister: retry" << std::endl;
-        return readRegister(reg, false);
+
+    uint8_t lRetries = retryNum + 1;
+    if (anyFailure && (MAX_RETRY_READ_REGISTER <= lRetries)) {
+        std::clog << LOG_TAG << "readRegister: retry #" << +lRetries << std::endl;
+        usleep(USLEEP_BEFORE_RETRY);
+        return readRegister(reg, lRetries);
     }
     return 0;
 }
@@ -1766,7 +1773,6 @@ void RaonTunerInput::readData() {
     bool msc0Int = (int_type_val1 & MSC0_E_INT) >> 1u;
     bool ficInt = (int_type_val1 & FIC_E_INT);
 
-    //TODO ensemble reconfiguration signalling
     //added to possibly see reconfigure
     uint8_t int_type_val2 = readRegister(INT_E_STATH);
     bool ofdmNis = static_cast<bool>((int_type_val2 & 0x80) >> 7);
@@ -1883,14 +1889,14 @@ void RaonTunerInput::getAntennaLevel() {
 
     switchPage(REGISTER_PAGE_DD);
 
-    lock_stat = (readRegister(0x37) & 0x01) != 0;
+    lock_stat = (readRegister(0x37u) & 0x01u) != 0;
     if(lock_stat) {
         // MSC CER period counter for accumulation
         rcnt3 = readRegister(0x88);
         rcnt2 = readRegister(0x89);
         rcnt1 = readRegister(0x8A);
         rcnt0 = readRegister(0x8B);
-        cer_period_cnt = (rcnt3 << 24) | (rcnt2 << 16) | (rcnt1 << 8) | rcnt0; // 442368
+        cer_period_cnt = (rcnt3 << 24u) | (rcnt2 << 16u) | (rcnt1 << 8u) | rcnt0; // 442368
 
         rcnt3 = readRegister(0x8C);
         rcnt2 = readRegister(0x8D);
@@ -1904,7 +1910,7 @@ void RaonTunerInput::getAntennaLevel() {
         return;
     }
 
-    fec_sync = (uint8_t)((readRegister(0xD7) >> 4) & 0x1);
+    fec_sync = (uint8_t)((readRegister(0xD7) >> 4) & 0x01);
 
     if(cer_period_cnt != 0) {
         cer_cnt = (rcnt3 << 24) | (rcnt2 << 16) | (rcnt1 << 8) | rcnt0;

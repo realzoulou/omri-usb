@@ -306,10 +306,17 @@ private:
             0
     };
 
+    // definitions of max retries, i.e. after a failed attempt, how often is a retry done
+    static constexpr uint8_t MAX_RETRY_SWITCH_PAGE   = 2u;
+    static constexpr uint8_t MAX_RETRY_READ_REGISTER = 2u;
+    static constexpr uint8_t MAX_RETRY_SET_REGISTER  = 2u;
+    // sleep time before a retry
+    static constexpr useconds_t USLEEP_BEFORE_RETRY = 2000u; // 2 millisec
+
     //TunerSpecific
-    void setRegister(const uint8_t reg, const uint8_t val, bool doRetry = false);
-    uint8_t readRegister(const uint8_t reg, bool doRetry = false);
-    void switchPage(const REGISTER_PAGE regPage, bool doRetry = true);
+    void setRegister(const uint8_t reg, const uint8_t val, const uint8_t retryNum = 0);
+    uint8_t readRegister(const uint8_t reg, const uint8_t retryNum = 0);
+    void switchPage(const REGISTER_PAGE regPage, const uint8_t retryNum = 0);
 
     bool tunerPowerUp();
     void configurePowerType();
