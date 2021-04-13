@@ -18,12 +18,11 @@
  *
  */
 
-#include "dabensemble.h"
-
 #include <functional>
 #include <iostream>
 #include <sstream>
 
+#include "dabensemble.h"
 #include "timer.h"
 
 DabEnsemble::DabEnsemble() {
@@ -57,7 +56,7 @@ void DabEnsemble::reset() {
     }
 
     // reset start time
-    m_ensembleCollectStartTime = std::chrono::steady_clock::time_point();
+    m_ensembleCollectStartTime = std::chrono::steady_clock::now();
 
     m_ensembleId = EID_INVALID;
     m_cifCntHigh = 0x00;
@@ -977,10 +976,10 @@ void DabEnsemble::fig_00_done_cb(Fig::FIG_00_TYPE type) {
     // FIG 0/13 optional in DAB standard, transmitted once every second in DAB+
     auto timeDiff = std::chrono::steady_clock::now() - m_ensembleCollectStartTime;
     if (!m_fig013done) {
-        if (timeDiff >= std::chrono::seconds(3)) {
+        if (timeDiff >= DabEnsemble::ENSEMBLE_COLLECT_FIG013_TIMEOUT) {
             m_fig013done = true;
             hasSthChanged = true;
-            std::cout << m_logTag << " Timeout FIG 0/13" << std::endl;
+            std::clog << m_logTag << " Timeout FIG 0/13" << std::endl;
         }
     }
 
@@ -1042,18 +1041,35 @@ void DabEnsemble::fig_01_done_cb(Fig::FIG_01_TYPE type) {
 
 void DabEnsemble::checkServiceSanity(const uint32_t serviceId ) {
     std::lock_guard<std::recursive_mutex> lockGuard(m_mutex);
+    bool logAsWarning = false;
+    const auto timeDiff = std::chrono::steady_clock::now() - m_ensembleCollectStartTime;
+    if (timeDiff >= DabEnsemble::ENSEMBLE_COLLECT_WARNING_THREASHOLD) {
+        logAsWarning = true;
+    }
 
     if (serviceId != DabService::SID_INVALID) {
         // find specific service and check its sanity
         const auto & iter = m_servicesMap.find(serviceId);
         if (iter != m_servicesMap.cend()) {
             if (! iter->second.checkSanity() ){
-                std::cout << m_logTag << "checkServiceSanity failed for SId 0x" << std::hex << +serviceId << std::dec << std::endl;
+                std::stringstream logStr;
+                logStr << m_logTag << "checkServiceSanity failed for SId 0x" << std::hex << +serviceId << std::dec;
+                if (logAsWarning) {
+                    std::clog << logStr.str() << std::endl;
+                } else {
+                    std::cout << logStr.str() << std::endl;
+                }
                 return;
             }
         } else {
             // cannot find specific service
-            std::cout << m_logTag << "checkServiceSanity failed to find SId 0x" << std::hex << +serviceId << std::dec << std::endl;
+            std::stringstream logStr;
+            logStr << m_logTag << "checkServiceSanity failed find SId 0x" << std::hex << +serviceId << std::dec;
+            if (logAsWarning) {
+                std::clog << logStr.str() << std::endl;
+            } else {
+                std::cout << logStr.str() << std::endl;
+            }
             return;
         }
     } else {
@@ -1069,14 +1085,19 @@ void DabEnsemble::checkServiceSanity(const uint32_t serviceId ) {
                 }
                 if (numPrimAudioComponents > 1) {
                     std::clog << m_logTag << "checkServiceSanity for SId 0x" << std::hex
-                              << +srvMapEntry.second.getServiceId()
-                              << ": num primary audio stream components: "
-                              << +numPrimAudioComponents << std::endl;
+                              << +srvMapEntry.second.getServiceId() << std::dec << ": "
+                              << +numPrimAudioComponents << " prim audio stream components" << std::endl;
                 }
             }
             if (!wasSane) {
-                std::cout << m_logTag << "checkServiceSanity failed to find SId 0x" << std::hex
-                          << +srvMapEntry.second.getServiceId() << std::dec << std::endl;
+                std::stringstream logStr;
+                logStr << m_logTag << "checkServiceSanity failed find SId 0x" << std::hex
+                       << +srvMapEntry.second.getServiceId() << std::dec;
+                if (logAsWarning) {
+                    std::clog << logStr.str() << std::endl;
+                } else {
+                    std::cout << logStr.str() << std::endl;
+                }
                 return;
             }
         }
@@ -1086,9 +1107,15 @@ void DabEnsemble::checkServiceSanity(const uint32_t serviceId ) {
     logStr << m_logTag << "checkServiceSanity failed EId=0x" << std::hex << +getEnsembleId() << std::dec;
     if (getEnsembleEcc() == ECC_INVALID || getEnsembleId() == EID_INVALID
        || getEnsembleLabelCharset() == CHARSET_INVALID || getEnsembleLabel().empty() || getEnsembleShortLabel().empty()) {
-        logStr << " ECC:0x" << std::hex << +getEnsembleEcc() << std::dec << " '" << getEnsembleLabel() << "', '"
-               << getEnsembleShortLabel() << "' charset:0x" << std::hex << +getEnsembleLabelCharset() << std::dec;
-        std::cout << logStr.str() << std::endl;
+        logStr << " ECC:0x" << std::hex << +getEnsembleEcc() << std::dec << " '"
+               << getEnsembleLabel() << "', '"
+               << getEnsembleShortLabel() << "' charset:0x" << std::hex
+               << +getEnsembleLabelCharset() << std::dec;
+        if (logAsWarning) {
+            std::clog << logStr.str() << std::endl;
+        } else {
+            std::cout << logStr.str() << std::endl;
+        }
         return;
     }
 

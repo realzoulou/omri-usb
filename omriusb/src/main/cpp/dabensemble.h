@@ -158,8 +158,12 @@ private:
 private:
     bool m_isInitializing{false};
     std::atomic<bool> m_resetting{false};
-    std::chrono::steady_clock::time_point m_ensembleCollectStartTime;
 
+    const std::chrono::seconds ENSEMBLE_COLLECT_WARNING_THREASHOLD = std::chrono::seconds(3);
+    const std::chrono::seconds ENSEMBLE_COLLECT_FIG013_TIMEOUT = std::chrono::seconds(3);
+    std::chrono::steady_clock::time_point m_ensembleCollectStartTime = std::chrono::steady_clock::now();
+
+    
     //FIG 0/1 information
     uint16_t m_ensembleId{EID_INVALID};
     uint8_t m_cifCntHigh{0x00};
