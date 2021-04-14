@@ -181,6 +181,10 @@ public class TunerUsbImpl implements TunerUsb {
 
 	@Override
 	public void startRadioServiceScan() {
+		if (getCurrentRunningRadioService() != null) {
+			stopRadioService();
+			SystemClock.sleep(300); // allow time to process the request
+		}
 		UsbHelper.getInstance().startEnsembleScan(mUsbDevice.getDeviceName());
 		synchronized (mScannedServices) {
 			mScannedServices.clear();
@@ -189,6 +193,10 @@ public class TunerUsbImpl implements TunerUsb {
 
 	@Override
 	public void startRadioServiceScan(Object scanOptions) {
+		if (getCurrentRunningRadioService() != null) {
+			stopRadioService();
+			SystemClock.sleep(300); // allow time to process the request
+		}
 		if(scanOptions != null) {
 			if(scanOptions instanceof Bundle) {
 				if(((Bundle)scanOptions).getBoolean(RadioImpl.SERVICE_SEARCH_OPT_DELETE_SERVICES, false)) {
