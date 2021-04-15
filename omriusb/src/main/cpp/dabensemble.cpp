@@ -746,7 +746,7 @@ void DabEnsemble::fig00_13_input(const Fig_00_Ext_13& fig13) {
                 }
             }
         } else {
-            std::cout << m_logTag << " SId 0x " << std::hex << +uAppInfo.serviceID << std::dec << " not found" << std::endl;
+            std::cout << m_logTag << " SId 0x" << std::hex << +uAppInfo.serviceID << std::dec << " not found" << std::endl;
         }
     }
 }

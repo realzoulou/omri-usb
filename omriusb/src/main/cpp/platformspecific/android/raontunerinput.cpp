@@ -541,7 +541,7 @@ void RaonTunerInput::switchPage(const RaonTunerInput::REGISTER_PAGE regPage, con
         std::clog << LOG_TAG << "switchPage: no USB device" << std::endl;
     }
     uint8_t lRetries = retryNum + 1;
-    if (anyFailure && (MAX_RETRY_SWITCH_PAGE <= lRetries)) {
+    if (anyFailure && (lRetries <= MAX_RETRY_SWITCH_PAGE)) {
         std::clog << LOG_TAG << "switchPage: retry #" << +lRetries << std::endl;
         usleep(USLEEP_BEFORE_RETRY);
         switchPage(regPage, lRetries);
@@ -589,7 +589,7 @@ void RaonTunerInput::setRegister(const uint8_t reg, const uint8_t val, const uin
         std::clog << LOG_TAG << "setRegister: no USB device" << std::endl;
     }
     uint8_t lRetries = retryNum + 1;
-    if (anyFailure && (MAX_RETRY_SET_REGISTER <= lRetries)) {
+    if (anyFailure && (lRetries <= MAX_RETRY_SET_REGISTER)) {
         std::clog << LOG_TAG << "setRegister: retry #" << +lRetries << std::endl;
         usleep(USLEEP_BEFORE_RETRY);
         setRegister(reg, val, lRetries);
@@ -629,7 +629,7 @@ uint8_t RaonTunerInput::readRegister(const uint8_t reg, const uint8_t retryNum) 
     }
 
     uint8_t lRetries = retryNum + 1;
-    if (anyFailure && (MAX_RETRY_READ_REGISTER <= lRetries)) {
+    if (anyFailure && (lRetries <= MAX_RETRY_READ_REGISTER)) {
         std::clog << LOG_TAG << "readRegister: retry #" << +lRetries << std::endl;
         usleep(USLEEP_BEFORE_RETRY);
         return readRegister(reg, lRetries);
