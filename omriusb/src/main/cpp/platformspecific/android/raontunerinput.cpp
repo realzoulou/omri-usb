@@ -395,7 +395,8 @@ std::string RaonTunerInput::getSoftwareVersion() const {
 }
 
 bool RaonTunerInput::hasUsbIoErrors() {
-    if (mUsbReadFailure > 10 || mUsbWriteFailure > 10) {
+    const int maxFailures = 10 * (std::max({MAX_RETRY_SWITCH_PAGE, MAX_RETRY_READ_REGISTER, MAX_RETRY_SET_REGISTER}) +1);
+    if (mUsbReadFailure > maxFailures || mUsbWriteFailure > maxFailures) {
         if (!mUsbIoErrorReported) {
             mUsbIoErrorReported = true;
             std::clog << LOG_TAG << "too many USB IO failures" << std::endl;
@@ -502,6 +503,7 @@ bool RaonTunerInput::tunerPowerUp() {
 }
 
 void RaonTunerInput::switchPage(const RaonTunerInput::REGISTER_PAGE regPage, const uint8_t retryNum) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_tunermutex);
     bool anyFailure{false};
     std::vector<uint8_t> switchData{0x21, 0x00, 0x00, 0x02, 0x03, static_cast<uint8_t >(regPage)};
     if (m_usbDevice != nullptr) {
@@ -549,6 +551,7 @@ void RaonTunerInput::switchPage(const RaonTunerInput::REGISTER_PAGE regPage, con
 }
 
 void RaonTunerInput::setRegister(const uint8_t reg, const uint8_t val, const uint8_t retryNum) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_tunermutex);
     bool anyFailure{false};
     std::vector<uint8_t> setRegData{0x21, 0x00, 0x00, 0x02, reg, val};
     if (m_usbDevice != nullptr) {
@@ -597,6 +600,7 @@ void RaonTunerInput::setRegister(const uint8_t reg, const uint8_t val, const uin
 }
 
 uint8_t RaonTunerInput::readRegister(const uint8_t reg, const uint8_t retryNum) {
+    std::lock_guard<std::recursive_mutex> lockGuard(m_tunermutex);
     bool anyFailure{false};
     std::vector<uint8_t> xferbuff{0x22, 0x00, 0x01, 0x00, reg};
     if (m_usbDevice != nullptr) {

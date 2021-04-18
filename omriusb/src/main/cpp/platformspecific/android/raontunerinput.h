@@ -99,6 +99,7 @@ private:
     int m_ficCollectionWaitLoops{300};
 
     std::recursive_mutex m_classmutex;
+    std::recursive_mutex m_tunermutex;
 
     ConcurrentQueue<std::function<void(void)>> m_scanCommandQueue;
     std::atomic<bool> m_scanCommandThreadRunning{false};
