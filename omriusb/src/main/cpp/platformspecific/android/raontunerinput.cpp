@@ -395,7 +395,8 @@ std::string RaonTunerInput::getSoftwareVersion() const {
 }
 
 bool RaonTunerInput::hasUsbIoErrors() {
-    const int maxFailures = 10 * (std::max({MAX_RETRY_SWITCH_PAGE, MAX_RETRY_READ_REGISTER, MAX_RETRY_SET_REGISTER}) +1);
+    const int maxFailures = 10 * (std::max({MAX_RETRY_SWITCH_PAGE, MAX_RETRY_READ_REGISTER, MAX_RETRY_SET_REGISTER})
+            +1); // +1 because number attempts = 1 + number retries !
     if (mUsbReadFailure > maxFailures || mUsbWriteFailure > maxFailures) {
         if (!mUsbIoErrorReported) {
             mUsbIoErrorReported = true;
@@ -489,7 +490,7 @@ void RaonTunerInput::ensembleCollectFinished() {
 
 bool RaonTunerInput::tunerPowerUp() {
     //trying some time to power the chip up
-    for(int i = 0; i < 100; i++) {
+    for(int i = 0; i < 100 && m_commandThreadRunning; i++) {
         switchPage(REGISTER_PAGE_HOST);
         setRegister(0x7D, 0x06);
         if(readRegister(0x7D) == 0x06) {
