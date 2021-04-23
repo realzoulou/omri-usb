@@ -62,7 +62,7 @@ dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
 //    implementation 'de.irt.hradio:dabaudiodecoderplugininterface:1.0.0'
     implementation project(path: ':dabaudiodecoderplugininterface')
-    implementation 'com.google.android.exoplayer:exoplayer-core:2.7.3'
+    implementation 'com.google.android.exoplayer:exoplayer-core:2.13.3'
     implementation 'androidx.annotation:annotation:1.2.0'
     def minidnsVersion = '0.3.4'
     implementation 'org.minidns:minidns-core:' + minidnsVersion
