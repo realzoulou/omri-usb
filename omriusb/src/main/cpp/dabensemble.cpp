@@ -1084,14 +1084,14 @@ void DabEnsemble::checkServiceSanity(const uint32_t serviceId ) {
                     }
                 }
                 if (numPrimAudioComponents > 1) {
-                    std::clog << m_logTag << "checkServiceSanity for SId 0x" << std::hex
+                    std::clog << m_logTag << "checkServiceSanity for PS SId 0x" << std::hex
                               << +srvMapEntry.second.getServiceId() << std::dec << ": "
                               << +numPrimAudioComponents << " prim audio stream components" << std::endl;
                 }
             }
             if (!wasSane) {
                 std::stringstream logStr;
-                logStr << m_logTag << "checkServiceSanity failed find SId 0x" << std::hex
+                logStr << m_logTag << "checkServiceSanity failed for SId 0x" << std::hex
                        << +srvMapEntry.second.getServiceId() << std::dec;
                 if (logAsWarning) {
                     std::clog << logStr.str() << std::endl;
